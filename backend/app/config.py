@@ -59,6 +59,9 @@ class DevelopmentConfig(Config):
     )
     SQLALCHEMY_ECHO = True
 
+    # Disable rate limiting in development to avoid Redis dependency
+    RATELIMIT_ENABLED = False
+
 
 class ProductionConfig(Config):
     """Production configuration"""
