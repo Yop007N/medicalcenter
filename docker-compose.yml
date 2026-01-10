@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: medical-services-db
+    environment:
+      POSTGRES_DB: medical_services_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - medical-services-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: medical-services-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - medical-services-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+    container_name: medical-services-backend
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/medical_services_dev
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - medical-services-network
+
+  # Celery Worker
+  celery:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+    container_name: medical-services-celery
+    command: celery -A celery_worker.celery worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/medical_services_dev
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - medical-services-network
+
+  # Frontend Web
+  frontend-web:
+    build:
+      context: .
+      dockerfile: docker/frontend-web/Dockerfile
+    container_name: medical-services-frontend-web
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - medical-services-network
+
+  # Frontend PWA
+  frontend-pwa:
+    build:
+      context: .
+      dockerfile: docker/frontend-pwa/Dockerfile
+    container_name: medical-services-frontend-pwa
+    ports:
+      - "8100:80"
+    depends_on:
+      - backend
+    networks:
+      - medical-services-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  medical-services-network:
+    driver: bridge

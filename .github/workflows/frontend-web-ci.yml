@@ -1,0 +1,47 @@
+name: Frontend Web CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend-web/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend-web/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend-web/package-lock.json
+
+    - name: Install dependencies
+      working-directory: frontend-web
+      run: npm ci
+
+    - name: Run linting
+      working-directory: frontend-web
+      run: npm run lint
+
+    - name: Run tests
+      working-directory: frontend-web
+      run: npm test -- --watch=false --code-coverage
+
+    - name: Build
+      working-directory: frontend-web
+      run: npm run build -- --configuration production
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-web-build
+        path: frontend-web/dist/

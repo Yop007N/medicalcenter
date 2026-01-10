@@ -1,0 +1,28 @@
+{
+  "app": {
+    "title": "Medical Services",
+    "dashboard": "Panel de Control",
+    "professionals": "Profesionales",
+    "patients": "Pacientes",
+    "appointments": "Turnos",
+    "medical_records": "Fichas Médicas",
+    "budgets": "Presupuestos",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "remember_me": "Recordarme"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar"
+  }
+}

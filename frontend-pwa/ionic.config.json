@@ -1,0 +1,7 @@
+{
+  "name": "medical-services-pwa",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

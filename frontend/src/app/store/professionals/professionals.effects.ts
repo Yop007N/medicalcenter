@@ -1,0 +1,137 @@
+import { Injectable, inject } from '@angular/core';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { of } from 'rxjs';
+import { map, catchError, switchMap, tap } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
+import { Professional } from '../../models';
+import { NotificationService } from '../../core/services';
+import * as ProfessionalsActions from './professionals.actions';
+
+@Injectable()
+export class ProfessionalsEffects {
+  private actions$ = inject(Actions);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private notification = inject(NotificationService);
+
+  loadProfessionals$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.loadProfessionals),
+      switchMap(() =>
+        this.http.get<Professional[]>(`${environment.apiUrl}/professionals`).pipe(
+          map(professionals => ProfessionalsActions.loadProfessionalsSuccess({ professionals })),
+          catchError(error => of(ProfessionalsActions.loadProfessionalsFailure({
+            error: error.error?.message || 'Error al cargar profesionales'
+          })))
+        )
+      )
+    )
+  );
+
+  loadProfessional$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.loadProfessional),
+      switchMap(({ id }) =>
+        this.http.get<Professional>(`${environment.apiUrl}/professionals/${id}`).pipe(
+          map(professional => ProfessionalsActions.loadProfessionalSuccess({ professional })),
+          catchError(error => of(ProfessionalsActions.loadProfessionalFailure({
+            error: error.error?.message || 'Error al cargar profesional'
+          })))
+        )
+      )
+    )
+  );
+
+  createProfessional$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.createProfessional),
+      switchMap(({ professional }) =>
+        this.http.post<Professional>(`${environment.apiUrl}/professionals`, professional).pipe(
+          map(newProfessional => ProfessionalsActions.createProfessionalSuccess({ professional: newProfessional })),
+          catchError(error => of(ProfessionalsActions.createProfessionalFailure({
+            error: error.error?.message || 'Error al crear profesional'
+          })))
+        )
+      )
+    )
+  );
+
+  createProfessionalSuccess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.createProfessionalSuccess),
+      tap(() => {
+        this.notification.showSuccess('Profesional creado correctamente');
+        this.router.navigate(['/professionals']);
+      })
+    ),
+    { dispatch: false }
+  );
+
+  updateProfessional$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.updateProfessional),
+      switchMap(({ id, professional }) =>
+        this.http.put<Professional>(`${environment.apiUrl}/professionals/${id}`, professional).pipe(
+          map(updatedProfessional => ProfessionalsActions.updateProfessionalSuccess({ professional: updatedProfessional })),
+          catchError(error => of(ProfessionalsActions.updateProfessionalFailure({
+            error: error.error?.message || 'Error al actualizar profesional'
+          })))
+        )
+      )
+    )
+  );
+
+  updateProfessionalSuccess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.updateProfessionalSuccess),
+      tap(() => {
+        this.notification.showSuccess('Profesional actualizado correctamente');
+        this.router.navigate(['/professionals']);
+      })
+    ),
+    { dispatch: false }
+  );
+
+  deleteProfessional$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.deleteProfessional),
+      switchMap(({ id }) =>
+        this.http.delete(`${environment.apiUrl}/professionals/${id}`).pipe(
+          map(() => ProfessionalsActions.deleteProfessionalSuccess({ id })),
+          catchError(error => of(ProfessionalsActions.deleteProfessionalFailure({
+            error: error.error?.message || 'Error al eliminar profesional'
+          })))
+        )
+      )
+    )
+  );
+
+  deleteProfessionalSuccess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(ProfessionalsActions.deleteProfessionalSuccess),
+      tap(() => {
+        this.notification.showSuccess('Profesional eliminado correctamente');
+        this.router.navigate(['/professionals']);
+      })
+    ),
+    { dispatch: false }
+  );
+
+  handleError$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(
+        ProfessionalsActions.loadProfessionalsFailure,
+        ProfessionalsActions.loadProfessionalFailure,
+        ProfessionalsActions.createProfessionalFailure,
+        ProfessionalsActions.updateProfessionalFailure,
+        ProfessionalsActions.deleteProfessionalFailure
+      ),
+      tap(({ error }) => {
+        this.notification.showError(error);
+      })
+    ),
+    { dispatch: false }
+  );
+}

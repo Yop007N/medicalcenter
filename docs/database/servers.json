@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Medical Services DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "medical_services_dev",
+      "Username": "medical_user",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpassfile"
+    }
+  }
+}

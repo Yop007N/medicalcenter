@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: medical-services-postgres
+    environment:
+      POSTGRES_DB: medical_services_dev
+      POSTGRES_USER: medical_user
+      POSTGRES_PASSWORD: medical_pass_2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docs/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - medical-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medical_user -d medical_services_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin 4
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: medical-services-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@medical.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docs/database/servers.json:/pgadmin4/servers.json
+    networks:
+      - medical-network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  medical-network:
+    driver: bridge

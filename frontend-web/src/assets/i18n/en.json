@@ -1,0 +1,28 @@
+{
+  "app": {
+    "title": "Medical Services",
+    "dashboard": "Dashboard",
+    "professionals": "Professionals",
+    "patients": "Patients",
+    "appointments": "Appointments",
+    "medical_records": "Medical Records",
+    "budgets": "Budgets",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "remember_me": "Remember me"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter"
+  }
+}

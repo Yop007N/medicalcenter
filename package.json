@@ -1,0 +1,36 @@
+{
+  "name": "medical-services",
+  "version": "1.0.0",
+  "description": "Comprehensive clinical management system with hybrid cloud-local architecture",
+  "scripts": {
+    "backend:install": "cd backend && pip install -r requirements/dev.txt",
+    "backend:start": "cd backend && python run.py",
+    "backend:test": "cd backend && pytest",
+    "frontend-web:install": "cd frontend-web && npm install",
+    "frontend-web:start": "cd frontend-web && npm start",
+    "frontend-web:build": "cd frontend-web && npm run build",
+    "frontend-web:test": "cd frontend-web && npm test",
+    "frontend-pwa:install": "cd frontend-pwa && npm install",
+    "frontend-pwa:start": "cd frontend-pwa && ionic serve",
+    "frontend-pwa:build": "cd frontend-pwa && npm run ionic:build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "install:all": "npm run backend:install && npm run frontend-web:install && npm run frontend-pwa:install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourorg/medical-services.git"
+  },
+  "keywords": [
+    "medical",
+    "healthcare",
+    "clinic",
+    "appointments",
+    "ehr",
+    "emr"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "private": true
+}

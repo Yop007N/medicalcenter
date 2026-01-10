@@ -1,0 +1,36 @@
+# Base requirements for all environments
+
+# Flask
+Flask==3.0.0
+Flask-RESTful==0.3.10
+Flask-CORS==4.0.0
+
+# Database
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.23
+psycopg2-binary==2.9.10
+alembic==1.12.1
+
+# Authentication
+Flask-JWT-Extended==4.6.0
+bcrypt==4.1.1
+
+# Validation & Serialization
+Flask-Marshmallow==0.15.0
+marshmallow==3.20.1
+marshmallow-sqlalchemy==0.29.0
+
+# Async Tasks
+celery==5.3.4
+redis==5.0.1
+
+# Storage
+boto3==1.29.7
+
+# Utils
+python-dotenv==1.0.0
+python-dateutil==2.8.2
+pytz==2023.3
+
+# API Documentation
+flasgger==0.9.7.1

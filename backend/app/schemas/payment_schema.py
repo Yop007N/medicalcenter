@@ -1,0 +1,32 @@
+# -*- coding: utf-8 -*-
+"""
+Payment Schema - Serialization for Payment model
+"""
+
+from marshmallow import fields, validate, post_dump
+from app.extensions import ma
+from app.models.payment import Payment
+
+
+class PaymentSchema(ma.SQLAlchemyAutoSchema):
+    """Payment schema for serialization"""
+
+    class Meta:
+        model = Payment
+        load_instance = True
+        include_fk = True
+
+    payment_status = fields.Str(
+        validate=validate.OneOf(['pending', 'completed', 'failed', 'refunded'])
+    )
+
+    payment_method = fields.Str(
+        validate=validate.OneOf(['cash', 'card', 'transfer', 'insurance', 'check', 'other'])
+    )
+
+    # Add transaction_reference as alias for frontend compatibility
+    transaction_reference = fields.Method('get_transaction_reference', dump_only=True)
+
+    def get_transaction_reference(self, obj):
+        """Return transaction_id as transaction_reference for frontend"""
+        return obj.transaction_id

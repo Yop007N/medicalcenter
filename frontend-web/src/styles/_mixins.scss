@@ -1,0 +1,25 @@
+// Responsive breakpoints
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == 'small' {
+    @media (min-width: 600px) { @content; }
+  }
+  @else if $breakpoint == 'medium' {
+    @media (min-width: 960px) { @content; }
+  }
+  @else if $breakpoint == 'large' {
+    @media (min-width: 1280px) { @content; }
+  }
+}
+
+// Flexbox helpers
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
