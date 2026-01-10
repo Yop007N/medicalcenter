@@ -2,7 +2,7 @@
 
 ## 🎯 Contexto del Proyecto
 
-**Nombre del Proyecto:** Medical Services Platform  
+**Nombre del Proyecto:** Medical Services Platform
 **Tecnologías Principales:**
 - **Backend:** NestJS, TypeScript, PostgreSQL, TypeORM
 - **Frontend:** Angular 18, TypeScript, RxJS
@@ -346,6 +346,6 @@ Siempre considera:
 
 ---
 
-**Última actualización:** 2026-01-10  
-**Versión:** 1.0  
+**Última actualización:** 2026-01-10
+**Versión:** 1.0
 **Autor:** Medical Services Team
