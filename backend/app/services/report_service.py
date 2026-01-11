@@ -165,28 +165,18 @@ class ReportService:
         ).all()
 
         # Estadísticas por estado de turno
-        status_stats = db.session.query(
-            Appointment.status,
-            func.count(Appointment.id)
-        ).filter(
-            and_(
-                Appointment.professional_id == professional_id,
-                Appointment.appointment_date >= start_date,
-                Appointment.appointment_date <= end_date
-            )
-        ).group_by(Appointment.status).all()
+        # Optimization: Calculate in-memory from fetched appointments to avoid extra DB query
+        status_counts = {}
+        for apt in appointments:
+            status_counts[apt.status] = status_counts.get(apt.status, 0) + 1
+        status_stats = list(status_counts.items())
 
         # Estadísticas por tipo de turno
-        type_stats = db.session.query(
-            Appointment.appointment_type,
-            func.count(Appointment.id)
-        ).filter(
-            and_(
-                Appointment.professional_id == professional_id,
-                Appointment.appointment_date >= start_date,
-                Appointment.appointment_date <= end_date
-            )
-        ).group_by(Appointment.appointment_type).all()
+        # Optimization: Calculate in-memory from fetched appointments to avoid extra DB query
+        type_counts = {}
+        for apt in appointments:
+            type_counts[apt.appointment_type] = type_counts.get(apt.appointment_type, 0) + 1
+        type_stats = list(type_counts.items())
 
         return {
             'professional': {
@@ -393,16 +383,18 @@ class ReportService:
         appointments = Appointment.query.filter(and_(*filters)).all()
 
         # Estadísticas por estado
-        by_status = db.session.query(
-            Appointment.status,
-            func.count(Appointment.id)
-        ).filter(and_(*filters)).group_by(Appointment.status).all()
+        # Optimization: Calculate in-memory from fetched appointments to avoid extra DB query
+        status_counts = {}
+        for apt in appointments:
+            status_counts[apt.status] = status_counts.get(apt.status, 0) + 1
+        by_status = list(status_counts.items())
 
         # Estadísticas por tipo
-        by_type = db.session.query(
-            Appointment.appointment_type,
-            func.count(Appointment.id)
-        ).filter(and_(*filters)).group_by(Appointment.appointment_type).all()
+        # Optimization: Calculate in-memory from fetched appointments to avoid extra DB query
+        type_counts = {}
+        for apt in appointments:
+            type_counts[apt.appointment_type] = type_counts.get(apt.appointment_type, 0) + 1
+        by_type = list(type_counts.items())
 
         # Turnos por día de la semana
         by_weekday = {}
