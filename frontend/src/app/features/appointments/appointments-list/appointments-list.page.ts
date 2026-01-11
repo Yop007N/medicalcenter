@@ -80,7 +80,7 @@ import { Appointment } from '../../../models';
         </ion-buttons>
         <ion-title>Agenda de Citas</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/appointments/new">
+          <ion-button routerLink="/appointments/new" aria-label="Nueva cita">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -212,7 +212,7 @@ import { Appointment } from '../../../models';
 
       <!-- FAB para crear nueva cita (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/appointments/new">
+        <ion-fab-button routerLink="/appointments/new" aria-label="Nueva cita">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
