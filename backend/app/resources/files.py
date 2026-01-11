@@ -174,11 +174,29 @@ def get_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Security check: Ensure user has access to this file
+    current_user_id = int(get_jwt_identity())
+    from app.models.user import User
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 401
+
+    # Allow if user is admin/professional OR if user is the patient who owns the record
+    medical_record = MedicalRecord.query.get(file_record.medical_record_id)
+    if not medical_record:
+        return jsonify({'msg': 'Medical record not found'}), 404
+
+    if current_user.role not in ['admin', 'professional'] and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     return jsonify({
         'id': file_record.id,
@@ -216,11 +234,29 @@ def download_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Security check: Ensure user has access to this file
+    current_user_id = int(get_jwt_identity())
+    from app.models.user import User
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 401
+
+    # Allow if user is admin/professional OR if user is the patient who owns the record
+    medical_record = MedicalRecord.query.get(file_record.medical_record_id)
+    if not medical_record:
+        return jsonify({'msg': 'Medical record not found'}), 404
+
+    if current_user.role not in ['admin', 'professional'] and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
@@ -255,11 +291,34 @@ def delete_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Security check: Ensure user has access to this file
+    current_user_id = int(get_jwt_identity())
+    from app.models.user import User
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 401
+
+    # Allow if user is admin/professional OR if user is the patient who owns the record
+    # Note: Patients might not be allowed to delete their own medical records files?
+    # Assuming for now they can delete what they uploaded, or restrict deletion to professionals only.
+    # The existing code allowed anyone to delete. Restricting to professional/admin seems safer for medical records.
+    # BUT if the user uploaded it (e.g. ID card), they might want to delete it.
+    # Let's align with download policy for now, but usually deletion is stricter.
+
+    # Check if the user is the uploader OR a professional/admin
+    is_uploader = file_record.uploaded_by == current_user_id
+
+    if current_user.role not in ['admin', 'professional'] and not is_uploader:
+        return jsonify({'msg': 'Unauthorized to delete this file'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
