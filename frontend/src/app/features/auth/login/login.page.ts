@@ -122,11 +122,15 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
                       formControlName="password"
                       placeholder="••••••••"
                     ></ion-input>
-                    <ion-icon
-                      [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+                    <button
+                      type="button"
                       class="toggle-password"
                       (click)="showPassword = !showPassword"
-                    ></ion-icon>
+                      [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                      [attr.aria-pressed]="showPassword"
+                    >
+                      <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+                    </button>
                   </div>
                   @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
                     <span class="error-message">La contraseña es requerida</span>
@@ -421,14 +425,32 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
       }
 
       .toggle-password {
-        font-size: 20px;
-        color: var(--ion-color-medium);
+        background: none;
+        border: none;
         cursor: pointer;
         padding: 8px;
         margin: -8px -8px -8px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
-        &:hover {
+        ion-icon {
+          font-size: 20px;
+          color: var(--ion-color-medium);
+        }
+
+        &:hover ion-icon, &:focus ion-icon {
           color: var(--ion-color-primary);
+        }
+
+        &:focus {
+          outline: none;
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ion-color-primary);
+          outline-offset: -2px;
+          border-radius: 4px;
         }
       }
     }
