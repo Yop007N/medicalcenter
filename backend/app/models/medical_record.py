@@ -44,7 +44,8 @@ class MedicalRecord(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    files = db.relationship('File', backref='medical_record', lazy='dynamic')
+    # Bolt: Changed from 'dynamic' to 'select' to allow eager loading and prevent N+1 queries
+    files = db.relationship('File', backref='medical_record', lazy='select')
 
     def __repr__(self):
         return f'<MedicalRecord {self.id} - Patient {self.patient_id}>'
