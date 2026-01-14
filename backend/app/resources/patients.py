@@ -12,6 +12,7 @@ from app.extensions import db
 from app.utils.decorators import professional_required
 from app.services.auth_service import AuthService
 from app.utils.helpers import validate_required_fields, sanitize_search_input
+from app.utils.auth_helpers import check_patient_access
 
 blueprint = Blueprint('patients', __name__, url_prefix='/api/patients')
 
@@ -86,6 +87,11 @@ def get_patient(patient_id):
       401:
         description: No autenticado
     """
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
@@ -252,18 +258,24 @@ def update_patient(patient_id):
       403:
         description: No autorizado
     """
-    current_user_id = int(get_jwt_identity())
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
 
-    # Only allow updating own profile unless professional/admin
-    if patient.id != current_user_id:
-        from app.models.user import User
-        current_user = User.query.get(current_user_id)
-        if not current_user or current_user.role not in ['admin', 'professional']:
-            return jsonify({'msg': 'Unauthorized'}), 403
+    # We can remove the inline check since check_patient_access handles it,
+    # but existing code had logic for current_user_id.
+    # The helper allows admins/professionals or the user themselves.
+    # The original code was:
+    # if patient.id != current_user_id:
+    #     if not current_user or current_user.role not in ['admin', 'professional']:
+    #         return jsonify({'msg': 'Unauthorized'}), 403
+    # This is exactly what check_patient_access does.
 
     data = request.get_json() or {}
 
@@ -344,6 +356,11 @@ def get_patient_medical_history(patient_id):
       404:
         description: Paciente no encontrado
     """
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
 
     if not patient:
@@ -383,6 +400,11 @@ def get_patient_appointments(patient_id):
       404:
         description: Paciente no encontrado
     """
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
 
     if not patient:
@@ -424,6 +446,11 @@ def get_patient_medical_records(patient_id):
       404:
         description: Paciente no encontrado
     """
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
 
     if not patient:
@@ -465,6 +492,11 @@ def get_patient_budgets(patient_id):
       404:
         description: Paciente no encontrado
     """
+    # Verify access permission
+    auth_error = check_patient_access(patient_id)
+    if auth_error:
+        return auth_error
+
     patient = Patient.query.get(patient_id)
 
     if not patient:
@@ -479,4 +511,3 @@ def get_patient_budgets(patient_id):
     ).all()
 
     return jsonify(budgets_schema.dump(budgets)), 200
-
