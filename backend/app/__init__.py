@@ -30,6 +30,24 @@ def create_app(config_name='development'):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    # Configure JWT blocklist loader
+    @jwt.token_in_blocklist_loader
+    def check_if_token_is_revoked(jwt_header, jwt_payload: dict) -> bool:
+        """
+        Callback function to check if a token has been revoked.
+
+        Args:
+            jwt_header: The JWT header
+            jwt_payload: The JWT payload
+
+        Returns:
+            bool: True if the token is revoked, False otherwise
+        """
+        jti = jwt_payload["jti"]
+        token_in_redis = redis_client.get(jti)
+        return token_in_redis is not None
+
     ma.init_app(app)
     limiter.init_app(app)
     socketio.init_app(app)

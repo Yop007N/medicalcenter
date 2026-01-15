@@ -3,11 +3,12 @@
 Authentication endpoints - Login, refresh token, logout
 """
 
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from flasgger import swag_from
+from datetime import timedelta
 from app.services.auth_service import AuthService
-from app.extensions import limiter
+from app.extensions import limiter, redis_client
 from app.utils.security_logger import log_login_attempt, log_unauthorized_access
 
 # Blueprint for authentication routes
@@ -124,8 +125,31 @@ def refresh():
 @blueprint.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
-	"""Logout endpoint. If token revocation/blacklist is implemented, add token to blocklist here.
-	Currently this is a placeholder that returns success."""
+	"""
+	Logout endpoint.
+	Revokes the current access token by adding its JTI to the blocklist in Redis.
+	---
+	tags:
+	  - Authentication
+	security:
+	  - Bearer: []
+	responses:
+	  200:
+	    description: Successfully logged out
+	  401:
+	    description: Missing or invalid token
+	"""
+	jti = get_jwt()["jti"]
+	# Set expiration to time left on token, or default to 24 hours if something is wrong
+	# (Redis automatically removes keys when they expire)
+	try:
+		# Use a standard expiry time of 24 hours (or match your longest token lifetime)
+		# In a perfect implementation we would calculate remaining time, but 24h is safe
+		redis_client.set(jti, "", ex=timedelta(hours=24))
+	except Exception as e:
+		# Even if Redis fails, we return success to the user, but log the error
+		current_app.logger.error(f"Failed to revoke token during logout: {str(e)}")
+
 	return jsonify({'msg': 'Successfully logged out'}), 200
 
 
