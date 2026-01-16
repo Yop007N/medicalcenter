@@ -106,11 +106,11 @@ import { NotificationService } from '../../../core/services';
         <div class="stats-row">
           <div class="stat-chip active">
             <span class="stat-dot"></span>
-            <span>{{ getActiveCount() }} activos</span>
+            <span>{{ activeCount }} activos</span>
           </div>
           <div class="stat-chip inactive">
             <span class="stat-dot"></span>
-            <span>{{ getInactiveCount() }} inactivos</span>
+            <span>{{ inactiveCount }} inactivos</span>
           </div>
         </div>
       </div>
@@ -543,6 +543,9 @@ export class PatientsListPage implements OnInit {
 
   patients: Patient[] = [];
   filteredPatients: Patient[] = [];
+  // Optimization: Store counts to avoid recalculation in template
+  activeCount = 0;
+  inactiveCount = 0;
   loading = true;
   searchTerm = '';
 
@@ -564,12 +567,10 @@ export class PatientsListPage implements OnInit {
     return (patient.first_name?.charAt(0) || '') + (patient.last_name?.charAt(0) || '');
   }
 
-  getActiveCount(): number {
-    return this.patients.filter(p => p.is_active).length;
-  }
-
-  getInactiveCount(): number {
-    return this.patients.filter(p => !p.is_active).length;
+  // Optimization: Calculate stats once when data changes instead of on every render
+  calculateStats(): void {
+    this.activeCount = this.patients.filter(p => p.is_active).length;
+    this.inactiveCount = this.patients.length - this.activeCount;
   }
 
   ngOnInit(): void {
@@ -581,6 +582,7 @@ export class PatientsListPage implements OnInit {
     this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
       next: (data) => {
         this.patients = data;
+        this.calculateStats();
         this.filterPatients();
         this.loading = false;
       },
