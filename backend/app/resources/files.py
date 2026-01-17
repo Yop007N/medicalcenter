@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
@@ -21,6 +22,22 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def validate_file_access(file_record):
+    """
+    Validate that current user has access to the file.
+    Returns True if authorized, False otherwise.
+    """
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if current_user.role == 'patient':
+        # Patients can only access files from their own medical records
+        if file_record.medical_record.patient_id != current_user.id:
+            return False
+
+    return True
 
 
 @blueprint.route('/upload', methods=['POST'])
@@ -174,11 +191,17 @@ def get_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization Check
+    if not validate_file_access(file_record):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     return jsonify({
         'id': file_record.id,
@@ -216,11 +239,17 @@ def download_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization Check
+    if not validate_file_access(file_record):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
@@ -255,11 +284,17 @@ def delete_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization Check
+    if not validate_file_access(file_record):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
