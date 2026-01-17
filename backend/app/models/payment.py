@@ -13,7 +13,7 @@ class Payment(db.Model):
     __tablename__ = 'payments'
 
     id = db.Column(db.Integer, primary_key=True)
-    budget_id = db.Column(db.Integer, db.ForeignKey('budgets.id'), nullable=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budgets.id'), nullable=True, index=True)
 
     # Payment details
     amount = db.Column(db.Numeric(10, 2), nullable=False)
@@ -26,11 +26,11 @@ class Payment(db.Model):
 
     # Transaction info
     transaction_id = db.Column(db.String(100), unique=True)
-    payment_date = db.Column(db.DateTime)
+    payment_date = db.Column(db.DateTime, index=True)
     notes = db.Column(db.Text)
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):

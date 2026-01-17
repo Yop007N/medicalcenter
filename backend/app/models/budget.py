@@ -12,6 +12,11 @@ class Budget(db.Model):
 
     __tablename__ = 'budgets'
 
+    # Composite indexes for optimized queries
+    __table_args__ = (
+        db.Index('idx_budget_patient_created', 'patient_id', 'created_at'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
