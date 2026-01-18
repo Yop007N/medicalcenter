@@ -4,10 +4,12 @@ User CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
+from app.utils.decorators import admin_required
+from app.models.user import User
 
 
 blueprint = Blueprint('users', __name__, url_prefix='/api/users')
@@ -17,7 +19,7 @@ users_schema = UserSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@admin_required
 def list_users():
     """List users with optional query filters (role, email) and pagination
     ---
@@ -64,6 +66,8 @@ def list_users():
               type: integer
       401:
         description: No autenticado
+      403:
+        description: Requiere rol de administrador
     """
     # Pagination parameters using helper
     page, per_page = get_pagination_params(request)
@@ -133,7 +137,7 @@ def get_user(user_id):
 
 
 @blueprint.route('', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create new user
     ---
@@ -173,6 +177,8 @@ def create_user():
         description: Datos inválidos o email duplicado
       401:
         description: No autenticado
+      403:
+        description: Requiere rol de administrador
     """
     data = request.get_json() or {}
     try:
@@ -220,7 +226,17 @@ def update_user(user_id):
         description: Usuario no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
+    current_user_id = int(get_jwt_identity())
+
+    # Check permissions: Admin or Self
+    if current_user_id != user_id:
+        current_user = User.query.get(current_user_id)
+        if not current_user or current_user.role != 'admin':
+             return jsonify({'msg': 'Insufficient permissions'}), 403
+
     data = request.get_json() or {}
     try:
         user = UserService.update_user(user_id, data)
@@ -232,7 +248,7 @@ def update_user(user_id):
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(user_id):
     """Delete user
     ---
@@ -253,6 +269,8 @@ def delete_user(user_id):
         description: Usuario no encontrado
       401:
         description: No autenticado
+      403:
+        description: Requiere rol de administrador
     """
     ok = UserService.delete_user(user_id)
     if not ok:
