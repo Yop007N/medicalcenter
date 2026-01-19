@@ -122,11 +122,18 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
                       formControlName="password"
                       placeholder="••••••••"
                     ></ion-input>
+                  <button
+                    type="button"
+                    class="toggle-password-btn"
+                    (click)="togglePassword()"
+                    [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    [attr.aria-pressed]="showPassword"
+                  >
                     <ion-icon
                       [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
-                      class="toggle-password"
-                      (click)="showPassword = !showPassword"
+                      aria-hidden="true"
                     ></ion-icon>
+                  </button>
                   </div>
                   @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
                     <span class="error-message">La contraseña es requerida</span>
@@ -420,14 +427,31 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
         flex: 1;
       }
 
-      .toggle-password {
-        font-size: 20px;
-        color: var(--ion-color-medium);
-        cursor: pointer;
+      .toggle-password-btn {
+        background: none;
+        border: none;
         padding: 8px;
         margin: -8px -8px -8px 8px;
+        cursor: pointer;
+        border-radius: 50%;
+        color: var(--ion-color-medium);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        ion-icon {
+          font-size: 20px;
+          pointer-events: none;
+        }
 
         &:hover {
+          color: var(--ion-color-primary);
+          background: rgba(var(--ion-color-primary-rgb), 0.1);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ion-color-primary);
+          outline-offset: -2px;
           color: var(--ion-color-primary);
         }
       }
@@ -551,6 +575,10 @@ export class LoginPage {
       heartOutline,
       pulseOutline
     });
+  }
+
+  togglePassword(): void {
+    this.showPassword = !this.showPassword;
   }
 
   onSubmit(): void {
