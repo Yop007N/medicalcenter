@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonButton } from '@ionic/angular/standalone';
 import { ModalController } from '@ionic/angular/standalone';
@@ -9,18 +9,26 @@ import { ModalController } from '@ionic/angular/standalone';
   imports: [CommonModule, IonButton],
   template: `
     <div class="warning-modal-overlay" (click)="dismiss()">
-      <div class="warning-modal-container" (click)="$event.stopPropagation()">
+      <div
+        class="warning-modal-container"
+        (click)="$event.stopPropagation()"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="warning-modal-title"
+        aria-describedby="warning-modal-message"
+        tabindex="-1"
+      >
         <div class="warning-icon-container">
           <div class="warning-icon-circle">
-            <svg class="warning-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <svg class="warning-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" aria-hidden="true">
               <circle class="warning-circle" cx="26" cy="26" r="25" fill="none"/>
               <path class="warning-exclamation" fill="none" d="M26 14 L26 30"/>
               <circle class="warning-dot" cx="26" cy="38" r="2" fill="white"/>
             </svg>
           </div>
         </div>
-        <h2 class="warning-title">Advertencia</h2>
-        <p class="warning-message">{{ message }}</p>
+        <h2 id="warning-modal-title" class="warning-title">Advertencia</h2>
+        <p id="warning-modal-message" class="warning-message">{{ message }}</p>
         <ion-button expand="block" class="warning-btn" (click)="dismiss()">
           Aceptar
         </ion-button>
@@ -164,7 +172,7 @@ import { ModalController } from '@ionic/angular/standalone';
 export class WarningModalComponent {
   @Input() message: string = '';
 
-  constructor(private modalController: ModalController) {}
+  private modalController = inject(ModalController);
 
   dismiss() {
     this.modalController.dismiss();

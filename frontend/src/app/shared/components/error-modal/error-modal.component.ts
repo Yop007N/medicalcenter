@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonButton } from '@ionic/angular/standalone';
 import { ModalController } from '@ionic/angular/standalone';
@@ -9,17 +9,25 @@ import { ModalController } from '@ionic/angular/standalone';
   imports: [CommonModule, IonButton],
   template: `
     <div class="error-modal-overlay" (click)="dismiss()">
-      <div class="error-modal-container" (click)="$event.stopPropagation()">
+      <div
+        class="error-modal-container"
+        (click)="$event.stopPropagation()"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="error-modal-title"
+        aria-describedby="error-modal-message"
+        tabindex="-1"
+      >
         <div class="error-icon-container">
           <div class="error-icon-circle">
-            <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" aria-hidden="true">
               <circle class="error-circle" cx="26" cy="26" r="25" fill="none"/>
               <path class="error-x" fill="none" d="M16 16 L36 36 M36 16 L16 36"/>
             </svg>
           </div>
         </div>
-        <h2 class="error-title">Error</h2>
-        <p class="error-message">{{ message }}</p>
+        <h2 id="error-modal-title" class="error-title">Error</h2>
+        <p id="error-modal-message" class="error-message">{{ message }}</p>
         <ion-button expand="block" class="error-btn" (click)="dismiss()">
           Aceptar
         </ion-button>
@@ -155,7 +163,7 @@ import { ModalController } from '@ionic/angular/standalone';
 export class ErrorModalComponent {
   @Input() message: string = '';
 
-  constructor(private modalController: ModalController) {}
+  private modalController = inject(ModalController);
 
   dismiss() {
     this.modalController.dismiss();

@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonButton } from '@ionic/angular/standalone';
 import { ModalController } from '@ionic/angular/standalone';
@@ -9,17 +9,25 @@ import { ModalController } from '@ionic/angular/standalone';
   imports: [CommonModule, IonButton],
   template: `
     <div class="success-modal-overlay" (click)="dismiss()">
-      <div class="success-modal-container" (click)="$event.stopPropagation()">
+      <div
+        class="success-modal-container"
+        (click)="$event.stopPropagation()"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="success-modal-title"
+        aria-describedby="success-modal-message"
+        tabindex="-1"
+      >
         <div class="success-icon-container">
           <div class="success-icon-circle">
-            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" aria-hidden="true">
               <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
               <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
             </svg>
           </div>
         </div>
-        <h2 class="success-title">Operacion Exitosa</h2>
-        <p class="success-message">{{ message }}</p>
+        <h2 id="success-modal-title" class="success-title">Operacion Exitosa</h2>
+        <p id="success-modal-message" class="success-message">{{ message }}</p>
         <ion-button expand="block" class="success-btn" (click)="dismiss()">
           Aceptar
         </ion-button>
@@ -148,7 +156,7 @@ import { ModalController } from '@ionic/angular/standalone';
 export class SuccessModalComponent {
   @Input() message: string = '';
 
-  constructor(private modalController: ModalController) {}
+  private modalController = inject(ModalController);
 
   dismiss() {
     this.modalController.dismiss();
