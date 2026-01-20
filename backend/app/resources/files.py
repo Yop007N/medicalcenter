@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
@@ -21,6 +22,32 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def check_file_access(file_record, current_user_id):
+    """
+    Check if user has access to the file.
+    Returns (True, None) if allowed, (False, error_response) if denied.
+    """
+    current_user = User.query.get(current_user_id)
+    if not current_user:
+        return False, (jsonify({'msg': 'User not found'}), 401)
+
+    # Admin has access to everything
+    if current_user.role == 'admin':
+        return True, None
+
+    # Professionals - can access files
+    if current_user.role == 'professional':
+        return True, None
+
+    # Patients - only their own medical records
+    if current_user.role == 'patient':
+        medical_record = file_record.medical_record
+        if not medical_record or medical_record.patient_id != current_user.id:
+            return False, (jsonify({'msg': 'Unauthorized access to this file'}), 403)
+
+    return True, None
 
 
 @blueprint.route('/upload', methods=['POST'])
@@ -99,6 +126,14 @@ def upload_file():
     medical_record = MedicalRecord.query.get(medical_record_id)
     if not medical_record:
         return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Check upload permissions
+    # Patients can only upload to their own records?
+    # Ideally yes, but skipping complex upload logic to focus on download fix first.
+    # But let's add a basic check for patients
+    current_user = User.query.get(current_user_id)
+    if current_user.role == 'patient' and medical_record.patient_id != current_user.id:
+        return jsonify({'msg': 'Unauthorized access to this medical record'}), 403
 
     # Generate unique filename
     original_filename = secure_filename(file.filename)
@@ -180,6 +215,11 @@ def get_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
+    # Authorization check
+    allowed, response = check_file_access(file_record, int(get_jwt_identity()))
+    if not allowed:
+        return response
+
     return jsonify({
         'id': file_record.id,
         'filename': file_record.filename,
@@ -222,6 +262,11 @@ def download_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
+    # Authorization check
+    allowed, response = check_file_access(file_record, int(get_jwt_identity()))
+    if not allowed:
+        return response
+
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
 
@@ -260,6 +305,11 @@ def delete_file(file_id):
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    allowed, response = check_file_access(file_record, int(get_jwt_identity()))
+    if not allowed:
+        return response
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
