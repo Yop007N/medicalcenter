@@ -9,10 +9,37 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
 blueprint = Blueprint('files', __name__, url_prefix='/api/files')
+
+
+def check_file_access(file_record, user_id):
+    """
+    Check if user has access to file.
+    Patients can only access their own files.
+    Professionals and admins can access all files.
+    """
+    user = User.query.get(user_id)
+    if not user:
+        return False
+
+    if user.role == 'admin':
+        return True
+
+    # Professionals can access (assuming they are treating the patient or have general access)
+    if user.role == 'professional':
+        return True
+
+    # Patients can only access their own records
+    if user.role == 'patient':
+        medical_record = file_record.medical_record
+        if medical_record and medical_record.patient_id == user.id:
+            return True
+
+    return False
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'}
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
@@ -174,11 +201,17 @@ def get_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso denegado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     return jsonify({
         'id': file_record.id,
@@ -216,11 +249,17 @@ def download_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso denegado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
@@ -255,11 +294,17 @@ def delete_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso denegado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Unauthorized access to this file'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
