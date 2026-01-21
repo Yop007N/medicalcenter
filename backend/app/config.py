@@ -91,6 +91,7 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=5)
+    CACHE_TYPE = 'null'
 
     # Disable rate limiting for tests
     RATELIMIT_ENABLED = False

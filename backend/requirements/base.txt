@@ -34,3 +34,9 @@ pytz==2023.3
 
 # API Documentation
 flasgger==0.9.7.1
+
+# Missing Dependencies
+Flask-Caching==2.3.0
+Flask-Limiter==3.5.0
+Flask-SocketIO==5.3.6
+Flask-Migrate==4.0.5

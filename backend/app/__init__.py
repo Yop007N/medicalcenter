@@ -36,7 +36,7 @@ def create_app(config_name='development'):
 
     # Initialize cache
     cache.init_app(app, config={
-        'CACHE_TYPE': 'redis',
+        'CACHE_TYPE': app.config.get('CACHE_TYPE', 'redis'),
         'CACHE_REDIS_URL': app.config.get('REDIS_URL', 'redis://localhost:6379/0'),
         'CACHE_DEFAULT_TIMEOUT': 300
     })

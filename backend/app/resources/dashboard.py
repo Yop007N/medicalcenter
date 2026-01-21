@@ -13,7 +13,7 @@ from app.models.medical_record import MedicalRecord
 from app.models.budget import Budget
 from app.models.payment import Payment
 from app.models.file import File
-from app.extensions import db
+from app.extensions import db, cache
 from datetime import datetime, timedelta
 from sqlalchemy import func, case, extract
 from decimal import Decimal
@@ -23,11 +23,14 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 def format_year_month(date_column):
     """Helper to format date as YYYY-MM for PostgreSQL"""
+    if db.engine.dialect.name == 'sqlite':
+        return func.strftime('%Y-%m', date_column)
     return func.to_char(date_column, 'YYYY-MM')
 
 
 @dashboard_bp.route('/overview', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_overview():
     """
     Get general overview metrics
@@ -97,6 +100,7 @@ def get_overview():
 
 @dashboard_bp.route('/appointments/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_appointment_stats():
     """
     Get detailed appointment statistics
@@ -206,6 +210,7 @@ def get_appointment_stats():
 
 @dashboard_bp.route('/revenue/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_revenue_stats():
     """
     Get revenue and financial statistics
@@ -297,6 +302,7 @@ def get_revenue_stats():
 
 @dashboard_bp.route('/patients/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_patient_stats():
     """
     Get patient statistics and demographics
@@ -367,6 +373,7 @@ def get_patient_stats():
 
 @dashboard_bp.route('/files/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_files_stats():
     """
     Get file storage statistics
@@ -423,6 +430,7 @@ def get_files_stats():
 
 @dashboard_bp.route('/activity/recent', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300)
 def get_recent_activity():
     """
     Get recent system activity
