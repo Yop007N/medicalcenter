@@ -14,6 +14,7 @@ import {
   IonList,
   IonItem,
   IonInput,
+  IonIcon,
   IonSelect,
   IonSelectOption,
   IonTextarea,
@@ -23,7 +24,7 @@ import {
   IonNote
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { saveOutline } from 'ionicons/icons';
+import { saveOutline, eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading, selectPatientsError } from '../../../store/patients/patients.selectors';
 
@@ -43,6 +44,7 @@ import { selectSelectedPatient, selectPatientsLoading, selectPatientsError } fro
     IonList,
     IonItem,
     IonInput,
+    IonIcon,
     IonSelect,
     IonSelectOption,
     IonTextarea,
@@ -146,10 +148,13 @@ import { selectSelectedPatient, selectPatientsLoading, selectPatientsError } fro
                         <ion-input
                           label="Contraseña *"
                           labelPlacement="stacked"
-                          type="password"
+                          [type]="showPassword ? 'text' : 'password'"
                           formControlName="password"
                           placeholder="Mín. 8 caracteres, 1 mayúscula, 1 número"
                         ></ion-input>
+                        <ion-button slot="end" fill="clear" (click)="togglePasswordVisibility()" aria-label="Mostrar/Ocultar contraseña" type="button">
+                          <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'" slot="icon-only"></ion-icon>
+                        </ion-button>
                       </ion-item>
                       @if (patientForm.get('password')?.touched && patientForm.get('password')?.errors?.['required']) {
                         <ion-note color="danger">La contraseña es requerida</ion-note>
@@ -439,6 +444,7 @@ export class PatientFormPage implements OnInit {
 
   patientId: number | null = null;
   isEditMode = false;
+  showPassword = false;
 
   patientForm: FormGroup = this.fb.group({
     first_name: ['', [Validators.required]],
@@ -460,7 +466,11 @@ export class PatientFormPage implements OnInit {
   });
 
   constructor() {
-    addIcons({ saveOutline });
+    addIcons({ saveOutline, eyeOutline, eyeOffOutline });
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
   }
 
   ngOnInit(): void {
