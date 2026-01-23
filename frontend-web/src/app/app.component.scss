@@ -1,1 +1,17 @@
-// App component styles
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  padding: 1rem;
+  background: white; // Assuming white background, could be var(--bg)
+  color: black;      // High contrast
+  text-decoration: none;
+  border: 1px solid #ccc;
+  transform: translateY(-100%);
+  transition: transform 0.2s;
+
+  &:focus {
+    transform: translateY(0);
+  }
+}
