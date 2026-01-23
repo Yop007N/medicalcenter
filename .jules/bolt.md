@@ -1,0 +1,3 @@
+## 2026-01-23 - Implicit FROM in SQLAlchemy Subqueries
+**Learning:** SQLAlchemy `func.avg(subquery)` does not automatically infer the FROM clause for the outer query even if the subquery is correlated to a model. This can lead to the subquery executing once without correlation (returning a global count) and the `avg` function operating on that single scalar, resulting in incorrect data (e.g., returning Total Appointments instead of Average per Patient).
+**Action:** Always verify `db.session.query(func.avg(...))` has an explicit `.select_from(Model)` or a `.filter(Model.col == val)` that binds the query to the table, or verify the results against a manual calculation.
