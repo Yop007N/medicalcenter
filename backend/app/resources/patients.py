@@ -9,7 +9,7 @@ from datetime import datetime
 from app.models.patient import Patient
 from app.schemas.patient_schema import PatientSchema
 from app.extensions import db
-from app.utils.decorators import professional_required
+from app.utils.decorators import professional_required, patient_access_required
 from app.services.auth_service import AuthService
 from app.utils.helpers import validate_required_fields, sanitize_search_input
 
@@ -20,7 +20,7 @@ patients_schema = PatientSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@professional_required
 def list_patients():
     """List all patients
     ---
@@ -64,7 +64,7 @@ def list_patients():
 
 
 @blueprint.route('/<int:patient_id>', methods=['GET'])
-@jwt_required()
+@patient_access_required
 def get_patient(patient_id):
     """Get patient by ID
     ---
@@ -320,7 +320,7 @@ def delete_patient(patient_id):
 
 
 @blueprint.route('/<int:patient_id>/medical-history', methods=['GET'])
-@jwt_required()
+@patient_access_required
 def get_patient_medical_history(patient_id):
     """Get patient's complete medical history
     ---
@@ -359,7 +359,7 @@ def get_patient_medical_history(patient_id):
 
 
 @blueprint.route('/<int:patient_id>/appointments', methods=['GET'])
-@jwt_required()
+@patient_access_required
 def get_patient_appointments(patient_id):
     """Get patient's appointments
     ---
@@ -400,7 +400,7 @@ def get_patient_appointments(patient_id):
 
 
 @blueprint.route('/<int:patient_id>/medical-records', methods=['GET'])
-@jwt_required()
+@patient_access_required
 def get_patient_medical_records(patient_id):
     """Get patient's medical records
     ---
@@ -441,7 +441,7 @@ def get_patient_medical_records(patient_id):
 
 
 @blueprint.route('/<int:patient_id>/budgets', methods=['GET'])
-@jwt_required()
+@patient_access_required
 def get_patient_budgets(patient_id):
     """Get patient's budgets
     ---

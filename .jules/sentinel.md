@@ -1,0 +1,4 @@
+## 2025-05-18 - [CRITICAL] IDOR in Patient Data Access
+**Vulnerability:** Insecure Direct Object Reference (IDOR) allowed any authenticated patient to access another patient's medical history, appointments, and personal data by simply changing the `patient_id` in the URL. Also, any patient could list all other patients.
+**Learning:** Checking for authentication (`@jwt_required()`) is NOT enough. Authorization checks must be performed to ensure the current user has the right to access the specific resource. Refactoring authorization logic into reusable decorators (`@patient_access_required`) improves maintainability and reduces code duplication.
+**Prevention:** Always verify `current_user_id == resource.owner_id` or check for administrative roles before returning sensitive data. Use decorators or helper functions to enforce this policy consistently.
