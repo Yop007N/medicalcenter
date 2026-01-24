@@ -46,8 +46,8 @@ describe('AuthGuard', () => {
           expect(value).toBeTrue();
           done();
         });
-      } else if ('subscribe' in result) {
-        result.subscribe(value => {
+      } else if (typeof result === 'object' && result !== null && 'subscribe' in result) {
+        (result as any).subscribe((value: boolean) => {
           expect(value).toBeTrue();
           done();
         });
@@ -70,8 +70,8 @@ describe('AuthGuard', () => {
           expect(router.createUrlTree).toHaveBeenCalledWith(['/auth/login']);
           done();
         });
-      } else if ('subscribe' in result) {
-        result.subscribe(() => {
+      } else if (typeof result === 'object' && result !== null && 'subscribe' in result) {
+        (result as any).subscribe(() => {
           expect(router.createUrlTree).toHaveBeenCalledWith(['/auth/login']);
           done();
         });
