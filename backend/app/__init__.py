@@ -35,11 +35,15 @@ def create_app(config_name='development'):
     socketio.init_app(app)
 
     # Initialize cache
-    cache.init_app(app, config={
-        'CACHE_TYPE': 'redis',
-        'CACHE_REDIS_URL': app.config.get('REDIS_URL', 'redis://localhost:6379/0'),
+    cache_type = app.config.get('CACHE_TYPE', 'redis')
+    cache_config = {
+        'CACHE_TYPE': cache_type,
         'CACHE_DEFAULT_TIMEOUT': 300
-    })
+    }
+    if cache_type == 'redis':
+        cache_config['CACHE_REDIS_URL'] = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+
+    cache.init_app(app, config=cache_config)
 
     # Configure CORS with specific origins from config
     cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:4200'])

@@ -95,6 +95,9 @@ class TestConfig(Config):
     # Disable rate limiting for tests
     RATELIMIT_ENABLED = False
 
+    # Use simple cache for testing
+    CACHE_TYPE = 'simple'
+
 
 config_by_name = {
     'development': DevelopmentConfig,
