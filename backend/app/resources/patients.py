@@ -11,7 +11,7 @@ from app.schemas.patient_schema import PatientSchema
 from app.extensions import db
 from app.utils.decorators import professional_required
 from app.services.auth_service import AuthService
-from app.utils.helpers import validate_required_fields, sanitize_search_input
+from app.utils.helpers import validate_required_fields, sanitize_search_input, get_pagination_params
 
 blueprint = Blueprint('patients', __name__, url_prefix='/api/patients')
 
@@ -58,6 +58,20 @@ def list_patients():
                     Patient.email.ilike(search_filter)
                 )
             )
+
+    # Pagination
+    if 'page' in request.args or 'per_page' in request.args:
+        page, per_page = get_pagination_params(request)
+        pagination = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        return jsonify({
+            'items': patients_schema.dump(pagination.items),
+            'total': pagination.total,
+            'page': pagination.page,
+            'pages': pagination.pages,
+            'per_page': per_page
+        }), 200
 
     patients = query.all()
     return jsonify(patients_schema.dump(patients)), 200
