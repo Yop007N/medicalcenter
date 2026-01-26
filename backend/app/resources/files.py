@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
@@ -73,6 +74,8 @@ def upload_file():
         description: Historial médico no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso no autorizado
     """
     current_user_id = int(get_jwt_identity())
 
@@ -99,6 +102,14 @@ def upload_file():
     medical_record = MedicalRecord.query.get(medical_record_id)
     if not medical_record:
         return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Authorization check
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if user.role == 'patient' and medical_record.patient_id != user.id:
+        return jsonify({'msg': 'Unauthorized access'}), 403
 
     # Generate unique filename
     original_filename = secure_filename(file.filename)
@@ -174,11 +185,22 @@ def get_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso no autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if user.role == 'patient' and file_record.medical_record.patient_id != user.id:
+        return jsonify({'msg': 'Unauthorized access'}), 403
 
     return jsonify({
         'id': file_record.id,
@@ -216,6 +238,8 @@ def download_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso no autorizado
     """
     file_record = File.query.get(file_id)
 
@@ -224,6 +248,15 @@ def download_file(file_id):
 
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if user.role == 'patient' and file_record.medical_record.patient_id != user.id:
+        return jsonify({'msg': 'Unauthorized access'}), 403
 
     return send_file(
         file_record.file_path,
@@ -255,11 +288,22 @@ def delete_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Acceso no autorizado
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if user.role == 'patient' and file_record.medical_record.patient_id != user.id:
+        return jsonify({'msg': 'Unauthorized access'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
