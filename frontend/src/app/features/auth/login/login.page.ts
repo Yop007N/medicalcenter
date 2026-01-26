@@ -95,42 +95,59 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
 
               <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
                 <div class="form-group">
-                  <label>Correo electrónico</label>
+                  <label for="email">Correo electrónico <span class="required-indicator" aria-hidden="true">*</span></label>
                   <div class="input-wrapper" [class.input-error]="loginForm.get('email')?.touched && loginForm.get('email')?.invalid">
                     <ion-icon name="mail-outline" class="input-icon"></ion-icon>
                     <ion-input
+                      id="email"
                       type="email"
+                      autocomplete="email"
                       formControlName="email"
                       placeholder="tu@email.com"
                       [clearInput]="true"
+                      aria-required="true"
+                      [attr.aria-invalid]="(loginForm.get('email')?.touched && loginForm.get('email')?.invalid) ? 'true' : 'false'"
+                      aria-describedby="email-errors"
                     ></ion-input>
                   </div>
-                  @if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['required']) {
-                    <span class="error-message">El correo es requerido</span>
-                  }
-                  @if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['email']) {
-                    <span class="error-message">Ingresa un correo válido</span>
-                  }
+                  <div id="email-errors">
+                    @if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['required']) {
+                      <span class="error-message">El correo es requerido</span>
+                    }
+                    @if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['email']) {
+                      <span class="error-message">Ingresa un correo válido</span>
+                    }
+                  </div>
                 </div>
 
                 <div class="form-group">
-                  <label>Contraseña</label>
+                  <label for="password">Contraseña <span class="required-indicator" aria-hidden="true">*</span></label>
                   <div class="input-wrapper" [class.input-error]="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
                     <ion-icon name="lock-closed-outline" class="input-icon"></ion-icon>
                     <ion-input
+                      id="password"
                       [type]="showPassword ? 'text' : 'password'"
+                      autocomplete="current-password"
                       formControlName="password"
                       placeholder="••••••••"
+                      aria-required="true"
+                      [attr.aria-invalid]="(loginForm.get('password')?.touched && loginForm.get('password')?.invalid) ? 'true' : 'false'"
+                      aria-describedby="password-errors"
                     ></ion-input>
-                    <ion-icon
-                      [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+                    <button
+                      type="button"
                       class="toggle-password"
+                      [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                       (click)="showPassword = !showPassword"
-                    ></ion-icon>
+                    >
+                      <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+                    </button>
                   </div>
-                  @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
-                    <span class="error-message">La contraseña es requerida</span>
-                  }
+                  <div id="password-errors">
+                    @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
+                      <span class="error-message">La contraseña es requerida</span>
+                    }
+                  </div>
                 </div>
 
                 <div class="form-options">
@@ -386,6 +403,11 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
         color: var(--ion-color-dark);
         margin-bottom: 8px;
       }
+
+      .required-indicator {
+        color: var(--ion-color-danger);
+        margin-left: 2px;
+      }
     }
 
     .input-wrapper {
@@ -421,14 +443,24 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
       }
 
       .toggle-password {
+        background: none;
+        border: none;
         font-size: 20px;
         color: var(--ion-color-medium);
         cursor: pointer;
         padding: 8px;
         margin: -8px -8px -8px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         &:hover {
           color: var(--ion-color-primary);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ion-color-primary);
+          border-radius: 4px;
         }
       }
     }
