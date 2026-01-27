@@ -349,11 +349,12 @@ def get_patient_medical_history(patient_id):
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
 
+    from app.models.medical_record import MedicalRecord
     from app.schemas.medical_record_schema import MedicalRecordSchema
     medical_records_schema = MedicalRecordSchema(many=True)
 
     # Get all medical records ordered by date
-    records = patient.medical_records.order_by(db.desc('record_date')).all()
+    records = patient.medical_records.options(db.joinedload(MedicalRecord.files)).order_by(db.desc('record_date')).all()
 
     return jsonify(medical_records_schema.dump(records)), 200
 
@@ -433,7 +434,7 @@ def get_patient_medical_records(patient_id):
     from app.schemas.medical_record_schema import MedicalRecordSchema
     medical_records_schema = MedicalRecordSchema(many=True)
 
-    records = MedicalRecord.query.filter_by(patient_id=patient_id).order_by(
+    records = MedicalRecord.query.options(db.joinedload(MedicalRecord.files)).filter_by(patient_id=patient_id).order_by(
         MedicalRecord.record_date.desc()
     ).all()
 
