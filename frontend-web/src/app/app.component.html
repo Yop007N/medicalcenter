@@ -1,1 +1,4 @@
+<div class="loading-overlay" *ngIf="loadingService.loading$ | async" role="alert" aria-busy="true" aria-label="Loading content">
+  <mat-spinner diameter="50"></mat-spinner>
+</div>
 <router-outlet></router-outlet>
