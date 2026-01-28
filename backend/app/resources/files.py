@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
@@ -21,6 +22,40 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def check_file_access(file_record, user_id):
+    """Check if user has access to file"""
+    user = User.query.get(user_id)
+    if not user:
+        return False
+
+    if user.role in ['admin', 'professional']:
+        return True
+
+    if user.role == 'patient':
+        # Patients can only access files from their own medical records
+        if file_record.medical_record and file_record.medical_record.patient_id == user_id:
+            return True
+
+    return False
+
+
+def check_upload_access(medical_record, user_id):
+    """Check if user can upload file to medical record"""
+    user = User.query.get(user_id)
+    if not user:
+        return False
+
+    if user.role in ['admin', 'professional']:
+        return True
+
+    if user.role == 'patient':
+        # Patients can only upload to their own medical records
+        if medical_record.patient_id == user_id:
+            return True
+
+    return False
 
 
 @blueprint.route('/upload', methods=['POST'])
@@ -99,6 +134,10 @@ def upload_file():
     medical_record = MedicalRecord.query.get(medical_record_id)
     if not medical_record:
         return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Verify user has permission to upload to this record
+    if not check_upload_access(medical_record, current_user_id):
+        return jsonify({'msg': 'Permission denied'}), 403
 
     # Generate unique filename
     original_filename = secure_filename(file.filename)
@@ -180,6 +219,10 @@ def get_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Permission denied'}), 403
+
     return jsonify({
         'id': file_record.id,
         'filename': file_record.filename,
@@ -222,6 +265,10 @@ def download_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Permission denied'}), 403
+
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
 
@@ -260,6 +307,10 @@ def delete_file(file_id):
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user_id = int(get_jwt_identity())
+    if not check_file_access(file_record, current_user_id):
+        return jsonify({'msg': 'Permission denied'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
