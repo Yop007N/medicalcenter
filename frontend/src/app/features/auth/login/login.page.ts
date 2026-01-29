@@ -122,11 +122,17 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
                       formControlName="password"
                       placeholder="••••••••"
                     ></ion-input>
-                    <ion-icon
-                      [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+                    <button
+                      type="button"
                       class="toggle-password"
                       (click)="showPassword = !showPassword"
-                    ></ion-icon>
+                      [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    >
+                      <ion-icon
+                        [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+                        aria-hidden="true"
+                      ></ion-icon>
+                    </button>
                   </div>
                   @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
                     <span class="error-message">La contraseña es requerida</span>
@@ -421,14 +427,25 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
       }
 
       .toggle-password {
+        background: transparent;
+        border: none;
         font-size: 20px;
         color: var(--ion-color-medium);
         cursor: pointer;
         padding: 8px;
         margin: -8px -8px -8px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         &:hover {
           color: var(--ion-color-primary);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ion-color-primary);
+          outline-offset: -2px;
+          border-radius: var(--medical-radius);
         }
       }
     }
