@@ -282,6 +282,56 @@ class TestPatientStats:
             assert 'new_patients' in month_data
             assert isinstance(month_data['new_patients'], int)
 
+    def test_patient_stats_accuracy(self, client, auth_headers, app, sample_patient, sample_professional):
+        """Test accuracy of patient statistics calculation"""
+        with app.app_context():
+            from app.extensions import db
+            # Create a second patient
+            patient2 = Patient(
+                email='patient2@test.com', first_name='P2', last_name='T', role='patient'
+            )
+            patient2.set_password('pass')
+            db.session.add(patient2)
+            db.session.commit()
+
+            # Create appointments: 3 for sample_patient, 1 for patient2
+            # Total 4 appointments, 2 patients (plus any created by other fixtures if not cleaned)
+            # The fixtures create 1 patient (sample_patient) and 1 professional (sample_professional).
+            # We created patient2.
+            # So total patients = 2.
+
+            # Note: other tests might leave data if not cleaned properly, but pytest fixtures usually handle cleanup.
+            # To be safe, we count actual patients and appointments.
+
+            for _ in range(3):
+                db.session.add(Appointment(
+                    patient_id=sample_patient.id,
+                    professional_id=sample_professional.id,
+                    appointment_date=datetime.utcnow(),
+                    status='scheduled'
+                ))
+
+            db.session.add(Appointment(
+                patient_id=patient2.id,
+                professional_id=sample_professional.id,
+                appointment_date=datetime.utcnow(),
+                status='scheduled'
+            ))
+            db.session.commit()
+
+            expected_total_patients = Patient.query.count()
+            expected_total_appointments = Appointment.query.count()
+            expected_avg = expected_total_appointments / expected_total_patients if expected_total_patients > 0 else 0
+
+        response = client.get('/api/dashboard/patients/stats', headers=auth_headers)
+        if response.status_code != 200:
+            print(f"Error response: {response.data}")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        # Verify average
+        assert data['metrics']['avg_appointments_per_patient'] == expected_avg
+
 
 class TestFilesStats:
     """Test file statistics endpoint"""
