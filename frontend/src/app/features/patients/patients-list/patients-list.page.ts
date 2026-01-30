@@ -96,7 +96,7 @@ import { NotificationService } from '../../../core/services';
       <div class="page-header">
         <div class="header-content">
           <div class="header-icon">
-            <ion-icon name="people-outline"></ion-icon>
+            <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
           </div>
           <div class="header-info">
             <h1>{{ filteredPatients.length }}</h1>
@@ -118,6 +118,7 @@ import { NotificationService } from '../../../core/services';
       <!-- Buscador -->
       <div class="search-container">
         <ion-searchbar
+          aria-label="Buscar pacientes"
           placeholder="Buscar por nombre o email..."
           (ionInput)="onSearch($event)"
           [debounce]="300"
@@ -143,7 +144,7 @@ import { NotificationService } from '../../../core/services';
         @if (filteredPatients.length === 0) {
           <div class="empty-state">
             <div class="empty-icon">
-              <ion-icon name="people-outline"></ion-icon>
+              <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
             </div>
             <h3>No se encontraron pacientes</h3>
             <p>{{ searchTerm ? 'Intenta con otra busqueda' : 'Agrega tu primer paciente para comenzar' }}</p>
@@ -157,7 +158,7 @@ import { NotificationService } from '../../../core/services';
         } @else {
           <div class="patients-grid">
             @for (patient of filteredPatients; track patient.id) {
-              <ion-card class="patient-card" [routerLink]="['/patients', patient.id]">
+              <ion-card class="patient-card" [routerLink]="['/patients', patient.id]" [button]="true">
                 <ion-card-content>
                   <div class="patient-avatar" [class.inactive]="!patient.is_active">
                     <span class="avatar-initials">{{ getInitials(patient) }}</span>
@@ -191,7 +192,7 @@ import { NotificationService } from '../../../core/services';
 
       <!-- FAB para crear nuevo paciente (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/patients/new">
+        <ion-fab-button routerLink="/patients/new" aria-label="Crear nuevo paciente">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
