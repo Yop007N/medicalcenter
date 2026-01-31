@@ -4,6 +4,10 @@
 Flask==3.0.0
 Flask-RESTful==0.3.10
 Flask-CORS==4.0.0
+Flask-Limiter==3.5.0
+Flask-Caching==2.1.0
+Flask-SocketIO==5.3.6
+Flask-Migrate==4.0.5
 
 # Database
 Flask-SQLAlchemy==3.1.1
@@ -31,6 +35,7 @@ boto3==1.29.7
 python-dotenv==1.0.0
 python-dateutil==2.8.2
 pytz==2023.3
+cachelib==0.9.0
 
 # API Documentation
 flasgger==0.9.7.1
