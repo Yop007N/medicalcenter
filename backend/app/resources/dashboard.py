@@ -4,7 +4,7 @@ Dashboard and Analytics endpoints
 Provides metrics and KPIs for the medical services platform
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 from flask_jwt_extended import jwt_required
 from app.models.patient import Patient
 from app.models.professional import Professional
@@ -22,7 +22,10 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 def format_year_month(date_column):
-    """Helper to format date as YYYY-MM for PostgreSQL"""
+    """Helper to format date as YYYY-MM depending on DB backend"""
+    # SQLite uses strftime, PostgreSQL uses to_char
+    if 'sqlite' in str(db.engine.url):
+        return func.strftime('%Y-%m', date_column)
     return func.to_char(date_column, 'YYYY-MM')
 
 
@@ -92,6 +95,7 @@ def get_overview():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -201,6 +205,7 @@ def get_appointment_stats():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -233,16 +238,17 @@ def get_revenue_stats():
         six_months_ago = datetime.utcnow() - timedelta(days=180)
 
         # Use to_char for PostgreSQL compatibility
+        date_format = format_year_month(Payment.payment_date)
         monthly_revenue = db.session.query(
-            format_year_month(Payment.payment_date).label('month'),
+            date_format.label('month'),
             func.sum(Payment.amount).label('total')
         ).filter(
             Payment.payment_date >= six_months_ago,
             Payment.payment_status == 'completed'
         ).group_by(
-            format_year_month(Payment.payment_date)
+            date_format
         ).order_by(
-            format_year_month(Payment.payment_date)
+            date_format
         ).all()
 
         monthly_data = [
@@ -292,6 +298,7 @@ def get_revenue_stats():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -313,15 +320,16 @@ def get_patient_stats():
         twelve_months_ago = datetime.utcnow() - timedelta(days=365)
 
         # Use to_char for PostgreSQL compatibility
+        date_format = format_year_month(Patient.created_at)
         monthly_new_patients = db.session.query(
-            format_year_month(Patient.created_at).label('month'),
+            date_format.label('month'),
             func.count(Patient.id).label('count')
         ).filter(
             Patient.created_at >= twelve_months_ago
         ).group_by(
-            format_year_month(Patient.created_at)
+            date_format
         ).order_by(
-            format_year_month(Patient.created_at)
+            date_format
         ).all()
 
         monthly_data = [
@@ -362,6 +370,7 @@ def get_patient_stats():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -418,6 +427,7 @@ def get_files_stats():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -488,4 +498,5 @@ def get_recent_activity():
         }), 200
 
     except Exception as e:
+        current_app.logger.error(f"Dashboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
