@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -48,6 +48,7 @@ import { NotificationService } from '../../../core/services';
 @Component({
   selector: 'app-patients-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterModule,
@@ -106,11 +107,11 @@ import { NotificationService } from '../../../core/services';
         <div class="stats-row">
           <div class="stat-chip active">
             <span class="stat-dot"></span>
-            <span>{{ getActiveCount() }} activos</span>
+            <span>{{ activeCount }} activos</span>
           </div>
           <div class="stat-chip inactive">
             <span class="stat-dot"></span>
-            <span>{{ getInactiveCount() }} inactivos</span>
+            <span>{{ inactiveCount }} inactivos</span>
           </div>
         </div>
       </div>
@@ -540,11 +541,14 @@ import { NotificationService } from '../../../core/services';
 export class PatientsListPage implements OnInit {
   private http = inject(HttpClient);
   private notification = inject(NotificationService);
+  private cdr = inject(ChangeDetectorRef);
 
   patients: Patient[] = [];
   filteredPatients: Patient[] = [];
   loading = true;
   searchTerm = '';
+  activeCount = 0;
+  inactiveCount = 0;
 
   constructor() {
     addIcons({
@@ -564,12 +568,9 @@ export class PatientsListPage implements OnInit {
     return (patient.first_name?.charAt(0) || '') + (patient.last_name?.charAt(0) || '');
   }
 
-  getActiveCount(): number {
-    return this.patients.filter(p => p.is_active).length;
-  }
-
-  getInactiveCount(): number {
-    return this.patients.filter(p => !p.is_active).length;
+  private calculateStats(): void {
+    this.activeCount = this.patients.filter(p => p.is_active).length;
+    this.inactiveCount = this.patients.length - this.activeCount;
   }
 
   ngOnInit(): void {
@@ -581,11 +582,14 @@ export class PatientsListPage implements OnInit {
     this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
       next: (data) => {
         this.patients = data;
+        this.calculateStats();
         this.filterPatients();
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.loading = false;
+        this.cdr.markForCheck();
       }
     });
   }
