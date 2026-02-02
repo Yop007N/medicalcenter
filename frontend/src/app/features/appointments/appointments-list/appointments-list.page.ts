@@ -99,18 +99,18 @@ import { Appointment } from '../../../models';
             <ion-icon name="calendar-outline"></ion-icon>
           </div>
           <div class="header-info">
-            <h1>{{ getTodayCount() }}</h1>
+            <h1>{{ todayCount }}</h1>
             <p>Citas para hoy</p>
           </div>
         </div>
         <div class="stats-row">
           <div class="stat-chip pending">
             <ion-icon name="hourglass-outline"></ion-icon>
-            <span>{{ getPendingCount() }} pendientes</span>
+            <span>{{ pendingCount }} pendientes</span>
           </div>
           <div class="stat-chip confirmed">
             <ion-icon name="checkmark-circle-outline"></ion-icon>
-            <span>{{ getConfirmedCount() }} confirmadas</span>
+            <span>{{ confirmedCount }} confirmadas</span>
           </div>
         </div>
       </div>
@@ -609,6 +609,11 @@ export class AppointmentsListPage implements OnInit {
   loading = true;
   selectedFilter = 'all';
 
+  // Stats properties
+  todayCount = 0;
+  pendingCount = 0;
+  confirmedCount = 0;
+
   constructor() {
     addIcons({
       calendarOutline,
@@ -635,6 +640,7 @@ export class AppointmentsListPage implements OnInit {
       next: (response) => {
         this.appointments = response.items || [];
         this.filterAppointments();
+        this.calculateStats();
         this.loading = false;
       },
       error: () => {
@@ -643,6 +649,25 @@ export class AppointmentsListPage implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  calculateStats(): void {
+    const today = new Date().toDateString();
+    this.todayCount = 0;
+    this.pendingCount = 0;
+    this.confirmedCount = 0;
+
+    for (const a of this.appointments) {
+      if (new Date(a.appointment_date).toDateString() === today) {
+        this.todayCount++;
+      }
+      if (a.status === 'pending') {
+        this.pendingCount++;
+      }
+      if (a.status === 'confirmed') {
+        this.confirmedCount++;
+      }
+    }
   }
 
   filterAppointments(): void {
@@ -656,20 +681,6 @@ export class AppointmentsListPage implements OnInit {
   onRefresh(event: any): void {
     this.loadAppointments();
     setTimeout(() => event.target.complete(), 1000);
-  }
-
-  // Stats helpers
-  getTodayCount(): number {
-    const today = new Date().toDateString();
-    return this.appointments.filter(a => new Date(a.appointment_date).toDateString() === today).length;
-  }
-
-  getPendingCount(): number {
-    return this.appointments.filter(a => a.status === 'pending').length;
-  }
-
-  getConfirmedCount(): number {
-    return this.appointments.filter(a => a.status === 'confirmed').length;
   }
 
   // Date helpers
