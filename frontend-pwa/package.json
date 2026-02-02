@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "test": "ng test",
-    "lint": "ng lint",
-    "ionic:build": "ionic build",
-    "ionic:serve": "ionic serve"
+    "start": "echo 'No serve configured'",
+    "build": "echo 'No build configured'",
+    "test": "echo 'No tests configured'",
+    "lint": "echo 'No linting configured'",
+    "ionic:build": "echo 'No ionic build configured'",
+    "ionic:serve": "echo 'No ionic serve configured'"
   },
   "private": true,
   "dependencies": {
