@@ -4,10 +4,12 @@ User CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
+from app.utils.decorators import admin_required
+from app.models.user import User
 
 
 blueprint = Blueprint('users', __name__, url_prefix='/api/users')
@@ -17,7 +19,7 @@ users_schema = UserSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@admin_required
 def list_users():
     """List users with optional query filters (role, email) and pagination
     ---
@@ -126,6 +128,16 @@ def get_user(user_id):
       401:
         description: No autenticado
     """
+    # Check permissions: Admin or Self
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if current_user.role != 'admin' and current_user.id != user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     user = UserService.get_user_by_id(user_id)
     if not user:
         return jsonify({'msg': 'User not found'}), 404
@@ -133,7 +145,7 @@ def get_user(user_id):
 
 
 @blueprint.route('', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create new user
     ---
@@ -221,7 +233,22 @@ def update_user(user_id):
       401:
         description: No autenticado
     """
+    # Check permissions: Admin or Self
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    if current_user.role != 'admin' and current_user.id != user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     data = request.get_json() or {}
+
+    # Prevent non-admins from changing their own role
+    if 'role' in data and current_user.role != 'admin':
+        return jsonify({'msg': 'Insufficient permissions to change role'}), 403
+
     try:
         user = UserService.update_user(user_id, data)
         if not user:
@@ -232,7 +259,7 @@ def update_user(user_id):
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(user_id):
     """Delete user
     ---

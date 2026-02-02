@@ -1,4 +1,0 @@
--- Mock database backup
--- Created: 20251203_144058
--- Database: medical_services
--- This is a test backup file
