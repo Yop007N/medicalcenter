@@ -80,7 +80,7 @@ import { Appointment } from '../../../models';
         </ion-buttons>
         <ion-title>Agenda de Citas</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/appointments/new">
+          <ion-button routerLink="/appointments/new" [attr.aria-label]="'Nueva cita'">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -117,7 +117,7 @@ import { Appointment } from '../../../models';
 
       <!-- Filtro por estado -->
       <div class="filter-container">
-        <ion-segment [(ngModel)]="selectedFilter" (ionChange)="filterAppointments()" mode="ios">
+        <ion-segment [(ngModel)]="selectedFilter" (ionChange)="filterAppointments()" mode="ios" aria-label="Filtrar citas por estado">
           <ion-segment-button value="all">
             <ion-label>Todas</ion-label>
           </ion-segment-button>
@@ -165,7 +165,7 @@ import { Appointment } from '../../../models';
         } @else {
           <div class="appointments-list">
             @for (appointment of filteredAppointments; track appointment.id) {
-              <ion-card class="appointment-card" [routerLink]="['/appointments', appointment.id]">
+              <ion-card class="appointment-card" [routerLink]="['/appointments', appointment.id]" [attr.aria-label]="getAppointmentLabel(appointment)">
                 <ion-card-content>
                   <div class="appointment-header">
                     <div class="date-badge">
@@ -212,7 +212,7 @@ import { Appointment } from '../../../models';
 
       <!-- FAB para crear nueva cita (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/appointments/new">
+        <ion-fab-button routerLink="/appointments/new" [attr.aria-label]="'Crear nueva cita'">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -689,6 +689,13 @@ export class AppointmentsListPage implements OnInit {
     const first = appointment.patient?.first_name?.charAt(0) || '';
     const last = appointment.patient?.last_name?.charAt(0) || '';
     return first + last;
+  }
+
+  getAppointmentLabel(appointment: Appointment): string {
+    const patientName = `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim();
+    const date = this.formatDate(appointment.appointment_date);
+    const status = this.getStatusLabel(appointment.status);
+    return `Cita ${status} con ${patientName} el ${date}`;
   }
 
   formatDate(dateString: string): string {
