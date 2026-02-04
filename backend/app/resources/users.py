@@ -4,7 +4,6 @@ User CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
