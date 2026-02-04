@@ -186,7 +186,7 @@ def register():
 	    description: Error en el registro
 	"""
 	# Allowed roles for public registration (admin can only be created by admin)
-	ALLOWED_ROLES = ['patient', 'professional']
+	ALLOWED_ROLES = ['patient']
 
 	data = request.get_json() or {}
 	email = data.get('email')

@@ -20,7 +20,7 @@ patients_schema = PatientSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@professional_required
 def list_patients():
     """List all patients
     ---

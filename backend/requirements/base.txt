@@ -34,3 +34,9 @@ pytz==2023.3
 
 # API Documentation
 flasgger==0.9.7.1
+
+# Extensions
+flask-limiter==3.5.0
+flask-caching==2.1.0
+flask-socketio==5.3.6
+flask-migrate==4.0.5

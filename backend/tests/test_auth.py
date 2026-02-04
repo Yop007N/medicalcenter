@@ -105,8 +105,8 @@ class TestRegister:
         assert data['email'] == 'newpatient@test.com'
         assert data['role'] == 'patient'
 
-    def test_register_success_professional(self, client):
-        """Test successful professional registration"""
+    def test_register_forbidden_professional(self, client):
+        """Test forbidden professional registration"""
         response = client.post('/api/auth/register', json={
             'email': 'newdoctor@test.com',
             'password': 'Doctor123',
@@ -115,10 +115,9 @@ class TestRegister:
             'role': 'professional'
         })
 
-        assert response.status_code == 201
+        assert response.status_code == 400
         data = response.json
-        assert data['email'] == 'newdoctor@test.com'
-        assert data['role'] == 'professional'
+        assert 'Invalid role' in data['msg']
 
     def test_register_invalid_role_admin(self, client):
         """Test registration with admin role (should fail)"""

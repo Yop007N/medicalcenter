@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
+from app.utils.decorators import admin_required
 
 
 blueprint = Blueprint('users', __name__, url_prefix='/api/users')
@@ -17,7 +18,7 @@ users_schema = UserSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@admin_required
 def list_users():
     """List users with optional query filters (role, email) and pagination
     ---
@@ -91,7 +92,7 @@ def list_users():
 
 
 @blueprint.route('/<int:user_id>', methods=['GET'])
-@jwt_required()
+@admin_required
 def get_user(user_id):
     """Get user by ID
     ---
@@ -133,7 +134,7 @@ def get_user(user_id):
 
 
 @blueprint.route('', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create new user
     ---
@@ -184,7 +185,7 @@ def create_user():
 
 
 @blueprint.route('/<int:user_id>', methods=['PUT'])
-@jwt_required()
+@admin_required
 def update_user(user_id):
     """Update user
     ---
@@ -232,7 +233,7 @@ def update_user(user_id):
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(user_id):
     """Delete user
     ---
