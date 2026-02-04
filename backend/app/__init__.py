@@ -76,7 +76,7 @@ def create_app(config_name='development'):
                 "type": "apiKey",
                 "name": "Authorization",
                 "in": "header",
-                "description": "JWT Authorization header usando el esquema Bearer. Ejemplo: \"Authorization: Bearer {token}\""
+                "description": "JWT Authorization header using Bearer scheme. Example: \"Authorization: Bearer {token}\""
             }
         },
         "tags": [

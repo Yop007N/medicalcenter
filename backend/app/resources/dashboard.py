@@ -15,7 +15,7 @@ from app.models.payment import Payment
 from app.models.file import File
 from app.extensions import db, cache
 from datetime import datetime, timedelta
-from sqlalchemy import func, case, extract
+from sqlalchemy import func
 from decimal import Decimal
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
