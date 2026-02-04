@@ -96,6 +96,10 @@ class TestConfig(Config):
     # Disable rate limiting for tests
     RATELIMIT_ENABLED = False
 
+    # Disable caching for tests to prevent pickling errors with pytest-flask responses
+    CACHE_TYPE = 'NullCache'
+    CACHE_NO_NULL_WARNING = True
+
 
 config_by_name = {
     'development': DevelopmentConfig,
