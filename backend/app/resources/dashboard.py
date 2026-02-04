@@ -13,7 +13,7 @@ from app.models.medical_record import MedicalRecord
 from app.models.budget import Budget
 from app.models.payment import Payment
 from app.models.file import File
-from app.extensions import db
+from app.extensions import db, cache
 from datetime import datetime, timedelta
 from sqlalchemy import func, case, extract
 from decimal import Decimal
@@ -28,9 +28,11 @@ def format_year_month(date_column):
 
 @dashboard_bp.route('/overview', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, query_string=True)
 def get_overview():
     """
-    Get general overview metrics
+    Get general overview metrics.
+    Cached for 5 minutes.
 
     Returns:
         JSON with overall system statistics
@@ -97,9 +99,11 @@ def get_overview():
 
 @dashboard_bp.route('/appointments/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, query_string=True)
 def get_appointment_stats():
     """
-    Get detailed appointment statistics
+    Get detailed appointment statistics.
+    Cached for 5 minutes.
 
     Returns:
         JSON with appointment metrics
@@ -206,9 +210,11 @@ def get_appointment_stats():
 
 @dashboard_bp.route('/revenue/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, query_string=True)
 def get_revenue_stats():
     """
-    Get revenue and financial statistics
+    Get revenue and financial statistics.
+    Cached for 5 minutes.
 
     Returns:
         JSON with financial metrics
@@ -297,9 +303,11 @@ def get_revenue_stats():
 
 @dashboard_bp.route('/patients/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, query_string=True)
 def get_patient_stats():
     """
-    Get patient statistics and demographics
+    Get patient statistics and demographics.
+    Cached for 5 minutes.
 
     Returns:
         JSON with patient metrics
@@ -367,9 +375,11 @@ def get_patient_stats():
 
 @dashboard_bp.route('/files/stats', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, query_string=True)
 def get_files_stats():
     """
-    Get file storage statistics
+    Get file storage statistics.
+    Cached for 5 minutes.
 
     Returns:
         JSON with file metrics
@@ -423,9 +433,11 @@ def get_files_stats():
 
 @dashboard_bp.route('/activity/recent', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=60, query_string=True)
 def get_recent_activity():
     """
-    Get recent system activity
+    Get recent system activity.
+    Cached for 1 minute.
 
     Returns:
         JSON with recent activity feed
