@@ -9,3 +9,9 @@ html, body {
 }
 
 /* Material theme customization will be added here */
+
+// Accessibility: Show focus ring only when navigating by keyboard
+:focus-visible {
+  outline: 2px solid $primary-color;
+  outline-offset: 2px;
+}
