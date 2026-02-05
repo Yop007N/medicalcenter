@@ -1,0 +1,3 @@
+## 2026-02-05 - Capacitor Preferences in Playwright
+**Learning:** This project uses `@capacitor/preferences` for storage. On the web platform, this writes to `localStorage` with keys prefixed by `CapacitorStorage.` and values that are JSON stringified. When mocking authentication in Playwright, you must set `localStorage` items with this prefix and format (e.g., `localStorage.setItem('CapacitorStorage.access_token', JSON.stringify('token'))`).
+**Action:** When writing frontend verification scripts that require authentication, use this `CapacitorStorage.` prefix and stringified values for injecting tokens.

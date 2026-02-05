@@ -8,26 +8,16 @@ import {
   IonTitle,
   IonContent,
   IonSearchbar,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonAvatar,
   IonIcon,
   IonButtons,
   IonMenuButton,
   IonRefresher,
   IonRefresherContent,
-  IonItemSliding,
-  IonItemOptions,
-  IonItemOption,
   IonFab,
   IonFabButton,
   IonSkeletonText,
-  IonBadge,
   IonCard,
-  IonCardContent,
-  IonChip,
-  IonText
+  IonCardContent
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -56,26 +46,16 @@ import { NotificationService } from '../../../core/services';
     IonTitle,
     IonContent,
     IonSearchbar,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonAvatar,
     IonIcon,
     IonButtons,
     IonMenuButton,
     IonRefresher,
     IonRefresherContent,
-    IonItemSliding,
-    IonItemOptions,
-    IonItemOption,
     IonFab,
     IonFabButton,
     IonSkeletonText,
-    IonBadge,
     IonCard,
-    IonCardContent,
-    IonChip,
-    IonText
+    IonCardContent
   ],
   template: `
     <ion-header class="ion-no-border">
@@ -106,11 +86,11 @@ import { NotificationService } from '../../../core/services';
         <div class="stats-row">
           <div class="stat-chip active">
             <span class="stat-dot"></span>
-            <span>{{ getActiveCount() }} activos</span>
+            <span>{{ activeCount }} activos</span>
           </div>
           <div class="stat-chip inactive">
             <span class="stat-dot"></span>
-            <span>{{ getInactiveCount() }} inactivos</span>
+            <span>{{ inactiveCount }} inactivos</span>
           </div>
         </div>
       </div>
@@ -545,6 +525,8 @@ export class PatientsListPage implements OnInit {
   filteredPatients: Patient[] = [];
   loading = true;
   searchTerm = '';
+  activeCount = 0;
+  inactiveCount = 0;
 
   constructor() {
     addIcons({
@@ -564,12 +546,13 @@ export class PatientsListPage implements OnInit {
     return (patient.first_name?.charAt(0) || '') + (patient.last_name?.charAt(0) || '');
   }
 
-  getActiveCount(): number {
-    return this.patients.filter(p => p.is_active).length;
-  }
-
-  getInactiveCount(): number {
-    return this.patients.filter(p => !p.is_active).length;
+  calculateCounts(): void {
+    this.activeCount = 0;
+    this.inactiveCount = 0;
+    for (const p of this.patients) {
+      if (p.is_active) this.activeCount++;
+      else this.inactiveCount++;
+    }
   }
 
   ngOnInit(): void {
@@ -581,6 +564,7 @@ export class PatientsListPage implements OnInit {
     this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
       next: (data) => {
         this.patients = data;
+        this.calculateCounts();
         this.filterPatients();
         this.loading = false;
       },
