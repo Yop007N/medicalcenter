@@ -1,1 +1,16 @@
 // App component styles
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #ffffff;
+  color: #000000;
+  padding: 8px;
+  z-index: 1000;
+  transition: top 0.3s;
+  text-decoration: none;
+
+  &:focus {
+    top: 0;
+  }
+}
