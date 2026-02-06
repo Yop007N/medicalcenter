@@ -24,7 +24,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: frontend-web
-      run: npm install
+      run: npm install --legacy-peer-deps
 
     - name: Run linting
       working-directory: frontend-web
