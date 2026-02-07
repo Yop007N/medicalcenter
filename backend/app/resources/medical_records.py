@@ -11,7 +11,9 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy.orm import subqueryload
 
-blueprint = Blueprint("medical_records", __name__, url_prefix="/api/medical-records")
+blueprint = Blueprint(
+    "medical_records", __name__, url_prefix="/api/medical-records"
+)
 
 medical_record_schema = MedicalRecordSchema()
 medical_records_schema = MedicalRecordSchema(many=True)

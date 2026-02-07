@@ -157,7 +157,10 @@ def create_patient():
     if not is_valid:
         return (
             jsonify(
-                {"msg": "Missing required fields", "missing_fields": missing_fields}
+                {
+                    "msg": "Missing required fields",
+                    "missing_fields": missing_fields,
+                }
             ),
             400,
         )
@@ -269,7 +272,10 @@ def update_patient(patient_id):
         from app.models.user import User
 
         current_user = User.query.get(current_user_id)
-        if not current_user or current_user.role not in ["admin", "professional"]:
+        if not current_user or current_user.role not in [
+            "admin",
+            "professional",
+        ]:
             return jsonify({"msg": "Unauthorized"}), 403
 
     data = request.get_json() or {}

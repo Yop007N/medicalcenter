@@ -16,11 +16,15 @@ class MedicalRecord(db.Model):
     # Composite indexes for optimized queries
     __table_args__ = (
         db.Index("idx_patient_record_date", "patient_id", "record_date"),
-        db.Index("idx_professional_record_date", "professional_id", "record_date"),
+        db.Index(
+            "idx_professional_record_date", "professional_id", "record_date"
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
+    patient_id = db.Column(
+        db.Integer, db.ForeignKey("patients.id"), nullable=False
+    )
     professional_id = db.Column(
         db.Integer, db.ForeignKey("professionals.id"), nullable=False
     )
@@ -29,7 +33,9 @@ class MedicalRecord(db.Model):
     )
 
     # Clinical information
-    record_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    record_date = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
     chief_complaint = db.Column(db.Text)  # Motivo de consulta
     symptoms = db.Column(db.Text)
     diagnosis = db.Column(db.Text)
@@ -45,7 +51,9 @@ class MedicalRecord(db.Model):
     height = db.Column(db.Float)
 
     # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
