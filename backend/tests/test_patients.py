@@ -107,6 +107,27 @@ class TestGetPatient:
         response = client.get(f'/api/patients/{patient_id}')
         assert response.status_code == 401
 
+    def test_get_patient_forbidden(self, client, patient_auth_headers, app):
+        """Test getting another patient's data as a patient"""
+        with app.app_context():
+            # Create another patient (victim)
+            victim = Patient(
+                email='victim@test.com',
+                first_name='Victim',
+                last_name='Patient',
+                role='patient'
+            )
+            victim.set_password('Patient123')
+            db.session.add(victim)
+            db.session.commit()
+            victim_id = victim.id
+
+        # patient_auth_headers belongs to 'patient@test.com' (created in conftest)
+        # trying to access victim's data
+        response = client.get(f'/api/patients/{victim_id}', headers=patient_auth_headers)
+
+        assert response.status_code == 403
+
 
 class TestCreatePatient:
     """Test create patient endpoint"""

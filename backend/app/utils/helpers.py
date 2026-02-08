@@ -126,3 +126,36 @@ def sanitize_search_input(search_term, max_length=100):
             return ''
 
     return sanitized.strip()
+
+
+def verify_patient_access(patient_id):
+    """
+    Verify if current user has access to patient data
+
+    Args:
+        patient_id: ID of the patient to access
+
+    Returns:
+        bool: True if access is allowed
+    """
+    from flask_jwt_extended import get_jwt_identity
+    from app.models.user import User
+
+    try:
+        current_user_id = int(get_jwt_identity())
+        user = User.query.get(current_user_id)
+
+        if not user:
+            return False
+
+        # Admins and Professionals can access any patient
+        if user.role in ['admin', 'professional']:
+            return True
+
+        # Patients can only access their own data
+        if user.role == 'patient' and user.id == patient_id:
+            return True
+
+        return False
+    except Exception:
+        return False
