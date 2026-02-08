@@ -1,3 +1,6 @@
+// Production environment
 export const environment = {
-  production: true
+  production: true,
+  apiUrl: 'https://api.medicalservices.com/api',
+  enableOfflineMode: true
 };
