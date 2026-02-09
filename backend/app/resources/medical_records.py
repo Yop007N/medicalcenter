@@ -5,6 +5,7 @@ Medical Record CRUD endpoints
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy.orm import subqueryload
 from app.models.medical_record import MedicalRecord
 from app.schemas.medical_record_schema import MedicalRecordSchema
 from app.extensions import db
@@ -70,7 +71,10 @@ def list_medical_records():
     if professional_id:
         query = query.filter_by(professional_id=professional_id)
 
-    records = query.order_by(db.desc(MedicalRecord.record_date)).all()
+    # Optimization: Use subqueryload to eagerly load files and prevent N+1 query problem
+    # This reduces queries from 1 + N (where N is number of records) to 2 queries
+    records = query.options(subqueryload(MedicalRecord.files))\
+        .order_by(db.desc(MedicalRecord.record_date)).all()
     return jsonify(medical_records_schema.dump(records)), 200
 
 
