@@ -107,6 +107,47 @@ class TestGetPatient:
         response = client.get(f'/api/patients/{patient_id}')
         assert response.status_code == 401
 
+    def test_get_patient_forbidden(self, client, app):
+        """Test patient accessing another patient's data (IDOR)"""
+        with app.app_context():
+            # Create victim
+            victim = Patient(
+                email='victim@test.com',
+                first_name='Victim',
+                last_name='Patient',
+                role='patient'
+            )
+            victim.set_password('Victim123')
+            db.session.add(victim)
+            db.session.commit()
+
+            # Create attacker
+            attacker = Patient(
+                email='attacker@test.com',
+                first_name='Attacker',
+                last_name='Patient',
+                role='patient'
+            )
+            attacker.set_password('Attacker123')
+            db.session.add(attacker)
+            db.session.commit()
+
+            victim_id = victim.id
+            attacker_email = attacker.email
+
+        # Login as attacker
+        response = client.post('/api/auth/login', json={
+            'email': attacker_email,
+            'password': 'Attacker123'
+        })
+        token = response.json['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
+
+        # Try to access victim's profile
+        response = client.get(f'/api/patients/{victim_id}', headers=headers)
+
+        assert response.status_code == 403
+
 
 class TestCreatePatient:
     """Test create patient endpoint"""
