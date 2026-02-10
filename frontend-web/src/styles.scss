@@ -1,8 +1,9 @@
 /* Global styles */
-@import './styles/variables';
-@import './styles/mixins';
+@import "./styles/variables";
+@import "./styles/mixins";
 
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;

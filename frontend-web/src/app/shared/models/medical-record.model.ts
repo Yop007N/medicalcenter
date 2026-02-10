@@ -27,7 +27,7 @@ export interface MedicalFile {
   file_type: string;
   mime_type: string;
   file_size: number;
-  storage_type: 'cloud' | 'local';
+  storage_type: "cloud" | "local";
   file_path: string;
   thumbnail_path?: string;
   description: string;

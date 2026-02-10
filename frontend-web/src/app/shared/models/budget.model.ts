@@ -6,7 +6,7 @@ export interface Budget {
   description: string;
   total_amount: number;
   currency: string;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+  status: "draft" | "sent" | "accepted" | "rejected" | "expired";
   valid_until: string;
   items: BudgetItem[];
   created_at: string;

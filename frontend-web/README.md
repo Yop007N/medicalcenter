@@ -74,6 +74,7 @@ ng build --configuration production
 ## Testing
 
 Run unit tests:
+
 ```bash
 npm test
 # or
@@ -102,6 +103,7 @@ ng lint
 ## State Management
 
 The application uses NgRx for state management with:
+
 - Actions
 - Reducers
 - Effects
@@ -110,6 +112,7 @@ The application uses NgRx for state management with:
 ## API Integration
 
 All API calls go through the `ApiService` which handles:
+
 - HTTP requests
 - Error handling
 - Token management

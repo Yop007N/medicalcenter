@@ -4,7 +4,7 @@ export interface Appointment {
   professional_id: number;
   appointment_date: string;
   duration_minutes: number;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  status: "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
   appointment_type: string;
   reason: string;
   notes: string;

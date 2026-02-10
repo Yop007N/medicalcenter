@@ -1,16 +1,16 @@
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { ApiService } from '../api/api.service';
-import { Budget } from '../../shared/models/budget.model';
+import { Injectable } from "@angular/core";
+import { Observable } from "rxjs";
+import { ApiService } from "../api/api.service";
+import { Budget } from "../../shared/models/budget.model";
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class BudgetService {
   constructor(private api: ApiService) {}
 
   getBudgets(filters?: any): Observable<Budget[]> {
-    return this.api.get<Budget[]>('budgets', filters);
+    return this.api.get<Budget[]>("budgets", filters);
   }
 
   getBudgetById(id: number): Observable<Budget> {
@@ -18,7 +18,7 @@ export class BudgetService {
   }
 
   createBudget(budget: Partial<Budget>): Observable<Budget> {
-    return this.api.post<Budget>('budgets', budget);
+    return this.api.post<Budget>("budgets", budget);
   }
 
   updateBudget(id: number, budget: Partial<Budget>): Observable<Budget> {

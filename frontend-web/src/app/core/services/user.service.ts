@@ -1,16 +1,16 @@
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { ApiService } from '../api/api.service';
-import { User } from '../../shared/models/user.model';
+import { Injectable } from "@angular/core";
+import { Observable } from "rxjs";
+import { ApiService } from "../api/api.service";
+import { User } from "../../shared/models/user.model";
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class UserService {
   constructor(private api: ApiService) {}
 
   getUsers(): Observable<User[]> {
-    return this.api.get<User[]>('users');
+    return this.api.get<User[]>("users");
   }
 
   getUserById(id: number): Observable<User> {
@@ -18,7 +18,7 @@ export class UserService {
   }
 
   createUser(user: Partial<User>): Observable<User> {
-    return this.api.post<User>('users', user);
+    return this.api.post<User>("users", user);
   }
 
   updateUser(id: number, user: Partial<User>): Observable<User> {
