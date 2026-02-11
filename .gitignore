@@ -36,6 +36,9 @@ www/
 __pycache__/
 *.egg-info/
 
+# Angular
+.angular/
+
 # Database
 *.db
 *.sqlite
