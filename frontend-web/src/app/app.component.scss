@@ -1,1 +1,26 @@
-// App component styles
+@import '../styles/variables';
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: $primary-color;
+  color: white;
+  padding: $spacing-sm;
+  z-index: 100;
+  transition: top 0.3s;
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom-right-radius: 4px;
+
+  &:focus {
+    top: 0;
+    outline: 2px solid $accent-color;
+  }
+}
+
+main {
+  &:focus {
+    outline: none;
+  }
+}
