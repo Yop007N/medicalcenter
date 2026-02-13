@@ -12,3 +12,6 @@ coverage==7.3.4
 
 # Linting (required for CI)
 flake8==6.1.0
+
+# Missing dependency for tests
+Flask-Limiter==4.1.1
