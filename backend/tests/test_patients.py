@@ -283,3 +283,72 @@ class TestDeletePatient:
         response = client.delete(f'/api/patients/{patient_id}')
 
         assert response.status_code == 401
+
+class TestPatientSecurity:
+    """Test security aspects of patient endpoints"""
+
+    def test_patient_cannot_access_other_patient(self, client, patient_auth_headers, app):
+        """Test that a patient cannot access another patient's data (IDOR)"""
+        with app.app_context():
+            # Create a victim patient
+            victim = Patient(
+                email='victim@test.com',
+                first_name='Victim',
+                last_name='User',
+                role='patient',
+                medical_history='Secret'
+            )
+            victim.set_password('Victim123')
+            db.session.add(victim)
+            db.session.commit()
+            victim_id = victim.id
+
+        # Try to access victim's profile using another patient's token (patient_auth_headers)
+        response = client.get(f'/api/patients/{victim_id}', headers=patient_auth_headers)
+
+        # Should be forbidden
+        assert response.status_code == 403
+
+    def test_patient_can_access_own_profile(self, client, app):
+        """Test that a patient can access their own profile"""
+        with app.app_context():
+            patient = Patient(
+                email='ownprofile@test.com',
+                first_name='Own',
+                last_name='Profile',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+            patient_email = patient.email
+
+        # Login
+        response = client.post('/api/auth/login', json={
+            'email': patient_email,
+            'password': 'Patient123'
+        })
+        token = response.json['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
+
+        response = client.get(f'/api/patients/{patient_id}', headers=headers)
+        assert response.status_code == 200
+        assert response.json['id'] == patient_id
+
+    def test_professional_can_access_any_patient(self, client, auth_headers, app):
+        """Test that a professional can access any patient"""
+        with app.app_context():
+            patient = Patient(
+                email='anypat@test.com',
+                first_name='Any',
+                last_name='Patient',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+
+        response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
+        assert response.status_code == 200
