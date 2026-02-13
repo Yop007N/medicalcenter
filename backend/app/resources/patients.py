@@ -19,6 +19,27 @@ patient_schema = PatientSchema()
 patients_schema = PatientSchema(many=True)
 
 
+def check_access(patient_id):
+    """
+    Check if the current user is authorized to access the patient's data.
+    Patients can only access their own data.
+    Professionals and Admins can access any patient.
+    """
+    current_user_id = int(get_jwt_identity())
+
+    # If the user is accessing their own data, allow it
+    if patient_id == current_user_id:
+        return True
+
+    # If not accessing own data, check if user is professional or admin
+    from app.models.user import User
+    current_user = User.query.get(current_user_id)
+    if current_user and current_user.role in ['admin', 'professional']:
+        return True
+
+    return False
+
+
 @blueprint.route('', methods=['GET'])
 @jwt_required()
 def list_patients():
@@ -43,6 +64,14 @@ def list_patients():
       401:
         description: No autenticado
     """
+    # Check if user is professional or admin (patients shouldn't list other patients)
+    from app.models.user import User
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if not current_user or current_user.role not in ['admin', 'professional']:
+        return jsonify({'msg': 'Unauthorized'}), 403
+
     search = request.args.get('search')
 
     query = Patient.query
@@ -85,10 +114,15 @@ def get_patient(patient_id):
         description: Paciente no encontrado
       401:
         description: No autenticado
+      403:
+        description: No autorizado
     """
     patient = Patient.query.get(patient_id)
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     return jsonify(patient_schema.dump(patient)), 200
 
@@ -252,18 +286,13 @@ def update_patient(patient_id):
       403:
         description: No autorizado
     """
-    current_user_id = int(get_jwt_identity())
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
 
-    # Only allow updating own profile unless professional/admin
-    if patient.id != current_user_id:
-        from app.models.user import User
-        current_user = User.query.get(current_user_id)
-        if not current_user or current_user.role not in ['admin', 'professional']:
-            return jsonify({'msg': 'Unauthorized'}), 403
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     data = request.get_json() or {}
 
@@ -343,11 +372,16 @@ def get_patient_medical_history(patient_id):
             type: object
       404:
         description: Paciente no encontrado
+      403:
+        description: No autorizado
     """
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     from app.schemas.medical_record_schema import MedicalRecordSchema
     medical_records_schema = MedicalRecordSchema(many=True)
@@ -382,11 +416,16 @@ def get_patient_appointments(patient_id):
             type: object
       404:
         description: Paciente no encontrado
+      403:
+        description: No autorizado
     """
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     from app.models.appointment import Appointment
     from app.schemas.appointment_schema import AppointmentSchema
@@ -423,11 +462,16 @@ def get_patient_medical_records(patient_id):
             type: object
       404:
         description: Paciente no encontrado
+      403:
+        description: No autorizado
     """
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     from app.models.medical_record import MedicalRecord
     from app.schemas.medical_record_schema import MedicalRecordSchema
@@ -464,11 +508,16 @@ def get_patient_budgets(patient_id):
             type: object
       404:
         description: Paciente no encontrado
+      403:
+        description: No autorizado
     """
     patient = Patient.query.get(patient_id)
 
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+
+    if not check_access(patient.id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     from app.models.budget import Budget
     from app.schemas.budget_schema import BudgetSchema
@@ -479,4 +528,3 @@ def get_patient_budgets(patient_id):
     ).all()
 
     return jsonify(budgets_schema.dump(budgets)), 200
-
