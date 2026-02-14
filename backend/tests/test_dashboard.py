@@ -491,7 +491,14 @@ class TestDashboardIntegration:
         patient_data = json.loads(patient_response.data)
 
         # Patient count should match
-        assert overview_data['totals']['patients'] == patient_data['totals']['active']
+        # Ensure we are accessing the correct key based on endpoint response structure
+        # /api/dashboard/overview -> totals -> patients
+        # /api/dashboard/patients/stats -> totals -> active
+        if 'totals' in patient_data and 'active' in patient_data['totals']:
+             assert overview_data['totals']['patients'] == patient_data['totals']['active']
+        else:
+             # Fallback or fail if structure is completely different
+             pytest.fail(f"Unexpected patient data structure: {patient_data.keys()}")
 
     def test_dashboard_performance(self, client, auth_headers):
         """Test that dashboard endpoints respond quickly"""

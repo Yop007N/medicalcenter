@@ -22,7 +22,10 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 def format_year_month(date_column):
-    """Helper to format date as YYYY-MM for PostgreSQL"""
+    """Helper to format date as YYYY-MM for PostgreSQL or SQLite"""
+    from app.extensions import db
+    if 'sqlite' in db.engine.url.drivername:
+        return func.strftime('%Y-%m', date_column)
     return func.to_char(date_column, 'YYYY-MM')
 
 
