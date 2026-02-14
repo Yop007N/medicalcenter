@@ -3,39 +3,39 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: '/dashboard',
+    redirectTo: 'dashboard',
     pathMatch: 'full'
   },
   {
-    path: 'auth',
-    loadChildren: () => import('./features/auth/auth-routing.module').then(m => m.AuthRoutingModule)
+    path: 'auth/login',
+    loadComponent: () => import('./pages/auth-login.page').then((m) => m.AuthLoginPage)
   },
   {
     path: 'dashboard',
-    loadChildren: () => import('./features/dashboard/dashboard-routing.module').then(m => m.DashboardRoutingModule)
+    loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage)
   },
   {
     path: 'professionals',
-    loadChildren: () => import('./features/professionals/professionals-routing.module').then(m => m.ProfessionalsRoutingModule)
+    loadComponent: () => import('./pages/professionals.page').then((m) => m.ProfessionalsPage)
   },
   {
     path: 'patients',
-    loadChildren: () => import('./features/patients/patients-routing.module').then(m => m.PatientsRoutingModule)
+    loadComponent: () => import('./pages/patients.page').then((m) => m.PatientsPage)
   },
   {
     path: 'appointments',
-    loadChildren: () => import('./features/appointments/appointments-routing.module').then(m => m.AppointmentsRoutingModule)
+    loadComponent: () => import('./pages/appointments.page').then((m) => m.AppointmentsPage)
   },
   {
     path: 'medical-records',
-    loadChildren: () => import('./features/medical-records/medical-records-routing.module').then(m => m.MedicalRecordsRoutingModule)
+    loadComponent: () => import('./pages/medical-records.page').then((m) => m.MedicalRecordsPage)
   },
   {
     path: 'budgets',
-    loadChildren: () => import('./features/budgets/budgets-routing.module').then(m => m.BudgetsRoutingModule)
+    loadComponent: () => import('./pages/budgets.page').then((m) => m.BudgetsPage)
   },
   {
     path: '**',
-    redirectTo: '/dashboard'
+    redirectTo: 'dashboard'
   }
 ];

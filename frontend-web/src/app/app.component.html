@@ -1,2 +1,21 @@
 <app-loading-bar></app-loading-bar>
-<router-outlet></router-outlet>
+<header class="topbar">
+  <a class="brand" routerLink="/dashboard">Medical Services</a>
+  <nav class="nav">
+    @for (item of navItems; track item.path) {
+      <a
+        class="nav-link"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+  <a class="login-link" routerLink="/auth/login">Login</a>
+</header>
+
+<main class="content">
+  <router-outlet></router-outlet>
+</main>
