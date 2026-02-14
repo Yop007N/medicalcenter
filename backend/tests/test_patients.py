@@ -85,6 +85,65 @@ class TestGetPatient:
         assert data['email'] == 'getpat@test.com'
         assert data['blood_type'] == 'O+'
 
+    def test_get_patient_self_access(self, client, app):
+        """Test patient accessing their own data"""
+        with app.app_context():
+            # Create a real Patient
+            patient = Patient(
+                email='selfaccess@test.com',
+                first_name='Self',
+                last_name='Access',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+            patient_email = patient.email
+
+        # Login
+        response = client.post('/api/auth/login', json={
+            'email': patient_email,
+            'password': 'Patient123'
+        })
+        token = response.json['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
+
+        response = client.get(f'/api/patients/{patient_id}', headers=headers)
+
+        assert response.status_code == 200
+        data = response.json
+        assert data['email'] == patient_email
+
+    def test_get_patient_unauthorized_access_by_another_patient(self, client, app):
+        """Test patient trying to access another patient's data"""
+        with app.app_context():
+            # Create two patients
+            patient1 = Patient(email='p1@test.com', first_name='P1', last_name='Test', role='patient')
+            patient1.set_password('pass123')
+            db.session.add(patient1)
+
+            patient2 = Patient(email='p2@test.com', first_name='P2', last_name='Test', role='patient')
+            patient2.set_password('pass123')
+            db.session.add(patient2)
+            db.session.commit()
+
+            p1_id = patient1.id
+            p2_email = patient2.email
+
+        # Login as P2
+        response = client.post('/api/auth/login', json={
+            'email': p2_email,
+            'password': 'pass123'
+        })
+        token = response.json['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
+
+        # Try to access P1's data
+        response = client.get(f'/api/patients/{p1_id}', headers=headers)
+
+        assert response.status_code == 403
+
     def test_get_patient_not_found(self, client, auth_headers):
         """Test getting non-existent patient"""
         response = client.get('/api/patients/99999', headers=auth_headers)
