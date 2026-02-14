@@ -10,21 +10,31 @@ from app.extensions import db
 class MedicalRecord(db.Model):
     """Medical record model for storing clinical consultation information"""
 
-    __tablename__ = 'medical_records'
+    __tablename__ = "medical_records"
 
     # Composite indexes for optimized queries
     __table_args__ = (
-        db.Index('idx_patient_record_date', 'patient_id', 'record_date'),
-        db.Index('idx_professional_record_date', 'professional_id', 'record_date'),
+        db.Index("idx_patient_record_date", "patient_id", "record_date"),
+        db.Index(
+            "idx_professional_record_date", "professional_id", "record_date"
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    professional_id = db.Column(db.Integer, db.ForeignKey('professionals.id'), nullable=False)
-    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=True)
+    patient_id = db.Column(
+        db.Integer, db.ForeignKey("patients.id"), nullable=False
+    )
+    professional_id = db.Column(
+        db.Integer, db.ForeignKey("professionals.id"), nullable=False
+    )
+    appointment_id = db.Column(
+        db.Integer, db.ForeignKey("appointments.id"), nullable=True
+    )
 
     # Clinical information
-    record_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    record_date = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
     chief_complaint = db.Column(db.Text)  # Motivo de consulta
     symptoms = db.Column(db.Text)
     diagnosis = db.Column(db.Text)
@@ -40,11 +50,15 @@ class MedicalRecord(db.Model):
     height = db.Column(db.Float)
 
     # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
-    files = db.relationship('File', backref='medical_record', lazy='dynamic')
+    files = db.relationship("File", backref="medical_record")
 
     def __repr__(self):
-        return f'<MedicalRecord {self.id} - Patient {self.patient_id}>'
+        return f"<MedicalRecord {self.id} - Patient {self.patient_id}>"

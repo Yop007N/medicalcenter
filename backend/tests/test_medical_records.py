@@ -36,8 +36,9 @@ class TestListMedicalRecords:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert isinstance(data, list)
-        assert len(data) >= 2
+        assert 'items' in data
+        assert isinstance(data['items'], list)
+        assert len(data['items']) >= 2
 
     def test_list_medical_records_filter_by_patient(self, client, auth_headers, sample_patient, sample_professional, app):
         """Test filtering medical records by patient"""
@@ -57,9 +58,10 @@ class TestListMedicalRecords:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert isinstance(data, list)
+        assert 'items' in data
+        assert isinstance(data['items'], list)
         # All records should be for this patient
-        for record in data:
+        for record in data['items']:
             assert record['patient_id'] == sample_patient.id
 
     def test_list_medical_records_filter_by_professional(self, client, auth_headers, sample_patient, sample_professional, app):
@@ -79,8 +81,9 @@ class TestListMedicalRecords:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert isinstance(data, list)
-        for record in data:
+        assert 'items' in data
+        assert isinstance(data['items'], list)
+        for record in data['items']:
             assert record['professional_id'] == sample_professional.id
 
     def test_list_medical_records_unauthorized(self, client):
@@ -423,7 +426,9 @@ class TestMedicalRecordIntegration:
         # 4. List medical records for patient
         list_response = client.get(f'/api/medical-records?patient_id={sample_patient.id}', headers=auth_headers)
         assert list_response.status_code == 200
-        records_list = json.loads(list_response.data)
+        data = json.loads(list_response.data)
+        assert 'items' in data
+        records_list = data['items']
         assert any(r['id'] == record_id for r in records_list)
 
     def test_multiple_records_for_patient(self, client, auth_headers, sample_patient):
@@ -441,7 +446,9 @@ class TestMedicalRecordIntegration:
         # List all records for patient
         list_response = client.get(f'/api/medical-records?patient_id={sample_patient.id}', headers=auth_headers)
         assert list_response.status_code == 200
-        records = json.loads(list_response.data)
+        data = json.loads(list_response.data)
+        assert 'items' in data
+        records = data['items']
         assert len(records) >= 3
 
     def test_medical_record_with_vital_signs(self, client, auth_headers, sample_patient):
