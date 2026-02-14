@@ -61,6 +61,7 @@ class TestBackupService:
         with app.app_context():
             # Ensure files directory exists but is empty
             files_dir = 'storage/files'
+            backup_temp = None
             if os.path.exists(files_dir):
                 # Backup and restore later
                 backup_temp = tempfile.mkdtemp()
@@ -75,7 +76,7 @@ class TestBackupService:
 
             finally:
                 # Restore files if they existed
-                if os.path.exists(backup_temp):
+                if backup_temp and os.path.exists(backup_temp):
                     shutil.rmtree(backup_temp, ignore_errors=True)
 
     def test_create_files_backup_with_files(self, app, sample_patient, sample_professional):
