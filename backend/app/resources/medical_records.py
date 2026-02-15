@@ -6,6 +6,7 @@ Medical Record CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.schemas.medical_record_schema import MedicalRecordSchema
 from app.extensions import db
 from app.utils.decorators import professional_required
@@ -63,6 +64,17 @@ def list_medical_records():
     patient_id = request.args.get('patient_id', type=int)
     professional_id = request.args.get('professional_id', type=int)
 
+    # Security: Restrict patients to their own records
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 401
+
+    if current_user.role == 'patient':
+        # Patients can only see their own records
+        patient_id = current_user_id
+
     query = MedicalRecord.query
 
     if patient_id:
@@ -115,6 +127,16 @@ def get_medical_record(record_id):
     record = MedicalRecord.query.get(record_id)
     if not record:
         return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Security: Restrict patients to their own records
+    current_user_id = int(get_jwt_identity())
+    current_user = User.query.get(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'User not found'}), 401
+
+    if current_user.role == 'patient' and record.patient_id != current_user_id:
+        return jsonify({'msg': 'Access denied'}), 403
 
     return jsonify(medical_record_schema.dump(record)), 200
 
