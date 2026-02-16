@@ -70,7 +70,8 @@ def list_medical_records():
     if professional_id:
         query = query.filter_by(professional_id=professional_id)
 
-    records = query.order_by(db.desc(MedicalRecord.record_date)).all()
+    # Optimize query by eager loading files to avoid N+1 problem
+    records = query.options(db.joinedload(MedicalRecord.files)).order_by(db.desc(MedicalRecord.record_date)).all()
     return jsonify(medical_records_schema.dump(records)), 200
 
 
