@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
@@ -100,6 +101,16 @@ def upload_file():
     if not medical_record:
         return jsonify({'msg': 'Medical record not found'}), 404
 
+    # Authorization check
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    # Allow admins and professionals to upload to any record
+    # Patients can only upload to their own record
+    if user.role == 'patient' and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     # Generate unique filename
     original_filename = secure_filename(file.filename)
     unique_filename = generate_unique_filename(original_filename)
@@ -174,11 +185,29 @@ def get_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Permisos insuficientes
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    medical_record = MedicalRecord.query.get(file_record.medical_record_id)
+    if not medical_record:
+        # Should not happen if FK integrity is maintained
+        return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Allow admins and professionals to view any file
+    # Patients can only view their own files
+    if user.role == 'patient' and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
 
     return jsonify({
         'id': file_record.id,
@@ -216,11 +245,28 @@ def download_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Permisos insuficientes
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    medical_record = MedicalRecord.query.get(file_record.medical_record_id)
+    if not medical_record:
+        return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Allow admins and professionals to download any file
+    # Patients can only download their own files
+    if user.role == 'patient' and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
 
     if not os.path.exists(file_record.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
@@ -255,11 +301,28 @@ def delete_file(file_id):
         description: Archivo no encontrado
       401:
         description: No autenticado
+      403:
+        description: Permisos insuficientes
     """
     file_record = File.query.get(file_id)
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    # Authorization check
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'msg': 'User not found'}), 404
+
+    medical_record = MedicalRecord.query.get(file_record.medical_record_id)
+    if not medical_record:
+        return jsonify({'msg': 'Medical record not found'}), 404
+
+    # Allow admins and professionals to delete any file
+    # Patients can only delete their own files
+    if user.role == 'patient' and medical_record.patient_id != current_user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
 
     # Delete physical file
     if os.path.exists(file_record.file_path):
