@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { PlaceholderComponent } from './shared/components/placeholder/placeholder.component';
 
 export const routes: Routes = [
   {
@@ -8,31 +9,31 @@ export const routes: Routes = [
   },
   {
     path: 'auth',
-    loadChildren: () => import('./features/auth/auth-routing.module').then(m => m.AuthRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'dashboard',
-    loadChildren: () => import('./features/dashboard/dashboard-routing.module').then(m => m.DashboardRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'professionals',
-    loadChildren: () => import('./features/professionals/professionals-routing.module').then(m => m.ProfessionalsRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'patients',
-    loadChildren: () => import('./features/patients/patients-routing.module').then(m => m.PatientsRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'appointments',
-    loadChildren: () => import('./features/appointments/appointments-routing.module').then(m => m.AppointmentsRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'medical-records',
-    loadChildren: () => import('./features/medical-records/medical-records-routing.module').then(m => m.MedicalRecordsRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: 'budgets',
-    loadChildren: () => import('./features/budgets/budgets-routing.module').then(m => m.BudgetsRoutingModule)
+    component: PlaceholderComponent
   },
   {
     path: '**',
