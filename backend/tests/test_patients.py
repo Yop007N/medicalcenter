@@ -107,6 +107,23 @@ class TestGetPatient:
         response = client.get(f'/api/patients/{patient_id}')
         assert response.status_code == 401
 
+    def test_get_patient_forbidden(self, client, patient_auth_headers, app):
+        """Test getting another patient's data as a patient"""
+        with app.app_context():
+            other_patient = Patient(
+                email='other@test.com',
+                first_name='Other',
+                last_name='Patient',
+                role='patient'
+            )
+            other_patient.set_password('Patient123')
+            db.session.add(other_patient)
+            db.session.commit()
+            other_patient_id = other_patient.id
+
+        response = client.get(f'/api/patients/{other_patient_id}', headers=patient_auth_headers)
+        assert response.status_code == 403
+
 
 class TestCreatePatient:
     """Test create patient endpoint"""
