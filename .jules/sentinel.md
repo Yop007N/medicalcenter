@@ -10,3 +10,7 @@
 **Vulnerability:** CI pipeline failure due to missing runtime dependencies.
 **Learning:** The application imported libraries (`flask_limiter`, `flask_caching`, `flask_socketio`, `flask_migrate`) that were not listed in `requirements/base.txt`. This caused the test suite to crash on import.
 **Prevention:** Regularly audit imports against requirements files. Ensure all extensions used in `app/__init__.py` or `app/extensions.py` are pinned in dependencies.
+## 2026-02-18 - Database Compatibility in Dashboard
+**Vulnerability:** Application crashes on SQLite (used in testing) due to PostgreSQL-specific SQL functions.
+**Learning:** `func.to_char` is PostgreSQL-specific. Tests failed with 500 errors because SQLite doesn't support it.
+**Prevention:** Use `db.session.get_bind().dialect.name` to detect the database engine and use compatible SQL functions (e.g., `strftime` for SQLite) or use database-agnostic SQLAlchemy constructs where possible.

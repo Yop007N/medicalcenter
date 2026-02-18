@@ -15,14 +15,17 @@ from app.models.payment import Payment
 from app.models.file import File
 from app.extensions import db
 from datetime import datetime, timedelta
-from sqlalchemy import func, case, extract
+from sqlalchemy import func
 from decimal import Decimal
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 def format_year_month(date_column):
-    """Helper to format date as YYYY-MM for PostgreSQL"""
+    """Helper to format date as YYYY-MM for PostgreSQL/SQLite"""
+    bind = db.session.get_bind()
+    if bind.dialect.name == 'sqlite':
+        return func.strftime('%Y-%m', date_column)
     return func.to_char(date_column, 'YYYY-MM')
 
 
