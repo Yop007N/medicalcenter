@@ -22,7 +22,9 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 def format_year_month(date_column):
-    """Helper to format date as YYYY-MM for PostgreSQL"""
+    """Helper to format date as YYYY-MM for PostgreSQL/SQLite"""
+    if db.engine.dialect.name == 'sqlite':
+        return func.strftime('%Y-%m', date_column)
     return func.to_char(date_column, 'YYYY-MM')
 
 
@@ -338,15 +340,12 @@ def get_patient_stats():
         ).scalar() or 0
 
         # Average appointments per patient
-        avg_appointments = db.session.query(
-            func.avg(func.coalesce(
-                db.session.query(func.count(Appointment.id))
-                .filter(Appointment.patient_id == Patient.id)
-                .correlate(Patient)
-                .scalar_subquery(),
-                0
-            ))
-        ).scalar() or 0
+        # Optimization: Use total counts instead of correlated subquery
+        # This is O(1) instead of O(N) and fixes a bug where the previous query returned total appointments
+        total_appointments_count = db.session.query(func.count(Appointment.id)).scalar() or 0
+        total_patients_count = db.session.query(func.count(Patient.id)).scalar() or 0
+
+        avg_appointments = total_appointments_count / total_patients_count if total_patients_count > 0 else 0
 
         return jsonify({
             'totals': {
