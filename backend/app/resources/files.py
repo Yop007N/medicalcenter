@@ -21,7 +21,8 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def check_file_access(file_record, current_user_id):
@@ -60,7 +61,7 @@ def upload_file():
         name: file
         type: file
         required: true
-        description: Archivo médico a subir (pdf, png, jpg, jpeg, gif, dcm, doc, docx)
+        description: Archivo médico (pdf, png, jpg, jpeg, gif, dcm, doc, docx)
       - in: formData
         name: medical_record_id
         type: integer
