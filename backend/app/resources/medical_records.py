@@ -9,6 +9,7 @@ from app.models.medical_record import MedicalRecord
 from app.schemas.medical_record_schema import MedicalRecordSchema
 from app.extensions import db
 from app.utils.decorators import professional_required
+from sqlalchemy.orm import subqueryload
 
 blueprint = Blueprint('medical_records', __name__, url_prefix='/api/medical-records')
 
@@ -70,7 +71,7 @@ def list_medical_records():
     if professional_id:
         query = query.filter_by(professional_id=professional_id)
 
-    records = query.order_by(db.desc(MedicalRecord.record_date)).all()
+    records = query.options(subqueryload(MedicalRecord.files)).order_by(db.desc(MedicalRecord.record_date)).all()
     return jsonify(medical_records_schema.dump(records)), 200
 
 

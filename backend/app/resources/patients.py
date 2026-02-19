@@ -12,6 +12,7 @@ from app.extensions import db
 from app.utils.decorators import professional_required
 from app.services.auth_service import AuthService
 from app.utils.helpers import validate_required_fields, sanitize_search_input
+from sqlalchemy.orm import subqueryload
 
 blueprint = Blueprint('patients', __name__, url_prefix='/api/patients')
 
@@ -350,10 +351,11 @@ def get_patient_medical_history(patient_id):
         return jsonify({'msg': 'Patient not found'}), 404
 
     from app.schemas.medical_record_schema import MedicalRecordSchema
+    from app.models.medical_record import MedicalRecord
     medical_records_schema = MedicalRecordSchema(many=True)
 
     # Get all medical records ordered by date
-    records = patient.medical_records.order_by(db.desc('record_date')).all()
+    records = patient.medical_records.options(subqueryload(MedicalRecord.files)).order_by(db.desc('record_date')).all()
 
     return jsonify(medical_records_schema.dump(records)), 200
 
@@ -433,7 +435,7 @@ def get_patient_medical_records(patient_id):
     from app.schemas.medical_record_schema import MedicalRecordSchema
     medical_records_schema = MedicalRecordSchema(many=True)
 
-    records = MedicalRecord.query.filter_by(patient_id=patient_id).order_by(
+    records = MedicalRecord.query.filter_by(patient_id=patient_id).options(subqueryload(MedicalRecord.files)).order_by(
         MedicalRecord.record_date.desc()
     ).all()
 
