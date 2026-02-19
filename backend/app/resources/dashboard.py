@@ -338,15 +338,9 @@ def get_patient_stats():
         ).scalar() or 0
 
         # Average appointments per patient
-        avg_appointments = db.session.query(
-            func.avg(func.coalesce(
-                db.session.query(func.count(Appointment.id))
-                .filter(Appointment.patient_id == Patient.id)
-                .correlate(Patient)
-                .scalar_subquery(),
-                0
-            ))
-        ).scalar() or 0
+        total_appointments = Appointment.query.count()
+        total_patients = Patient.query.count()
+        avg_appointments = total_appointments / total_patients if total_patients > 0 else 0
 
         return jsonify({
             'totals': {

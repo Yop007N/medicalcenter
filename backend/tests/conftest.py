@@ -7,6 +7,28 @@ import pytest
 from app import create_app
 from app.extensions import db
 from app.models.user import User
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+        # Define to_char for testing
+        def to_char(date_val, fmt):
+            if not date_val:
+                return None
+            # Simplistic implementation for YYYY-MM
+            if fmt == 'YYYY-MM':
+                return str(date_val)[:7]
+            return str(date_val)
+
+        dbapi_connection.create_function("to_char", 2, to_char)
 
 
 @pytest.fixture(scope='session')
