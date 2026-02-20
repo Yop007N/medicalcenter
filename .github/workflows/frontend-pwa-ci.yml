@@ -26,7 +26,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: frontend-pwa
-      run: npm install
+      run: npm install --legacy-peer-deps
 
     - name: Run tests
       working-directory: frontend-pwa
