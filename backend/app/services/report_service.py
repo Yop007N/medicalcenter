@@ -434,6 +434,20 @@ class ReportService:
     # ============ EXPORTACIÓN ============
 
     @staticmethod
+    def _sanitize_csv_field(value):
+        """
+        Sanitize field for CSV export to prevent Formula Injection
+        """
+        if not isinstance(value, str):
+            return value
+
+        # Check for dangerous characters at start
+        if value and value.startswith(('=', '+', '-', '@')):
+            return f"'{value}"
+
+        return value
+
+    @staticmethod
     def export_to_csv(data, report_type):
         """
         Exporta reporte a CSV
@@ -451,7 +465,7 @@ class ReportService:
             writer = csv.writer(output)
             writer.writerow(['Paciente', 'Período', 'Total Registros', 'Total Turnos', 'Total Archivos'])
             writer.writerow([
-                data['patient']['full_name'],
+                ReportService._sanitize_csv_field(data['patient']['full_name']),
                 f"{data['period']['start_date']} - {data['period']['end_date']}",
                 data['summary']['total_records'],
                 data['summary']['total_appointments'],
@@ -461,7 +475,12 @@ class ReportService:
             writer.writerow(['Registros Médicos'])
             writer.writerow(['ID', 'Fecha', 'Diagnóstico', 'Tratamiento'])
             for mr in data['medical_records']:
-                writer.writerow([mr['id'], mr['date'], mr['diagnosis'], mr['treatment']])
+                writer.writerow([
+                    mr['id'],
+                    mr['date'],
+                    ReportService._sanitize_csv_field(mr['diagnosis']),
+                    ReportService._sanitize_csv_field(mr['treatment'])
+                ])
 
         elif report_type == 'revenue':
             writer = csv.writer(output)
@@ -472,7 +491,12 @@ class ReportService:
             writer.writerow([])
             writer.writerow(['Fecha', 'Monto', 'Método', 'Presupuesto ID'])
             for p in data['payments']:
-                writer.writerow([p['date'], p['amount'], p['method'], p['budget_id']])
+                writer.writerow([
+                    p['date'],
+                    p['amount'],
+                    ReportService._sanitize_csv_field(p['method']),
+                    p['budget_id']
+                ])
 
         elif report_type == 'appointments':
             writer = csv.writer(output)
@@ -484,7 +508,7 @@ class ReportService:
             writer.writerow([])
             writer.writerow(['Por Estado'])
             for status, count in data['by_status'].items():
-                writer.writerow([status, count])
+                writer.writerow([ReportService._sanitize_csv_field(status), count])
 
         output.seek(0)
         return output
