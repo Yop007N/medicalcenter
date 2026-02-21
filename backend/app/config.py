@@ -89,7 +89,8 @@ class ProductionConfig(Config):
 class TestConfig(Config):
     """Testing configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # Use environment variable for DB if set (e.g. in CI), otherwise fallback to SQLite
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///:memory:')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=5)
 
     # Disable rate limiting for tests
