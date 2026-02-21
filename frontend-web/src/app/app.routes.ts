@@ -36,6 +36,6 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: '/dashboard'
+    loadComponent: () => import('./core/components/page-not-found/page-not-found.component').then(m => m.PageNotFoundComponent)
   }
 ];
