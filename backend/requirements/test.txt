@@ -12,3 +12,9 @@ coverage==7.3.4
 
 # Linting
 flake8==6.1.0
+
+# Extensions
+Flask-Limiter==3.5.0
+Flask-Caching==2.1.0
+Flask-SocketIO==5.3.6
+Flask-Migrate==4.0.5
