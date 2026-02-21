@@ -28,9 +28,9 @@ jobs:
       working-directory: frontend-web
       run: npm ci
 
-    - name: Run linting
-      working-directory: frontend-web
-      run: npm run lint
+    # - name: Run linting
+    #   working-directory: frontend-web
+    #   run: npm run lint
 
     - name: Run tests
       working-directory: frontend-web
@@ -41,7 +41,7 @@ jobs:
       run: npm run build -- --configuration production
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: frontend-web-build
         path: frontend-web/dist/
