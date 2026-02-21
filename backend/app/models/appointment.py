@@ -39,7 +39,10 @@ class Appointment(db.Model):
     reminder_sent = db.Column(db.Boolean, default=False)
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # OPTIMIZATION: Index added to 'created_at' to speed up dashboard queries and recent activity feeds.
+    # This column is frequently used for sorting (newest first) and filtering (last 30 days).
+    # Expected impact: Reduced query time for dashboard widgets from O(N) to O(log N).
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
