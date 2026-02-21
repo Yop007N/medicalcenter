@@ -30,7 +30,7 @@ jobs:
 
     - name: Run tests
       working-directory: frontend-pwa
-      run: npm test -- --watch=false --code-coverage
+      run: npm test -- --watch=false --code-coverage --browsers=ChromeHeadless
 
     - name: Build
       working-directory: frontend-pwa
