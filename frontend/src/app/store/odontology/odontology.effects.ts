@@ -7,6 +7,8 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Odontogram, Tooth, DentalTreatment } from '../../models/odontology.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
+import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as OdontologyActions from './odontology.actions';
 
 @Injectable()
@@ -25,7 +27,7 @@ export class OdontologyEffects {
         }).pipe(
           map(odontograms => OdontologyActions.loadOdontogramsSuccess({ odontograms })),
           catchError(error => of(OdontologyActions.loadOdontogramsFailure({
-            error: error.error?.msg || 'Error al cargar odontogramas'
+            error: getApiErrorMessage(error, 'Error al cargar odontogramas')
           })))
         )
       )
@@ -39,7 +41,7 @@ export class OdontologyEffects {
         this.http.get<Odontogram>(`${environment.apiUrl}/odontograms/${id}`).pipe(
           map(odontogram => OdontologyActions.loadOdontogramSuccess({ odontogram })),
           catchError(error => of(OdontologyActions.loadOdontogramFailure({
-            error: error.error?.msg || 'Error al cargar odontograma'
+            error: getApiErrorMessage(error, 'Error al cargar odontograma')
           })))
         )
       )
@@ -53,7 +55,7 @@ export class OdontologyEffects {
         this.http.post<Odontogram>(`${environment.apiUrl}/odontograms`, odontogram).pipe(
           map(newOdontogram => OdontologyActions.createOdontogramSuccess({ odontogram: newOdontogram })),
           catchError(error => of(OdontologyActions.createOdontogramFailure({
-            error: error.error?.msg || 'Error al crear odontograma'
+            error: getApiErrorMessage(error, 'Error al crear odontograma')
           })))
         )
       )
@@ -80,7 +82,7 @@ export class OdontologyEffects {
         ).pipe(
           map(updatedTooth => OdontologyActions.updateToothSuccess({ tooth: updatedTooth })),
           catchError(error => of(OdontologyActions.updateToothFailure({
-            error: error.error?.msg || 'Error al actualizar diente'
+            error: getApiErrorMessage(error, 'Error al actualizar diente')
           })))
         )
       )
@@ -104,10 +106,10 @@ export class OdontologyEffects {
         let params = new HttpParams();
         if (patientId) params = params.set('patient_id', patientId.toString());
 
-        return this.http.get<{ items: DentalTreatment[] }>(`${environment.apiUrl}/dental-treatments`, { params }).pipe(
-          map(response => OdontologyActions.loadDentalTreatmentsSuccess({ treatments: response?.items || [] })),
+        return this.http.get<CollectionResponse<DentalTreatment>>(`${environment.apiUrl}/dental-treatments`, { params }).pipe(
+          map(response => OdontologyActions.loadDentalTreatmentsSuccess({ treatments: toItemsArray(response) })),
           catchError(error => of(OdontologyActions.loadDentalTreatmentsFailure({
-            error: error.error?.msg || 'Error al cargar tratamientos'
+            error: getApiErrorMessage(error, 'Error al cargar tratamientos')
           })))
         );
       })
@@ -121,7 +123,7 @@ export class OdontologyEffects {
         this.http.get<DentalTreatment>(`${environment.apiUrl}/dental-treatments/${id}`).pipe(
           map(treatment => OdontologyActions.loadDentalTreatmentSuccess({ treatment })),
           catchError(error => of(OdontologyActions.loadDentalTreatmentFailure({
-            error: error.error?.msg || 'Error al cargar tratamiento'
+            error: getApiErrorMessage(error, 'Error al cargar tratamiento')
           })))
         )
       )
@@ -135,7 +137,7 @@ export class OdontologyEffects {
         this.http.post<DentalTreatment>(`${environment.apiUrl}/dental-treatments`, treatment).pipe(
           map(newTreatment => OdontologyActions.createDentalTreatmentSuccess({ treatment: newTreatment })),
           catchError(error => of(OdontologyActions.createDentalTreatmentFailure({
-            error: error.error?.msg || 'Error al crear tratamiento'
+            error: getApiErrorMessage(error, 'Error al crear tratamiento')
           })))
         )
       )
@@ -160,7 +162,7 @@ export class OdontologyEffects {
         this.http.put<DentalTreatment>(`${environment.apiUrl}/dental-treatments/${id}`, treatment).pipe(
           map(updatedTreatment => OdontologyActions.updateDentalTreatmentSuccess({ treatment: updatedTreatment })),
           catchError(error => of(OdontologyActions.updateDentalTreatmentFailure({
-            error: error.error?.msg || 'Error al actualizar tratamiento'
+            error: getApiErrorMessage(error, 'Error al actualizar tratamiento')
           })))
         )
       )
@@ -184,7 +186,7 @@ export class OdontologyEffects {
         this.http.delete(`${environment.apiUrl}/dental-treatments/${id}`).pipe(
           map(() => OdontologyActions.deleteDentalTreatmentSuccess({ id })),
           catchError(error => of(OdontologyActions.deleteDentalTreatmentFailure({
-            error: error.error?.msg || 'Error al eliminar tratamiento'
+            error: getApiErrorMessage(error, 'Error al eliminar tratamiento')
           })))
         )
       )

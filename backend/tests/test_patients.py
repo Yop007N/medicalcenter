@@ -53,6 +53,31 @@ class TestListPatients:
         data = response.json
         assert isinstance(data, list)
 
+    def test_list_patients_payload_includes_frontend_defaults(self, client, auth_headers, app):
+        """Test list payload exposes frontend expected fields."""
+        with app.app_context():
+            patient = Patient(
+                email='defaults@test.com',
+                first_name='Default',
+                last_name='Patient',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+
+        response = client.get('/api/patients', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json
+        assert isinstance(data, list)
+        item = next((row for row in data if row['email'] == 'defaults@test.com'), None)
+        assert item is not None
+        assert 'is_active' in item
+        assert 'notes' in item
+        assert 'insurance_provider' in item
+        assert 'insurance_number' in item
+
     def test_list_patients_unauthorized(self, client):
         """Test listing patients without authentication"""
         response = client.get('/api/patients')
@@ -239,6 +264,48 @@ class TestUpdatePatient:
 
         assert response.status_code == 401
 
+    def test_update_patient_invalid_date_format(self, client, auth_headers, app):
+        """Test update rejects invalid date format."""
+        with app.app_context():
+            patient = Patient(
+                email='invalid-date@test.com',
+                first_name='Date',
+                last_name='Invalid',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+
+        response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+            'date_of_birth': '20/01/1990'
+        })
+
+        assert response.status_code == 400
+
+    def test_update_patient_is_active_flag(self, client, auth_headers, app):
+        """Test update supports is_active for frontend compatibility."""
+        with app.app_context():
+            patient = Patient(
+                email='active-flag@test.com',
+                first_name='Active',
+                last_name='Flag',
+                role='patient',
+                is_active=True
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+
+        response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+            'is_active': False
+        })
+
+        assert response.status_code == 200
+        assert response.json['is_active'] is False
+
 
 class TestDeletePatient:
     """Test delete patient endpoint"""
@@ -283,6 +350,60 @@ class TestDeletePatient:
         response = client.delete(f'/api/patients/{patient_id}')
 
         assert response.status_code == 401
+
+
+class TestPatientCrudWorkflow:
+    """End-to-end CRUD validation for patients API."""
+
+    def test_patient_crud_end_to_end(self, client, auth_headers):
+        """Validate create -> list/get -> update -> delete -> not found flow."""
+        create_response = client.post('/api/patients', headers=auth_headers, json={
+            'email': 'flow-patient@test.com',
+            'password': 'Patient123',
+            'first_name': 'Flow',
+            'last_name': 'Patient',
+            'date_of_birth': '1992-06-15',
+            'phone': '555-0101',
+            'blood_type': 'A+'
+        })
+
+        assert create_response.status_code == 201
+        created_patient = create_response.json
+        patient_id = created_patient['id']
+        assert created_patient['email'] == 'flow-patient@test.com'
+        assert created_patient['phone'] == '555-0101'
+
+        get_response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
+        assert get_response.status_code == 200
+        assert get_response.json['id'] == patient_id
+
+        list_response = client.get('/api/patients', headers=auth_headers)
+        assert list_response.status_code == 200
+        assert any(row['id'] == patient_id for row in list_response.json)
+
+        update_response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+            'phone': '555-9999',
+            'blood_type': 'B-',
+            'is_active': False
+        })
+
+        assert update_response.status_code == 200
+        updated_patient = update_response.json
+        assert updated_patient['phone'] == '555-9999'
+        assert updated_patient['blood_type'] == 'B-'
+        assert updated_patient['is_active'] is False
+
+        delete_response = client.delete(f'/api/patients/{patient_id}', headers=auth_headers)
+        assert delete_response.status_code == 200
+        assert delete_response.json['msg'] == 'Patient deleted'
+
+        not_found_response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
+        assert not_found_response.status_code == 404
+
+        post_delete_list_response = client.get('/api/patients?q=flow-patient@test.com', headers=auth_headers)
+        assert post_delete_list_response.status_code == 200
+        assert not any(row['id'] == patient_id for row in post_delete_list_response.json)
+
 
 class TestPatientSecurity:
     """Test security aspects of patient endpoints"""

@@ -18,6 +18,31 @@ professional_schema = ProfessionalSchema()
 professionals_schema = ProfessionalSchema(many=True)
 
 
+def serialize_professional(professional):
+    """Serialize professional payload with frontend-compatible aliases."""
+    payload = professional_schema.dump(professional)
+    office_address = payload.get('address')
+    payload.setdefault('office_address', office_address)
+    payload.setdefault('working_hours', None)
+    payload.setdefault('consultation_fee', None)
+    payload.setdefault('bio', None)
+    payload.setdefault('is_active', True)
+    return payload
+
+
+def _coerce_bool(value):
+    """Coerce input value to boolean."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {'true', '1', 'yes'}:
+            return True
+        if lowered in {'false', '0', 'no'}:
+            return False
+    return bool(value)
+
+
 @blueprint.route('', methods=['GET'])
 @jwt_required()
 @cache.cached(timeout=CACHE_TTL_SHORT, query_string=True)
@@ -53,7 +78,7 @@ def list_professionals():
             query = query.filter(Professional.specialty.ilike(f'%{sanitized_specialty}%'))
 
     professionals = query.all()
-    return jsonify(professionals_schema.dump(professionals)), 200
+    return jsonify([serialize_professional(professional) for professional in professionals]), 200
 
 
 @blueprint.route('/<int:professional_id>', methods=['GET'])
@@ -83,7 +108,7 @@ def get_professional(professional_id):
     if not professional:
         return jsonify({'msg': 'Professional not found'}), 404
 
-    return jsonify(professional_schema.dump(professional)), 200
+    return jsonify(serialize_professional(professional)), 200
 
 
 @blueprint.route('', methods=['POST'])
@@ -161,14 +186,14 @@ def create_professional():
         license_number=data['license_number'],
         specialty=data.get('specialty'),
         phone=data.get('phone'),
-        address=data.get('address')
+        address=data.get('address') or data.get('office_address')
     )
     professional.set_password(data['password'])
 
     db.session.add(professional)
     db.session.commit()
 
-    return jsonify(professional_schema.dump(professional)), 201
+    return jsonify(serialize_professional(professional)), 201
 
 
 @blueprint.route('/<int:professional_id>', methods=['PUT'])
@@ -237,12 +262,24 @@ def update_professional(professional_id):
         professional.phone = data['phone']
     if 'address' in data:
         professional.address = data['address']
+    if 'office_address' in data:
+        professional.address = data['office_address']
+    if 'license_number' in data:
+        existing = Professional.query.filter(
+            Professional.license_number == data['license_number'],
+            Professional.id != professional.id
+        ).first()
+        if existing:
+            return jsonify({'msg': 'License number already registered'}), 400
+        professional.license_number = data['license_number']
+    if 'is_active' in data:
+        professional.is_active = _coerce_bool(data['is_active'])
     if 'password' in data:
         professional.set_password(data['password'])
 
     db.session.commit()
 
-    return jsonify(professional_schema.dump(professional)), 200
+    return jsonify(serialize_professional(professional)), 200
 
 
 @blueprint.route('/<int:professional_id>', methods=['DELETE'])

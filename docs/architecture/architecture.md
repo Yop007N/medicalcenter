@@ -1,140 +1,67 @@
-# Medical Services - Architecture
+﻿# Medical Services - Architecture (Estado actual)
 
-## Overview
+Actualizado: 2026-02-14
 
-Medical Services is a hybrid cloud-local clinical management system designed for healthcare professionals and patients.
+## Resumen
+Medical Services es una plataforma clinica modular con backend Flask y tres clientes frontend en distinto nivel de madurez.
 
-## System Architecture
+## Componentes
+### Backend API (`backend/`)
+- Stack: Python + Flask + SQLAlchemy + Marshmallow
+- Base de datos principal: PostgreSQL
+- Soporte de cache y cola: Redis + Celery
+- Tiempo real: Flask-SocketIO
+- Seguridad: JWT + RBAC por roles
 
-### High-Level Architecture
+### Frontend principal (`frontend/`)
+- Stack: Angular + Ionic
+- Estado: cliente mas completo funcionalmente (modulos core + especialidades)
+- Uso recomendado hoy para flujo fullstack
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                         │
-├─────────────────────────────────────────────────────────┤
-│  Frontend Web (Angular)     │    PWA (Ionic)           │
-│  - Healthcare Professionals │    - Patients            │
-│  - Desktop/Tablet          │    - Mobile/Offline      │
-└───────────────┬─────────────┴──────────┬───────────────┘
-                │                        │
-                └────────────┬───────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   Nginx Proxy   │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   Flask API     │
-                    │   (Backend)     │
-                    └────┬────────┬───┘
-                         │        │
-              ┌──────────┘        └──────────┐
-              │                              │
-        ┌─────▼─────┐                  ┌────▼────┐
-        │PostgreSQL │                  │ Redis   │
-        │ Database  │                  │ Cache   │
-        └───────────┘                  └────┬────┘
-                                            │
-                                       ┌────▼────┐
-                                       │ Celery  │
-                                       │ Workers │
-                                       └─────────┘
-```
+### Frontend web (`frontend-web/`)
+- Stack: Angular standalone
+- Estado: base funcional, con varias vistas aun en modo scaffold/mock
 
-## Components
+### Frontend PWA (`frontend-pwa/`)
+- Stack: Angular + Ionic
+- Estado: base inicial (shell), aun sin paridad funcional con backend
 
-### Backend (Flask API)
+## Datos y almacenamiento
+- Datos transaccionales: PostgreSQL
+- Archivos: actualmente almacenamiento local (`storage/files`) via endpoints `files`
+- Variables S3 existen en configuracion para extension futura, pero no son el flujo operativo principal hoy
 
-- **Technology**: Python 3.11+, Flask 3.0+
-- **Database**: PostgreSQL 15+ (cloud), SQLite (local)
-- **ORM**: SQLAlchemy 2.0+
-- **Authentication**: JWT
-- **Task Queue**: Celery 5.3+
-- **Cache**: Redis 7.2+
+## Integracion y despliegue
+### Desarrollo
+- `docker-compose.yml`: postgres, redis, backend, celery, frontend-web, frontend-pwa
+- `docker-compose.db.yml`: postgres + pgAdmin para entorno de datos
 
-**Responsibilities**:
-- RESTful API endpoints
-- Business logic
-- Database operations
-- File storage management
-- Async task processing
-- Cloud-local synchronization
+### Produccion base
+- `docker-compose.prod.yml`: postgres, redis, backend, celery, nginx
+- Requiere completar hardening y observabilidad para operacion continua
 
-### Frontend Web (Angular)
+## Sincronizacion
+- Expuesta por `/api/sync/*`
+- Implementacion actual: handlers por entidad (`appointments`, `medical_records`, `budgets`, `payments`, `files`), idempotencia por `idempotency_key`, conflictos `server_wins` y trazabilidad en `sync_logs`
+- Hardening aplicado: validaciones de entrada en `push/logs` (tipos, limites y errores de contrato)
+- Pendiente principal: versionado distribuido por entidad (`row_version`) definido en `docs/roadmap/SYNC-03_VERSIONADO_POR_ENTIDAD.md`
+- Ver detalle operativo en `docs/architecture/sync-strategy.md`
 
-- **Technology**: Angular 17+, TypeScript
-- **State**: NgRx
-- **UI**: Angular Material
-- **Charts**: Chart.js
+## Estado por capa
+- Backend API: alto avance funcional
+- Frontend principal: avance medio/alto
+- Frontend web: avance medio (parcialmente desacoplado del backend real)
+- Frontend PWA: avance inicial
+- Despliegue productivo: base disponible, pendiente de cierre operativo
 
-**Target Users**: Healthcare professionals
+## Riesgos tecnicos actuales
+- Brecha entre documentacion historica y comportamiento real de codigo
+- Brecha de paridad entre backend y `frontend-web`/`frontend-pwa`
+- Sincronizacion aun no productiva para escenarios de conflicto complejos
+- Versionado por entidad aun no implementado (ticket `SYNC-03` preparado)
 
-**Features**:
-- Patient management
-- Appointment scheduling
-- Medical record creation
-- File management
-- Budget creation
-- Dashboard analytics
-
-### Frontend PWA (Ionic)
-
-- **Technology**: Ionic 7+, Angular 17+
-- **Offline**: Service Workers, IndexedDB
-- **Native**: Capacitor
-
-**Target Users**: Patients
-
-**Features**:
-- View appointments
-- Request appointments
-- View medical history
-- Access medical files
-- View budgets
-- Offline access
-
-## Data Flow
-
-### Appointment Creation Flow
-
-```
-1. Professional creates appointment (Frontend Web)
-2. POST /api/appointments
-3. Backend validates and saves to PostgreSQL
-4. Backend queues notification task (Celery)
-5. Patient receives push notification (PWA)
-6. Data synced to local storage (if offline-first)
-```
-
-### Offline-First Sync Flow (PWA)
-
-```
-1. Patient offline - data saved to IndexedDB
-2. Connection restored - Service Worker detects
-3. Sync Service pushes pending changes to API
-4. API processes and responds
-5. Local data updated with server response
-```
-
-## Security
-
-- **Authentication**: JWT tokens
-- **Authorization**: Role-based access control (RBAC)
-- **Data**: Encrypted at rest and in transit (HTTPS)
-- **Files**: Signed URLs for S3 access
-- **API**: Rate limiting and CORS protection
-
-## Scalability
-
-- **Horizontal Scaling**: Multiple backend instances behind load balancer
-- **Database**: PostgreSQL with read replicas
-- **Cache**: Redis for session and API response caching
-- **Storage**: S3/DigitalOcean Spaces for files
-- **Workers**: Celery workers can scale independently
-
-## Deployment
-
-- **Containers**: Docker and Docker Compose
-- **Orchestration**: Kubernetes (optional for large scale)
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Sentry for error tracking
+## Criterio de arquitectura estable (release candidate)
+- Contrato API-documentacion alineado
+- Paridad funcional minima entre backend y al menos un frontend de produccion
+- Pipeline CI/CD con tests backend y build frontend en verde
+- Observabilidad y politicas de backup/restore probadas

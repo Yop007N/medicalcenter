@@ -1,155 +1,68 @@
-# Synchronization Strategy
+﻿# Synchronization Strategy (Estado actual y plan)
 
-## Overview
+Actualizado: 2026-02-14
 
-The Medical Services system implements a hybrid cloud-local architecture with bidirectional synchronization.
+## Objetivo
+Definir claramente que parte de la sincronizacion ya esta implementada y que parte sigue en roadmap.
 
-## Sync Modes
+## Estado actual implementado
+### Endpoints disponibles
+- `POST /api/sync/push`
+- `GET /api/sync/pull`
+- `GET /api/sync/status`
+- `GET /api/sync/logs`
 
-### 1. Cloud-First (Default for Web App)
+### Comportamiento actual
+- `push`:
+  - recibe cambios desde cliente
+  - valida body JSON/objeto y estructura minima por cambio (`entity_type`, `operation`, `data`)
+  - limita lotes a `500` cambios por request
+  - registra `sync_logs`
+  - procesa cambios con handlers por entidad soportada (`appointment`, `medical_record`, `budget`, `payment`, `file`)
+  - aplica idempotencia por `idempotency_key` (o fingerprint derivado del payload)
+  - detecta conflictos de actualizacion por `updated_at` y responde `server_wins`
+  - devuelve mapeo `local_id -> server_id`
+- `pull`:
+  - devuelve cambios por timestamp para entidades soportadas
+- `status/logs`:
+  - exponen contadores y ultimos logs
+  - `logs` valida `limit` entero en rango `1..500`
+  - respuestas de errores internos en `push` se sanitizan para cliente, manteniendo detalle tecnico en `sync_logs`
 
-- Data primarily stored in cloud PostgreSQL
-- Local SQLite for offline cache
-- Automatic sync when online
+### Tareas Celery relacionadas
+- Existen tareas y utilidades de sync en `backend/app/tasks/sync_tasks.py`
+- Hay validaciones y estructura de sync incremental/full
+- Parte de la logica aun se encuentra en modo base/placeholder para escenarios reales multi-entidad
 
-### 2. Local-First (PWA)
+## Lo que NO esta cerrado aun
+- Resolucion de conflictos granular por campo (hoy se aplica regla por `updated_at`)
+- Versionado consistente por registro para merge server/client en todas las entidades
+- Idempotencia distribuida multi-nodo (hoy se basa en `sync_logs`)
+- Reconciliacion completa de archivos en escenarios distribuidos
+- Cobertura E2E de sync offline/online en frontends
 
-- Data stored in IndexedDB
-- Background sync to cloud when online
-- Conflict resolution on server
+## Estrategia recomendada por fases
+### Fase 1 - Consolidar contrato
+- Definir contrato unico de payload (create/update/delete, metadata de version)
+- Unificar respuesta de conflictos
+- Instrumentar errores y metricas de sync
 
-## Sync Flow
+### Fase 2 - Handlers por entidad
+- Reemplazar `process_sync_change` simplificado por handlers reales
+- Cubrir al menos: patients, appointments, medical_records, files, budgets, payments
 
-### Push (Local to Cloud)
+### Fase 3 - Conflictos e idempotencia
+- Implementar control de version (`updated_at` o `version`)
+- Resolver conflicto con politica explicita y auditable
+- Reintentos idempotentes
 
-```
-1. User makes change offline (IndexedDB)
-2. Change queued in sync_queue table
-3. Service Worker detects online status
-4. POST /api/sync/push with changes
-5. Server validates and applies changes
-6. Server returns confirmation
-7. Local storage updated with server IDs
-8. Sync log created
-```
+### Fase 4 - Validacion end-to-end
+- Tests de sincronizacion offline/online
+- Escenarios de conflicto concurrente
+- Pruebas de carga para lotes grandes
 
-### Pull (Cloud to Local)
-
-```
-1. User logs in or app resumes
-2. GET /api/sync/pull?since=<last_sync_timestamp>
-3. Server returns changed entities
-4. Client updates local storage
-5. UI refreshed with new data
-```
-
-## Conflict Resolution
-
-### Strategy: Last-Write-Wins with Server Authority
-
-1. **Timestamp Comparison**: Server compares client timestamp with server timestamp
-2. **Server Wins**: If server has newer version, client version rejected
-3. **Client Notified**: User informed of conflict and can view both versions
-4. **Manual Merge**: User can manually reconcile differences
-
-### Example Conflict
-
-```json
-{
-  "conflict": true,
-  "client_version": {
-    "id": 123,
-    "updated_at": "2024-01-15T10:00:00Z",
-    "notes": "Patient reported headache"
-  },
-  "server_version": {
-    "id": 123,
-    "updated_at": "2024-01-15T10:05:00Z",
-    "notes": "Patient reported headache and nausea"
-  },
-  "resolution": "server_wins"
-}
-```
-
-## Sync API Endpoints
-
-### POST /api/sync/push
-
-Push local changes to cloud
-
-**Request**:
-```json
-{
-  "changes": [
-    {
-      "entity_type": "appointment",
-      "entity_id": "local-123",
-      "operation": "create",
-      "data": { ... }
-    }
-  ]
-}
-```
-
-**Response**:
-```json
-{
-  "synced": [
-    {
-      "local_id": "local-123",
-      "server_id": 456
-    }
-  ],
-  "conflicts": []
-}
-```
-
-### GET /api/sync/pull
-
-Pull cloud changes to local
-
-**Query Parameters**:
-- `since`: ISO timestamp of last sync
-
-**Response**:
-```json
-{
-  "changes": [
-    {
-      "entity_type": "appointment",
-      "operation": "update",
-      "data": { ... }
-    }
-  ],
-  "timestamp": "2024-01-15T12:00:00Z"
-}
-```
-
-## Sync Logging
-
-All sync operations logged in `sync_logs` table:
-
-```python
-class SyncLog:
-    entity_type: str  # appointment, patient, etc.
-    entity_id: int
-    operation: str    # create, update, delete
-    direction: str    # cloud_to_local, local_to_cloud
-    status: str       # pending, completed, failed
-    created_at: datetime
-```
-
-## Performance Optimization
-
-1. **Batch Sync**: Group multiple changes into single request
-2. **Delta Sync**: Only sync changed fields
-3. **Compression**: Gzip compress sync payloads
-4. **Pagination**: Limit sync to recent changes
-5. **Background Sync**: Use Service Worker background sync API
-
-## Error Handling
-
-- **Network Errors**: Retry with exponential backoff
-- **Validation Errors**: Show user, don't retry
-- **Conflict Errors**: Prompt user for resolution
-- **Server Errors**: Retry up to 3 times, then alert user
+## Criterios de salida a produccion
+- Sync bidireccional multi-entidad validado
+- Reintentos seguros y sin duplicados
+- Trazabilidad completa en `sync_logs` + auditoria
+- Reporte de metricas de exito/error por ventana de tiempo

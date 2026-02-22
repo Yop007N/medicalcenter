@@ -8,8 +8,6 @@ import {
   IonToolbar,
   IonTitle,
   IonContent,
-  IonList,
-  IonItem,
   IonLabel,
   IonIcon,
   IonButtons,
@@ -17,7 +15,6 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSkeletonText,
-  IonBadge,
   IonFab,
   IonFabButton,
   IonCard,
@@ -43,6 +40,10 @@ import {
 import { environment } from '../../../../environments/environment';
 import { Appointment } from '../../../models';
 
+interface PaginatedAppointmentsResponse {
+  items: Appointment[];
+}
+
 @Component({
   selector: 'app-appointments-list',
   standalone: true,
@@ -54,8 +55,6 @@ import { Appointment } from '../../../models';
     IonToolbar,
     IonTitle,
     IonContent,
-    IonList,
-    IonItem,
     IonLabel,
     IonIcon,
     IonButtons,
@@ -63,7 +62,6 @@ import { Appointment } from '../../../models';
     IonRefresher,
     IonRefresherContent,
     IonSkeletonText,
-    IonBadge,
     IonFab,
     IonFabButton,
     IonCard,
@@ -76,11 +74,11 @@ import { Appointment } from '../../../models';
     <ion-header class="ion-no-border">
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
         </ion-buttons>
         <ion-title>Agenda de Citas</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/appointments/new">
+          <ion-button aria-label="Crear nueva cita" routerLink="/appointments/new">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -147,6 +145,17 @@ import { Appointment } from '../../../models';
             </ion-card>
           }
         </div>
+      } @else if (errorMessage) {
+        <div class="error-state" role="alert" aria-live="assertive">
+          <div class="error-icon">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+          </div>
+          <h3>Error al cargar citas</h3>
+          <p>{{ errorMessage }}</p>
+          <ion-button fill="outline" (click)="loadAppointments()" shape="round">
+            Reintentar
+          </ion-button>
+        </div>
       } @else {
         @if (filteredAppointments.length === 0) {
           <div class="empty-state">
@@ -212,7 +221,7 @@ import { Appointment } from '../../../models';
 
       <!-- FAB para crear nueva cita (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/appointments/new">
+        <ion-fab-button aria-label="Crear nueva cita" routerLink="/appointments/new">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -512,7 +521,8 @@ import { Appointment } from '../../../models';
     }
 
     /* Empty state */
-    .empty-state {
+    .empty-state,
+    .error-state {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -520,7 +530,8 @@ import { Appointment } from '../../../models';
       padding: 60px 24px;
       text-align: center;
 
-      .empty-icon {
+      .empty-icon,
+      .error-icon {
         width: 100px;
         height: 100px;
         background: rgba(var(--ion-color-primary-rgb), 0.1);
@@ -533,6 +544,14 @@ import { Appointment } from '../../../models';
         ion-icon {
           font-size: 48px;
           color: var(--ion-color-primary);
+        }
+      }
+
+      .error-icon {
+        background: rgba(var(--ion-color-danger-rgb), 0.1);
+
+        ion-icon {
+          color: var(--ion-color-danger);
         }
       }
 
@@ -607,6 +626,7 @@ export class AppointmentsListPage implements OnInit {
   appointments: Appointment[] = [];
   filteredAppointments: Appointment[] = [];
   loading = true;
+  errorMessage: string | null = null;
   selectedFilter = 'all';
 
   constructor() {
@@ -631,16 +651,18 @@ export class AppointmentsListPage implements OnInit {
 
   loadAppointments(): void {
     this.loading = true;
-    this.http.get<{ items: Appointment[]; total: number; page: number; pages: number }>(`${environment.apiUrl}/appointments`).subscribe({
+    this.errorMessage = null;
+    this.http.get<Appointment[] | PaginatedAppointmentsResponse>(`${environment.apiUrl}/appointments`).subscribe({
       next: (response) => {
-        this.appointments = response.items || [];
+        this.appointments = Array.isArray(response) ? response : (response.items || []);
         this.filterAppointments();
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
         this.appointments = [];
         this.filteredAppointments = [];
         this.loading = false;
+        this.errorMessage = err.error?.msg || err.error?.message || 'No se pudo cargar la agenda';
       }
     });
   }

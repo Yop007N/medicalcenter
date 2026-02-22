@@ -369,6 +369,33 @@ class TestAppointmentReport:
 
         assert response.status_code == 400
 
+    def test_appointment_report_frontend_contract(self, client, admin_user):
+        """Test appointment report includes frontend-compatible fields."""
+        with client.application.app_context():
+            token = create_access_token(identity=str(admin_user.id))
+
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        response = client.get(
+            '/api/reports/appointments',
+            query_string={
+                'start_date': start_date,
+                'end_date': end_date
+            },
+            headers={'Authorization': f'Bearer {token}'}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'total_appointments' in data
+        assert 'by_status' in data
+        assert isinstance(data['by_status'], list)
+        assert 'by_professional' in data
+        assert 'cancellation_rate' in data
+        assert 'no_show_rate' in data
+        assert 'period' in data
+
 
 class TestQuickReports:
     """Test quick/predefined reports"""
@@ -429,6 +456,64 @@ class TestQuickReports:
         assert 'by_status' in data
         assert 'by_weekday' in data
         assert data['period']['days'] == 7
+
+
+class TestFrontendReportContracts:
+    """Contract tests for frontend report endpoints."""
+
+    def test_medical_summary_contract(self, client, auth_headers):
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        response = client.get(
+            '/api/reports/medical',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'total_records' in data
+        assert 'by_professional' in data
+        assert 'by_specialty' in data
+        assert 'period' in data
+
+    def test_financial_summary_contract(self, client, auth_headers):
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        response = client.get(
+            '/api/reports/financial',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'total_revenue' in data
+        assert 'total_pending' in data
+        assert 'currency' in data
+        assert 'by_payment_method' in data
+        assert 'by_month' in data
+        assert 'period' in data
+
+    def test_quick_stats_contract(self, client, auth_headers):
+        response = client.get('/api/reports/quick/stats', headers=auth_headers)
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'today_appointments' in data
+        assert 'pending_budgets' in data
+        assert 'new_patients_this_month' in data
+        assert 'revenue_this_month' in data
+
+    def test_export_contract_accepts_frontend_path(self, client, auth_headers):
+        response = client.get(
+            '/api/reports/financial/export',
+            query_string={'format': 'pdf'},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        assert response.mimetype == 'text/csv'
 
 
 class TestReportIntegration:
@@ -493,3 +578,109 @@ class TestReportIntegration:
             headers=admin_auth_headers
         )
         assert response.status_code == 200
+
+    def test_budgets_payments_reports_end_to_end(
+        self,
+        client,
+        auth_headers,
+        patient_auth_headers,
+        admin_auth_headers,
+        sample_patient
+    ):
+        """Test chained flow: budget lifecycle + payment processing + financial reports."""
+        budget_response = client.post(
+            '/api/budgets',
+            json={
+                'patient_id': sample_patient.id,
+                'title': 'Budget Payment Report E2E',
+                'description': 'End-to-end financial flow',
+                'total_amount': 4500.00
+            },
+            headers=auth_headers
+        )
+        assert budget_response.status_code == 201
+        budget_data = budget_response.get_json()
+        budget_id = budget_data['id']
+        assert budget_data['status'] == 'draft'
+
+        send_budget_response = client.post(
+            f'/api/budgets/{budget_id}/send',
+            headers=auth_headers
+        )
+        assert send_budget_response.status_code == 200
+        assert send_budget_response.get_json()['status'] == 'sent'
+
+        accept_budget_response = client.post(
+            f'/api/budgets/{budget_id}/accept',
+            headers=patient_auth_headers
+        )
+        assert accept_budget_response.status_code == 200
+        assert accept_budget_response.get_json()['status'] == 'accepted'
+
+        payment_response = client.post(
+            '/api/payments',
+            json={
+                'budget_id': budget_id,
+                'amount': 4500.00,
+                'payment_method': 'transfer',
+                'notes': 'E2E payment for accepted budget'
+            },
+            headers=auth_headers
+        )
+        assert payment_response.status_code == 201
+        payment_data = payment_response.get_json()
+        payment_id = payment_data['id']
+        assert payment_data['payment_status'] == 'pending'
+
+        process_payment_response = client.post(
+            f'/api/payments/{payment_id}/process',
+            json={'transaction_reference': 'E2E-TRX-001'},
+            headers=auth_headers
+        )
+        assert process_payment_response.status_code == 200
+        processed_payment = process_payment_response.get_json()
+        assert processed_payment['payment_status'] == 'completed'
+        assert processed_payment['transaction_reference'] == 'E2E-TRX-001'
+
+        budget_detail_response = client.get(f'/api/budgets/{budget_id}', headers=auth_headers)
+        assert budget_detail_response.status_code == 200
+        assert budget_detail_response.get_json()['status'] == 'accepted'
+
+        payment_detail_response = client.get(f'/api/payments/{payment_id}', headers=auth_headers)
+        assert payment_detail_response.status_code == 200
+        assert payment_detail_response.get_json()['payment_status'] == 'completed'
+
+        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        end_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+        revenue_report_response = client.get(
+            '/api/reports/financial/revenue',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=admin_auth_headers
+        )
+        assert revenue_report_response.status_code == 200
+        revenue_report = revenue_report_response.get_json()
+        assert revenue_report['summary']['total_transactions'] >= 1
+        assert any(payment_row['id'] == payment_id for payment_row in revenue_report['payments'])
+
+        budgets_report_response = client.get(
+            '/api/reports/financial/budgets',
+            query_string={
+                'start_date': start_date,
+                'end_date': end_date,
+                'status': 'accepted'
+            },
+            headers=admin_auth_headers
+        )
+        assert budgets_report_response.status_code == 200
+        budgets_report = budgets_report_response.get_json()
+        assert any(budget_row['id'] == budget_id for budget_row in budgets_report['budgets'])
+
+        financial_summary_response = client.get(
+            '/api/reports/financial',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=auth_headers
+        )
+        assert financial_summary_response.status_code == 200
+        financial_summary = financial_summary_response.get_json()
+        assert financial_summary['total_revenue'] >= 4500.00

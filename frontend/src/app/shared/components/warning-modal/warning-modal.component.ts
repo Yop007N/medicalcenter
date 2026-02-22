@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonButton } from '@ionic/angular/standalone';
 import { ModalController } from '@ionic/angular/standalone';
@@ -163,8 +163,7 @@ import { ModalController } from '@ionic/angular/standalone';
 })
 export class WarningModalComponent {
   @Input() message: string = '';
-
-  constructor(private modalController: ModalController) {}
+  private modalController = inject(ModalController);
 
   dismiss() {
     this.modalController.dismiss();

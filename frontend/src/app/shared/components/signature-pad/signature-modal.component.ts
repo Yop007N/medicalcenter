@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonHeader,
@@ -52,8 +52,7 @@ export class SignatureModalComponent {
   @Input() signatureSubtitle = '';
   @Input() saveButtonText = 'Guardar Firma';
   @Input() showCancelButton = true;
-
-  constructor(private modalController: ModalController) {}
+  private modalController = inject(ModalController);
 
   onSignatureSaved(signatureData: string): void {
     this.modalController.dismiss(signatureData, 'confirm');

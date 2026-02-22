@@ -8,12 +8,7 @@ import {
   IonCardContent,
   IonButton,
   IonIcon,
-  IonSelect,
-  IonSelectOption,
-  IonInput,
   IonSpinner,
-  IonItem,
-  IonLabel,
   ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -33,12 +28,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
     IonCardContent,
     IonButton,
     IonIcon,
-    IonSelect,
-    IonSelectOption,
-    IonInput,
     IonSpinner,
-    IonItem,
-    IonLabel
   ],
   template: `
     <div class="periodontogram-container">

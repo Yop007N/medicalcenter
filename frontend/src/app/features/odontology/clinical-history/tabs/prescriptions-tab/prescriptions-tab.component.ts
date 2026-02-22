@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import {
   IonCard,
   IonCardHeader,
-  IonCardTitle,
   IonCardContent,
   IonButton,
   IonIcon,
@@ -15,7 +14,6 @@ import {
   IonCheckbox,
   IonSpinner,
   IonTextarea,
-  IonList,
   ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -31,7 +29,6 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
     FormsModule,
     IonCard,
     IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     IonButton,
     IonIcon,
@@ -41,8 +38,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
     IonSelectOption,
     IonCheckbox,
     IonSpinner,
-    IonTextarea,
-    IonList
+    IonTextarea
   ],
   template: `
     <div class="prescriptions-container">

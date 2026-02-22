@@ -1,4 +1,4 @@
-import { ErrorHandler, Injectable, Injector, NgZone } from '@angular/core';
+import { ErrorHandler, Injectable, Injector, NgZone, inject } from '@angular/core';
 import { LoggerService } from '../services/logger.service';
 
 const LOG_SOURCE = 'GlobalErrorHandler';
@@ -9,12 +9,9 @@ const LOG_SOURCE = 'GlobalErrorHandler';
  */
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {
+  private injector = inject(Injector);
+  private zone = inject(NgZone);
   private logger: LoggerService | null = null;
-
-  constructor(
-    private injector: Injector,
-    private zone: NgZone
-  ) {}
 
   private getLogger(): LoggerService | null {
     if (!this.logger) {

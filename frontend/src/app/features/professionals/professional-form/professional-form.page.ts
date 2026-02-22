@@ -11,7 +11,6 @@ import {
   IonButtons,
   IonBackButton,
   IonButton,
-  IonList,
   IonItem,
   IonInput,
   IonSelect,
@@ -26,6 +25,10 @@ import { addIcons } from 'ionicons';
 import { saveOutline } from 'ionicons/icons';
 import * as ProfessionalsActions from '../../../store/professionals/professionals.actions';
 import { selectSelectedProfessional, selectProfessionalsLoading, selectProfessionalsError } from '../../../store/professionals/professionals.selectors';
+import type { Professional } from '../../../models';
+
+type ProfessionalFormPayload = Partial<Professional> & { password?: string };
+type ProfessionalWithLegacyAddress = Professional & { address?: string };
 
 @Component({
   selector: 'app-professional-form',
@@ -40,7 +43,6 @@ import { selectSelectedProfessional, selectProfessionalsLoading, selectProfessio
     IonButtons,
     IonBackButton,
     IonButton,
-    IonList,
     IonItem,
     IonInput,
     IonSelect,
@@ -138,6 +140,31 @@ import { selectSelectedProfessional, selectProfessionalsLoading, selectProfessio
                     </ion-item>
                   </div>
                 </div>
+
+                @if (!isEditMode) {
+                  <div class="form-row">
+                    <div class="form-field full-width">
+                      <ion-item>
+                        <ion-input
+                          label="Contraseña *"
+                          labelPlacement="stacked"
+                          type="password"
+                          formControlName="password"
+                          placeholder="Mín. 8 caracteres, 1 mayúscula, 1 número"
+                        ></ion-input>
+                      </ion-item>
+                      @if (professionalForm.get('password')?.touched && professionalForm.get('password')?.errors?.['required']) {
+                        <ion-note color="danger">La contraseña es requerida</ion-note>
+                      }
+                      @if (professionalForm.get('password')?.touched && professionalForm.get('password')?.errors?.['minlength']) {
+                        <ion-note color="danger">La contraseña debe tener al menos 8 caracteres</ion-note>
+                      }
+                      @if (professionalForm.get('password')?.touched && professionalForm.get('password')?.errors?.['pattern']) {
+                        <ion-note color="danger">Debe contener mayúscula, minúscula y número</ion-note>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
 
               <!-- Professional Info -->
@@ -169,12 +196,15 @@ import { selectSelectedProfessional, selectProfessionalsLoading, selectProfessio
                   <div class="form-field">
                     <ion-item>
                       <ion-input
-                        label="Número de Matrícula"
+                        label="Número de Matrícula *"
                         labelPlacement="stacked"
                         formControlName="license_number"
                         placeholder="MN 12345"
                       ></ion-input>
                     </ion-item>
+                    @if (professionalForm.get('license_number')?.touched && professionalForm.get('license_number')?.errors?.['required']) {
+                      <ion-note color="danger">La matrícula es requerida</ion-note>
+                    }
                   </div>
                 </div>
 
@@ -372,9 +402,10 @@ export class ProfessionalFormPage implements OnInit {
     first_name: ['', [Validators.required]],
     last_name: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)]],
     specialty: ['', [Validators.required]],
     phone: [''],
-    license_number: [''],
+    license_number: ['', [Validators.required]],
     office_address: [''],
     working_hours: [''],
     consultation_fee: [null],
@@ -392,10 +423,15 @@ export class ProfessionalFormPage implements OnInit {
     if (idParam && idParam !== 'new') {
       this.professionalId = parseInt(idParam, 10);
       this.isEditMode = true;
+      // Password is only required when creating a professional.
+      this.professionalForm.get('password')?.clearValidators();
+      this.professionalForm.get('password')?.updateValueAndValidity();
       this.store.dispatch(ProfessionalsActions.loadProfessional({ id: this.professionalId }));
 
       this.professional$.subscribe(professional => {
         if (professional) {
+          const legacyProfessional = professional as ProfessionalWithLegacyAddress;
+
           this.professionalForm.patchValue({
             first_name: professional.first_name,
             last_name: professional.last_name,
@@ -403,7 +439,7 @@ export class ProfessionalFormPage implements OnInit {
             specialty: professional.specialty || '',
             phone: professional.phone || '',
             license_number: professional.license_number || '',
-            office_address: professional.office_address || '',
+            office_address: professional.office_address || legacyProfessional.address || '',
             working_hours: professional.working_hours || '',
             consultation_fee: professional.consultation_fee || null,
             bio: professional.bio || '',
@@ -416,15 +452,11 @@ export class ProfessionalFormPage implements OnInit {
 
   onSubmit(): void {
     if (this.professionalForm.valid) {
-      const formValue = this.professionalForm.value;
-
-      const professional = Object.keys(formValue).reduce((acc: any, key) => {
-        const value = formValue[key];
-        if (value !== '' && value !== null) {
-          acc[key] = value;
-        }
-        return acc;
-      }, {});
+      const formValue = this.professionalForm.getRawValue() as Record<string, unknown>;
+      const professional = this.compactPayload<ProfessionalFormPayload>(
+        formValue,
+        this.isEditMode ? ['password'] : []
+      );
 
       if (this.isEditMode && this.professionalId) {
         this.store.dispatch(ProfessionalsActions.updateProfessional({
@@ -435,5 +467,19 @@ export class ProfessionalFormPage implements OnInit {
         this.store.dispatch(ProfessionalsActions.createProfessional({ professional }));
       }
     }
+  }
+
+  private compactPayload<T extends Record<string, unknown>>(
+    source: Record<string, unknown>,
+    excludedKeys: readonly string[] = []
+  ): T {
+    const excluded = new Set(excludedKeys);
+
+    return Object.entries(source).reduce<T>((acc, [key, value]) => {
+      if (!excluded.has(key) && value !== '' && value !== null) {
+        acc[key as keyof T] = value as T[keyof T];
+      }
+      return acc;
+    }, {} as T);
   }
 }

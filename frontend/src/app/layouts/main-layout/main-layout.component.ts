@@ -2,15 +2,12 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { map } from 'rxjs/operators';
 import {
   IonSplitPane,
   IonMenu,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonList,
-  IonListHeader,
   IonItem,
   IonIcon,
   IonLabel,
@@ -18,8 +15,6 @@ import {
   IonRouterOutlet,
   IonFooter,
   IonAvatar,
-  IonChip,
-  IonButtons,
   IonBadge
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -31,13 +26,11 @@ import {
   documentTextOutline,
   walletOutline,
   cardOutline,
-  folderOutline,
   fitnessOutline,
   happyOutline,
   schoolOutline,
   statsChartOutline,
   shieldOutline,
-  settingsOutline,
   logOutOutline,
   personCircleOutline,
   chevronForwardOutline,
@@ -46,6 +39,9 @@ import {
 } from 'ionicons/icons';
 import { selectUser } from '../../store/auth/auth.selectors';
 import * as AuthActions from '../../store/auth/auth.actions';
+import { PwaUpdateService } from '../../core/services/pwa-update.service';
+import { ConnectivityService } from '../../core/services/connectivity.service';
+import { PushNotificationsService } from '../../core/services/push-notifications.service';
 import { OfflineIndicatorComponent } from '../../shared/components/offline-indicator/offline-indicator.component';
 
 interface MenuItem {
@@ -69,12 +65,8 @@ interface MenuGroup {
     RouterModule,
     IonSplitPane,
     IonMenu,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
     IonContent,
     IonList,
-    IonListHeader,
     IonItem,
     IonIcon,
     IonLabel,
@@ -82,8 +74,6 @@ interface MenuGroup {
     IonRouterOutlet,
     IonFooter,
     IonAvatar,
-    IonChip,
-    IonButtons,
     IonBadge,
     OfflineIndicatorComponent
   ],
@@ -122,7 +112,7 @@ interface MenuGroup {
           }
 
           <!-- Navigation Groups -->
-          @for (group of menuGroups; track group.title) {
+          @for (group of (visibleMenuGroups$ | async) ?? []; track group.title) {
             <div class="menu-group">
               <div class="group-title">{{ group.title }}</div>
               <ion-list lines="none">
@@ -435,8 +425,14 @@ interface MenuGroup {
 })
 export class MainLayoutComponent {
   private store = inject(Store);
+  private readonly pwaUpdateService = inject(PwaUpdateService);
+  private readonly connectivityService = inject(ConnectivityService);
+  private readonly pushNotificationsService = inject(PushNotificationsService);
 
   user$ = this.store.select(selectUser);
+  visibleMenuGroups$ = this.user$.pipe(
+    map((user) => this.filterMenuGroups(user?.role))
+  );
 
   menuGroups: MenuGroup[] = [
     {
@@ -446,36 +442,36 @@ export class MainLayoutComponent {
       ]
     },
     {
-      title: 'Gestión',
+      title: 'Gestion',
       items: [
-        { title: 'Pacientes', url: '/patients', icon: 'people-outline' },
-        { title: 'Profesionales', url: '/professionals', icon: 'medkit-outline' },
-        { title: 'Citas', url: '/appointments', icon: 'calendar-outline', badge: 3 },
-        { title: 'Historiales', url: '/medical-records', icon: 'document-text-outline' },
-        { title: 'Presupuestos', url: '/budgets', icon: 'wallet-outline' },
-        { title: 'Pagos', url: '/payments', icon: 'card-outline' },
-        { title: 'Archivos', url: '/files', icon: 'folder-outline' }
+        { title: 'Pacientes', url: '/patients', icon: 'people-outline', roles: ['admin', 'professional'] },
+        { title: 'Profesionales', url: '/professionals', icon: 'medkit-outline', roles: ['admin', 'professional'] },
+        { title: 'Citas', url: '/appointments', icon: 'calendar-outline', badge: 3, roles: ['admin', 'professional'] },
+        { title: 'Historiales', url: '/medical-records', icon: 'document-text-outline', roles: ['admin', 'professional'] },
+        { title: 'Presupuestos', url: '/budgets', icon: 'wallet-outline', roles: ['admin', 'professional'] },
+        { title: 'Pagos', url: '/payments', icon: 'card-outline', roles: ['admin', 'professional'] }
       ]
     },
     {
       title: 'Especialidades',
       items: [
-        { title: 'Odontología', url: '/odontology', icon: 'fitness-outline' },
-        { title: 'Psicología', url: '/psychology', icon: 'happy-outline' },
-        { title: 'Psicopedagogía', url: '/psychopedagogy', icon: 'school-outline' }
+        { title: 'Odontologia', url: '/odontology', icon: 'fitness-outline', roles: ['admin', 'professional'] },
+        { title: 'Psicologia', url: '/psychology', icon: 'happy-outline', roles: ['admin', 'professional'] },
+        { title: 'Psicopedagogia', url: '/psychopedagogy', icon: 'school-outline', roles: ['admin', 'professional'] }
       ]
     },
     {
-      title: 'Administración',
+      title: 'Administracion',
       items: [
-        { title: 'Reportes', url: '/reports', icon: 'stats-chart-outline' },
-        { title: 'Auditoría', url: '/audit', icon: 'shield-outline' },
-        { title: 'Configuración', url: '/settings', icon: 'settings-outline' }
+        { title: 'Reportes', url: '/reports', icon: 'stats-chart-outline', roles: ['admin'] },
+        { title: 'Auditoria', url: '/audit', icon: 'shield-outline', roles: ['admin'] }
       ]
     }
   ];
 
   constructor() {
+    void this.initializeShellServices();
+
     addIcons({
       homeOutline,
       peopleOutline,
@@ -484,19 +480,44 @@ export class MainLayoutComponent {
       documentTextOutline,
       walletOutline,
       cardOutline,
-      folderOutline,
       fitnessOutline,
       happyOutline,
       schoolOutline,
       statsChartOutline,
       shieldOutline,
-      settingsOutline,
       logOutOutline,
       personCircleOutline,
       chevronForwardOutline,
       notificationsOutline,
       helpCircleOutline
     });
+  }
+
+  private async initializeShellServices(): Promise<void> {
+    void this.pwaUpdateService;
+    void this.connectivityService;
+
+    try {
+      await this.pushNotificationsService.initialize();
+    } catch (error) {
+      console.error('Failed to initialize push notifications:', error);
+    }
+  }
+
+  private filterMenuGroups(role?: string): MenuGroup[] {
+    return this.menuGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => this.canAccess(item.roles, role))
+      }))
+      .filter((group) => group.items.length > 0);
+  }
+
+  private canAccess(roles: string[] | undefined, role?: string): boolean {
+    if (!roles || roles.length === 0) {
+      return true;
+    }
+    return !!role && roles.includes(role);
   }
 
   getRoleLabel(role: string): string {

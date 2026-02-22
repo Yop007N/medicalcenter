@@ -23,8 +23,6 @@ import {
   IonSpinner,
   IonText,
   IonBadge,
-  IonNote,
-  IonProgressBar,
   AlertController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -70,9 +68,7 @@ import { environment } from '../../../../environments/environment';
     IonLabel,
     IonSpinner,
     IonText,
-    IonBadge,
-    IonNote,
-    IonProgressBar
+    IonBadge
   ],
   template: `
     <ion-header>

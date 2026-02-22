@@ -6,7 +6,8 @@ import {
   Output,
   EventEmitter,
   Input,
-  OnDestroy
+  OnDestroy,
+  inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -160,10 +161,11 @@ export class SignaturePadComponent implements AfterViewInit, OnDestroy {
   private isDrawing = false;
   private lastX = 0;
   private lastY = 0;
+  private modalController = inject(ModalController);
 
   hasSignature = false;
 
-  constructor(private modalController: ModalController) {
+  constructor() {
     addIcons({ trashOutline, checkmarkOutline, closeOutline });
   }
 

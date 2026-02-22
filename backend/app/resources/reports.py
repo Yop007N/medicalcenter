@@ -4,13 +4,208 @@ Reports Resource - Endpoints para generación de reportes
 """
 
 from flask import Blueprint, jsonify, request, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from app.services.report_service import ReportService
 from app.utils.decorators import admin_required, professional_required
+from app.extensions import db
+from app.models.appointment import Appointment
+from app.models.budget import Budget
+from app.models.medical_record import MedicalRecord
+from app.models.patient import Patient
+from app.models.professional import Professional
 from datetime import datetime, timedelta
+from sqlalchemy import and_, func
 import io
+import csv
 
 blueprint = Blueprint('reports', __name__, url_prefix='/api/reports')
+
+
+def _parse_date_range(default_days=30):
+    """Parse optional date range from query args with fallback window."""
+    start_date_arg = request.args.get('start_date')
+    end_date_arg = request.args.get('end_date')
+
+    if start_date_arg and end_date_arg:
+        return (
+            datetime.strptime(start_date_arg, '%Y-%m-%d'),
+            datetime.strptime(end_date_arg, '%Y-%m-%d')
+        )
+
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=default_days)
+    return start_date, end_date
+
+
+def _build_medical_summary_report(start_date, end_date, professional_id=None):
+    filters = [
+        MedicalRecord.created_at >= start_date,
+        MedicalRecord.created_at <= end_date
+    ]
+    if professional_id:
+        filters.append(MedicalRecord.professional_id == professional_id)
+
+    total_records = MedicalRecord.query.filter(and_(*filters)).count()
+
+    by_professional_rows = db.session.query(
+        Professional.id,
+        Professional.first_name,
+        Professional.last_name,
+        func.count(MedicalRecord.id)
+    ).join(
+        MedicalRecord,
+        MedicalRecord.professional_id == Professional.id
+    ).filter(
+        and_(*filters)
+    ).group_by(
+        Professional.id,
+        Professional.first_name,
+        Professional.last_name
+    ).all()
+
+    by_specialty_rows = db.session.query(
+        Professional.specialty,
+        func.count(MedicalRecord.id)
+    ).join(
+        MedicalRecord,
+        MedicalRecord.professional_id == Professional.id
+    ).filter(
+        and_(*filters)
+    ).group_by(
+        Professional.specialty
+    ).all()
+
+    return {
+        'total_records': total_records,
+        'by_professional': [
+            {
+                'professional_id': professional_id_row,
+                'name': f'{first_name} {last_name}',
+                'records_count': records_count
+            }
+            for professional_id_row, first_name, last_name, records_count in by_professional_rows
+        ],
+        'by_specialty': [
+            {
+                'specialty': specialty or 'Sin especialidad',
+                'count': count
+            }
+            for specialty, count in by_specialty_rows
+        ],
+        'period': {
+            'start': start_date.date().isoformat(),
+            'end': end_date.date().isoformat()
+        }
+    }
+
+
+def _build_financial_summary_report(start_date, end_date):
+    revenue_report = ReportService.generate_revenue_report(start_date, end_date)
+    budget_report = ReportService.generate_budget_report(start_date, end_date)
+
+    payment_counts = {}
+    for payment in revenue_report.get('payments', []):
+        method = payment.get('method') or 'unknown'
+        payment_counts[method] = payment_counts.get(method, 0) + 1
+
+    by_payment_method = []
+    for method, amount in revenue_report.get('by_payment_method', {}).items():
+        by_payment_method.append({
+            'method': method,
+            'amount': float(amount),
+            'count': payment_counts.get(method, 0)
+        })
+
+    by_month = {}
+    for row in revenue_report.get('daily_revenue', []):
+        date_value = datetime.fromisoformat(row['date'])
+        month_key = date_value.strftime('%Y-%m')
+        if month_key not in by_month:
+            by_month[month_key] = {
+                'month': month_key,
+                'revenue': 0.0,
+                'pending': 0.0
+            }
+        by_month[month_key]['revenue'] += float(row.get('amount', 0))
+
+    pending_amount = 0.0
+    for status_row in budget_report.get('by_status', []):
+        if status_row.get('status') == 'pending':
+            pending_amount += float(status_row.get('total_amount', 0))
+
+    return {
+        'total_revenue': float(revenue_report['summary'].get('total_revenue', 0)),
+        'total_pending': pending_amount,
+        'currency': 'ARS',
+        'by_payment_method': by_payment_method,
+        'by_month': list(by_month.values()),
+        'period': {
+            'start': start_date.date().isoformat(),
+            'end': end_date.date().isoformat()
+        }
+    }
+
+
+def _build_appointments_frontend_payload(report, start_date, end_date, professional_id=None, patient_id=None):
+    filters = [
+        Appointment.appointment_date >= start_date,
+        Appointment.appointment_date <= end_date
+    ]
+    if professional_id:
+        filters.append(Appointment.professional_id == professional_id)
+    if patient_id:
+        filters.append(Appointment.patient_id == patient_id)
+
+    by_professional_rows = db.session.query(
+        Professional.id,
+        Professional.first_name,
+        Professional.last_name,
+        func.count(Appointment.id)
+    ).join(
+        Appointment,
+        Appointment.professional_id == Professional.id
+    ).filter(
+        and_(*filters)
+    ).group_by(
+        Professional.id,
+        Professional.first_name,
+        Professional.last_name
+    ).all()
+
+    total_appointments = report['summary'].get('total_appointments', 0)
+    cancelled = report['summary'].get('cancelled', 0)
+    no_show = report['summary'].get('no_show', 0)
+
+    status_map = report.get('by_status', {})
+    status_list = [
+        {'status': status, 'count': count}
+        for status, count in status_map.items()
+    ]
+
+    return {
+        'total_appointments': total_appointments,
+        'by_status': status_list,
+        'by_professional': [
+            {
+                'professional_id': professional_id_row,
+                'name': f'{first_name} {last_name}',
+                'appointments_count': appointments_count
+            }
+            for professional_id_row, first_name, last_name, appointments_count in by_professional_rows
+        ],
+        'cancellation_rate': (cancelled / total_appointments) if total_appointments else 0,
+        'no_show_rate': (no_show / total_appointments) if total_appointments else 0,
+        'period': {
+            'start': start_date.date().isoformat(),
+            'end': end_date.date().isoformat()
+        },
+        # Legacy keys for existing clients/tests
+        'summary': report.get('summary', {}),
+        'by_status_map': status_map,
+        'by_type': report.get('by_type', {}),
+        'by_weekday': report.get('by_weekday', {}),
+        'daily_breakdown': report.get('daily_breakdown', [])
+    }
 
 
 # ============ REPORTES MÉDICOS ============
@@ -141,7 +336,26 @@ def get_professional_activity_report(professional_id):
     return jsonify(report), 200
 
 
+@blueprint.route('/medical', methods=['GET'])
+@jwt_required()
+def get_medical_report_summary():
+    """Frontend-compatible medical report summary."""
+    professional_id = request.args.get('professional_id', type=int)
+    start_date, end_date = _parse_date_range(default_days=30)
+
+    data = _build_medical_summary_report(start_date, end_date, professional_id)
+    return jsonify(data), 200
+
+
 # ============ REPORTES FINANCIEROS ============
+
+@blueprint.route('/financial', methods=['GET'])
+@jwt_required()
+def get_financial_report_summary():
+    """Frontend-compatible financial report summary."""
+    start_date, end_date = _parse_date_range(default_days=30)
+    data = _build_financial_summary_report(start_date, end_date)
+    return jsonify(data), 200
 
 @blueprint.route('/financial/revenue', methods=['GET'])
 @jwt_required()
@@ -338,7 +552,14 @@ def get_appointment_report():
             download_name='appointments_report.csv'
         )
 
-    return jsonify(report), 200
+    frontend_payload = _build_appointments_frontend_payload(
+        report,
+        start_date,
+        end_date,
+        professional_id=professional_id,
+        patient_id=patient_id
+    )
+    return jsonify(frontend_payload), 200
 
 
 # ============ REPORTES PREDEFINIDOS ============
@@ -427,3 +648,84 @@ def get_weekly_summary():
         'by_weekday': appointments['by_weekday'],
         'daily_breakdown': appointments['daily_breakdown']
     }), 200
+
+
+@blueprint.route('/quick/stats', methods=['GET'])
+@jwt_required()
+def get_quick_stats():
+    """Frontend-compatible quick stats."""
+    now = datetime.now()
+    start_today = datetime(now.year, now.month, now.day)
+    end_today = start_today + timedelta(days=1)
+    month_start = datetime(now.year, now.month, 1)
+
+    today_appointments = Appointment.query.filter(
+        Appointment.appointment_date >= start_today,
+        Appointment.appointment_date < end_today
+    ).count()
+
+    pending_budgets = Budget.query.filter(
+        Budget.status == 'pending'
+    ).count()
+
+    new_patients_this_month = Patient.query.filter(
+        Patient.created_at >= month_start
+    ).count()
+
+    revenue_this_month = ReportService.generate_revenue_report(
+        month_start,
+        now
+    )['summary'].get('total_revenue', 0)
+
+    return jsonify({
+        'today_appointments': today_appointments,
+        'pending_budgets': pending_budgets,
+        'new_patients_this_month': new_patients_this_month,
+        'revenue_this_month': float(revenue_this_month)
+    }), 200
+
+
+@blueprint.route('/<string:report_type>/export', methods=['GET'])
+@jwt_required()
+def export_frontend_report(report_type):
+    """Generic export endpoint used by frontend reports module."""
+    start_date, end_date = _parse_date_range(default_days=30)
+    professional_id = request.args.get('professional_id', type=int)
+    patient_id = request.args.get('patient_id', type=int)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if report_type == 'financial':
+        report = ReportService.generate_revenue_report(start_date, end_date, professional_id)
+        writer.writerow(['date', 'amount', 'method', 'budget_id'])
+        for payment in report.get('payments', []):
+            writer.writerow([payment['date'], payment['amount'], payment['method'], payment['budget_id']])
+    elif report_type == 'appointments':
+        report = ReportService.generate_appointment_report(
+            start_date,
+            end_date,
+            professional_id,
+            patient_id
+        )
+        writer.writerow(['status', 'count'])
+        for status, count in report.get('by_status', {}).items():
+            writer.writerow([status, count])
+    elif report_type == 'medical':
+        report = _build_medical_summary_report(start_date, end_date, professional_id)
+        writer.writerow(['total_records', report['total_records']])
+        writer.writerow([])
+        writer.writerow(['specialty', 'count'])
+        for item in report.get('by_specialty', []):
+            writer.writerow([item['specialty'], item['count']])
+    else:
+        return jsonify({'msg': 'Unsupported report_type'}), 400
+
+    payload = output.getvalue().encode('utf-8')
+    output.close()
+    return send_file(
+        io.BytesIO(payload),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'reporte_{report_type}_{datetime.now().strftime("%Y%m%d")}.csv'
+    )

@@ -7,19 +7,19 @@ WORKDIR /app
 COPY frontend-pwa/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install --legacy-peer-deps --no-audit --no-fund; fi
 
 # Copy source code
 COPY frontend-pwa/ .
 
 # Build application
-RUN npm run ionic:build
+RUN npm run build
 
 # Production stage with nginx
 FROM nginx:alpine
 
 # Copy nginx configuration
-COPY docker/frontend-pwa/nginx.conf /etc/nginx/nginx.conf
+COPY frontend-pwa/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application
 COPY --from=builder /app/www /usr/share/nginx/html

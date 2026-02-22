@@ -1,0 +1,199 @@
+{
+  "generated_at_utc": "2026-02-15T16:50:44.784356+00:00",
+  "macro_counts": {
+    "done": 22,
+    "in_progress": 0,
+    "pending": 78
+  },
+  "micro_counts": {
+    "done": 220,
+    "in_progress": 0,
+    "pending": 780
+  },
+  "pending_macro_by_lane": {
+    "backend-sync": 15,
+    "deploy": 15,
+    "docs-product": 5,
+    "frontend": 18,
+    "qa": 15,
+    "security": 10
+  },
+  "daily_cadence_slots": {
+    "backend-sync": 3,
+    "deploy": 2,
+    "frontend": 2,
+    "qa": 2,
+    "security": 2,
+    "docs-product": 1
+  },
+  "priority_rules": {
+    "lane_weights": {
+      "security": 5,
+      "backend-sync": 5,
+      "deploy": 4,
+      "frontend": 4,
+      "qa": 3,
+      "docs-product": 2
+    },
+    "notes": [
+      "Prioritize security/backend-sync/deploy before docs-product.",
+      "Any macro with unmet dependencies is marked blocked.",
+      "Prefer low-ID pending tasks inside same lane for deterministic flow."
+    ]
+  },
+  "top_prioritized_macros": [
+    {
+      "macro_id": "T141",
+      "lane": "backend-sync",
+      "task": "Disenar migracion row_version por entidad core",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T142",
+      "lane": "backend-sync",
+      "task": "Implementar columnas de versionado en entidades core",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T143",
+      "lane": "backend-sync",
+      "task": "Exponer row_version en serializers de entidades core",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T144",
+      "lane": "backend-sync",
+      "task": "Extender /api/sync/pull con incremental por row_version",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T145",
+      "lane": "backend-sync",
+      "task": "Extender /api/sync/push con validacion client_version",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T146",
+      "lane": "backend-sync",
+      "task": "Implementar merge granular por campo configurable",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T147",
+      "lane": "backend-sync",
+      "task": "Registrar conflictos por campo en sync_logs",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T148",
+      "lane": "backend-sync",
+      "task": "Implementar estrategia retry segura para multi-nodo",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T149",
+      "lane": "backend-sync",
+      "task": "Asegurar idempotencia distribuida con nonce y lock",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T150",
+      "lane": "backend-sync",
+      "task": "Agregar tests de integracion para sync versionado",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T151",
+      "lane": "backend-sync",
+      "task": "Agregar tests de conflictos multi-entidad simultaneos",
+      "blocked": false,
+      "blocked_by": []
+    },
+    {
+      "macro_id": "T152",
+      "lane": "backend-sync",
+      "task": "Agregar tests de carga alta para lotes de sync",
+      "blocked": false,
+      "blocked_by": []
+    }
+  ],
+  "blocked_macros": [],
+  "weekly_kpis": {
+    "macro_completion_pct": 22.0,
+    "micro_completion_pct": 22.0,
+    "macro_done": 22,
+    "macro_pending": 78,
+    "micro_done": 220,
+    "micro_pending": 780,
+    "pending_by_lane": {
+      "backend-sync": 15,
+      "deploy": 15,
+      "docs-product": 5,
+      "frontend": 18,
+      "qa": 15,
+      "security": 10
+    },
+    "top_critical_pending": [
+      {
+        "macro_id": "T141",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T142",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T143",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T144",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T145",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T146",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T147",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T148",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T149",
+        "lane": "backend-sync",
+        "blocked": false
+      },
+      {
+        "macro_id": "T150",
+        "lane": "backend-sync",
+        "blocked": false
+      }
+    ]
+  }
+}

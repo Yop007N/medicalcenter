@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -93,7 +93,7 @@ import { ToothImageData } from '../../odontogram/tooth-image.component';
     </ion-content>
   `
 })
-export class ToothActionModalComponent {
+export class ToothActionModalComponent implements OnInit {
   private modalCtrl = inject(ModalController);
 
   @Input() tooth!: ToothImageData;
@@ -119,7 +119,7 @@ export class ToothActionModalComponent {
     addIcons({ closeOutline, saveOutline, trashOutline });
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     if (this.tooth) {
       this.status = this.tooth.status;
       this.notes = this.tooth.notes || '';

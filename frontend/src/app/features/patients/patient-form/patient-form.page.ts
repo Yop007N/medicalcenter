@@ -11,7 +11,6 @@ import {
   IonButtons,
   IonBackButton,
   IonButton,
-  IonList,
   IonItem,
   IonInput,
   IonSelect,
@@ -26,6 +25,9 @@ import { addIcons } from 'ionicons';
 import { saveOutline } from 'ionicons/icons';
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading, selectPatientsError } from '../../../store/patients/patients.selectors';
+import type { Patient } from '../../../models';
+
+type PatientFormPayload = Partial<Patient> & { password?: string };
 
 @Component({
   selector: 'app-patient-form',
@@ -40,7 +42,6 @@ import { selectSelectedPatient, selectPatientsLoading, selectPatientsError } fro
     IonButtons,
     IonBackButton,
     IonButton,
-    IonList,
     IonItem,
     IonInput,
     IonSelect,
@@ -500,16 +501,8 @@ export class PatientFormPage implements OnInit {
 
   onSubmit(): void {
     if (this.patientForm.valid) {
-      const formValue = this.patientForm.value;
-
-      // Clean empty strings
-      const patient = Object.keys(formValue).reduce((acc: any, key) => {
-        const value = formValue[key];
-        if (value !== '' && value !== null) {
-          acc[key] = value;
-        }
-        return acc;
-      }, {});
+      const formValue = this.patientForm.getRawValue() as Record<string, unknown>;
+      const patient = this.compactPayload<PatientFormPayload>(formValue);
 
       if (this.isEditMode && this.patientId) {
         this.store.dispatch(PatientsActions.updatePatient({
@@ -520,5 +513,19 @@ export class PatientFormPage implements OnInit {
         this.store.dispatch(PatientsActions.createPatient({ patient }));
       }
     }
+  }
+
+  private compactPayload<T extends Record<string, unknown>>(
+    source: Record<string, unknown>,
+    excludedKeys: readonly string[] = []
+  ): T {
+    const excluded = new Set(excludedKeys);
+
+    return Object.entries(source).reduce<T>((acc, [key, value]) => {
+      if (!excluded.has(key) && value !== '' && value !== null) {
+        acc[key as keyof T] = value as T[keyof T];
+      }
+      return acc;
+    }, {} as T);
   }
 }

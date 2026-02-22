@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { of } from 'rxjs';
@@ -11,6 +11,7 @@ import {
   QuickStats
 } from '../../models/report.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
 import * as ReportsActions from './reports.actions';
 
 @Injectable()
@@ -31,7 +32,7 @@ export class ReportsEffects {
         return this.http.get<MedicalReport>(`${environment.apiUrl}/reports/medical`, { params }).pipe(
           map(report => ReportsActions.loadMedicalReportSuccess({ report })),
           catchError(error => of(ReportsActions.loadMedicalReportFailure({
-            error: error.error?.msg || 'Error al cargar reporte médico'
+            error: getApiErrorMessage(error, 'Error al cargar reporte medico')
           })))
         );
       })
@@ -49,7 +50,7 @@ export class ReportsEffects {
         return this.http.get<FinancialReport>(`${environment.apiUrl}/reports/financial`, { params }).pipe(
           map(report => ReportsActions.loadFinancialReportSuccess({ report })),
           catchError(error => of(ReportsActions.loadFinancialReportFailure({
-            error: error.error?.msg || 'Error al cargar reporte financiero'
+            error: getApiErrorMessage(error, 'Error al cargar reporte financiero')
           })))
         );
       })
@@ -69,7 +70,7 @@ export class ReportsEffects {
         return this.http.get<AppointmentsReport>(`${environment.apiUrl}/reports/appointments`, { params }).pipe(
           map(report => ReportsActions.loadAppointmentsReportSuccess({ report })),
           catchError(error => of(ReportsActions.loadAppointmentsReportFailure({
-            error: error.error?.msg || 'Error al cargar reporte de citas'
+            error: getApiErrorMessage(error, 'Error al cargar reporte de citas')
           })))
         );
       })
@@ -83,7 +84,7 @@ export class ReportsEffects {
         this.http.get<QuickStats>(`${environment.apiUrl}/reports/quick/stats`).pipe(
           map(stats => ReportsActions.loadQuickStatsSuccess({ stats })),
           catchError(error => of(ReportsActions.loadQuickStatsFailure({
-            error: error.error?.msg || 'Error al cargar estadísticas rápidas'
+            error: getApiErrorMessage(error, 'Error al cargar estadisticas rapidas')
           })))
         )
       )
@@ -113,7 +114,7 @@ export class ReportsEffects {
           }),
           map(() => ReportsActions.exportReportSuccess()),
           catchError(error => of(ReportsActions.exportReportFailure({
-            error: error.error?.msg || 'Error al exportar reporte'
+            error: getApiErrorMessage(error, 'Error al exportar reporte')
           })))
         );
       })
@@ -146,3 +147,5 @@ export class ReportsEffects {
     { dispatch: false }
   );
 }
+
+

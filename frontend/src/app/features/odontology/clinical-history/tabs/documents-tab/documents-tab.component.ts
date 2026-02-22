@@ -2,8 +2,6 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges, inject } from '@ang
 import { CommonModule } from '@angular/common';
 import {
   IonCard,
-  IonCardHeader,
-  IonCardTitle,
   IonCardContent,
   IonButton,
   IonIcon,
@@ -22,8 +20,6 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
   imports: [
     CommonModule,
     IonCard,
-    IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     IonButton,
     IonIcon,

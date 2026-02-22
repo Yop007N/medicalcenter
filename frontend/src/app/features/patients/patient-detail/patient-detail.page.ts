@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { firstValueFrom, take } from 'rxjs';
 import {
   IonHeader,
   IonToolbar,
@@ -48,8 +49,18 @@ import {
 } from 'ionicons/icons';
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading } from '../../../store/patients/patients.selectors';
+import { selectUser } from '../../../store/auth/auth.selectors';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
+import { User } from '../../../models';
+
+interface AppointmentSummary {
+  id: number;
+  appointment_date: string;
+  appointment_type: string;
+  status: string;
+  professional_id?: number;
+}
 
 @Component({
   selector: 'app-patient-detail',
@@ -673,7 +684,7 @@ export class PatientDetailPage implements OnInit {
   loading$ = this.store.select(selectPatientsLoading);
 
   selectedSegment = 'appointments';
-  appointments: any[] = [];
+  appointments: AppointmentSummary[] = [];
   medicalRecords: any[] = [];
   budgets: any[] = [];
   patientId: number | null = null;
@@ -736,9 +747,9 @@ export class PatientDetailPage implements OnInit {
   }
 
   loadAppointments(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/patients/${this.patientId}/appointments`)
+    this.http.get<unknown>(`${environment.apiUrl}/patients/${this.patientId}/appointments`)
       .subscribe({
-        next: (data) => this.appointments = data,
+        next: (data) => this.appointments = this.normalizeAppointments(data),
         error: () => this.appointments = []
       });
   }
@@ -790,25 +801,59 @@ export class PatientDetailPage implements OnInit {
     });
   }
 
-  createOdontogram(): void {
-    this.patient$.subscribe(patient => {
-      if (patient) {
-        const odontogramData = {
-          patient_id: patient.id,
-          professional_id: 1, // TODO: get from logged user
-          is_active: true
-        };
-        this.http.post<any>(`${environment.apiUrl}/odontograms`, odontogramData)
-          .subscribe({
-            next: (odontogram) => {
-              this.odontogram = odontogram;
-            },
-            error: (err) => {
-              console.error('Error creating odontogram:', err);
-            }
-          });
-      }
-    }).unsubscribe();
+  async createOdontogram(): Promise<void> {
+    const patient = await firstValueFrom(this.patient$.pipe(take(1)));
+    const currentUser = await firstValueFrom(this.store.select(selectUser).pipe(take(1)));
+    if (!patient) {
+      return;
+    }
+
+    const professionalId = this.resolveProfessionalId(currentUser);
+    if (!professionalId) {
+      console.error('Cannot create odontogram without a professional_id');
+      return;
+    }
+
+    const odontogramData = {
+      patient_id: patient.id,
+      professional_id: professionalId,
+      is_active: true
+    };
+    this.http.post<any>(`${environment.apiUrl}/odontograms`, odontogramData)
+      .subscribe({
+        next: (odontogram) => {
+          this.odontogram = odontogram;
+        },
+        error: (err) => {
+          console.error('Error creating odontogram:', err);
+        }
+      });
+  }
+
+  private normalizeAppointments(data: unknown): AppointmentSummary[] {
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map((item) => ({
+        id: Number(item['id']),
+        appointment_date: typeof item['appointment_date'] === 'string' ? item['appointment_date'] : '',
+        appointment_type: typeof item['appointment_type'] === 'string' ? item['appointment_type'] : '',
+        status: typeof item['status'] === 'string' ? item['status'] : '',
+        professional_id: typeof item['professional_id'] === 'number' ? item['professional_id'] : undefined,
+      }))
+      .filter((item) => Number.isFinite(item.id));
+  }
+
+  private resolveProfessionalId(user: User | null): number | null {
+    if (user?.role === 'professional' && Number.isFinite(user.id)) {
+      return user.id;
+    }
+
+    const fromAppointments = this.appointments.find((appointment) => Number.isFinite(appointment.professional_id))?.professional_id;
+    return typeof fromAppointments === 'number' ? fromAppointments : null;
   }
 
   getTeethCount(status: string): number {

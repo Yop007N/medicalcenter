@@ -1,4 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -25,8 +26,7 @@ import {
   IonSpinner,
   IonFab,
   IonFabButton,
-  IonChip,
-  IonText
+  IonChip
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -35,13 +35,14 @@ import {
   addOutline,
   calendarOutline,
   timeOutline,
-  personOutline
+  personOutline,
+  alertCircleOutline
 } from 'ionicons/icons';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AppState } from '../../../store';
 import * as AppointmentsActions from '../../../store/appointments/appointments.actions';
-import { selectAllAppointments, selectAppointmentsLoading } from '../../../store/appointments/appointments.selectors';
+import { selectAllAppointments, selectAppointmentsLoading, selectAppointmentsError } from '../../../store/appointments/appointments.selectors';
 import { Appointment } from '../../../models/appointment.model';
 
 type ViewMode = 'month' | 'week';
@@ -51,11 +52,14 @@ interface CalendarDay {
   isCurrentMonth: boolean;
   isToday: boolean;
   appointments: Appointment[];
+  previewAppointments: Appointment[];
+  extraAppointmentsCount: number;
 }
 
 @Component({
   selector: 'app-appointments-calendar',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -80,8 +84,7 @@ interface CalendarDay {
     IonSpinner,
     IonFab,
     IonFabButton,
-    IonChip,
-    IonText
+    IonChip
   ],
   template: `
     <ion-header>
@@ -106,11 +109,11 @@ interface CalendarDay {
     <ion-content>
       <!-- Navigation Header -->
       <div class="calendar-nav">
-        <ion-button fill="clear" (click)="navigatePrevious()">
+        <ion-button fill="clear" aria-label="Periodo anterior" (click)="navigatePrevious()">
           <ion-icon name="chevron-back-outline"></ion-icon>
         </ion-button>
         <h2>{{ currentPeriodLabel }}</h2>
-        <ion-button fill="clear" (click)="navigateNext()">
+        <ion-button fill="clear" aria-label="Periodo siguiente" (click)="navigateNext()">
           <ion-icon name="chevron-forward-outline"></ion-icon>
         </ion-button>
         <ion-button fill="clear" size="small" (click)="goToToday()">Hoy</ion-button>
@@ -119,6 +122,23 @@ interface CalendarDay {
       @if (loading$ | async) {
         <div class="loading-container">
           <ion-spinner></ion-spinner>
+        </div>
+      } @else if (error$ | async; as error) {
+        <div class="error-state" role="alert" aria-live="assertive">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+          <h3>Error al cargar citas</h3>
+          <p>{{ error }}</p>
+          <ion-button fill="outline" (click)="loadAppointments()">Reintentar</ion-button>
+        </div>
+      } @else if (!hasAppointments) {
+        <div class="empty-state">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <h3>No hay citas registradas</h3>
+          <p>Crea la primera cita para comenzar a usar el calendario.</p>
+          <ion-button (click)="createAppointment()">
+            <ion-icon name="add-outline" slot="start"></ion-icon>
+            Nueva Cita
+          </ion-button>
         </div>
       } @else {
         <!-- Calendar Grid -->
@@ -143,7 +163,7 @@ interface CalendarDay {
                 <span class="day-number">{{ day.date.getDate() }}</span>
                 @if (day.appointments.length > 0) {
                   <div class="appointment-indicators">
-                    @for (apt of day.appointments.slice(0, 3); track apt.id) {
+                    @for (apt of day.previewAppointments; track apt.id) {
                       <div
                         class="appointment-dot"
                         [class.confirmed]="apt.status === 'confirmed'"
@@ -151,8 +171,8 @@ interface CalendarDay {
                         [class.cancelled]="apt.status === 'cancelled'"
                       ></div>
                     }
-                    @if (day.appointments.length > 3) {
-                      <span class="more-count">+{{ day.appointments.length - 3 }}</span>
+                    @if (day.extraAppointmentsCount > 0) {
+                      <span class="more-count">+{{ day.extraAppointmentsCount }}</span>
                     }
                   </div>
                 }
@@ -216,7 +236,7 @@ interface CalendarDay {
 
       <!-- FAB para crear (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button (click)="createAppointment()">
+        <ion-fab-button aria-label="Crear nueva cita" (click)="createAppointment()">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -253,6 +273,38 @@ interface CalendarDay {
       justify-content: center;
       align-items: center;
       height: 300px;
+    }
+
+    .error-state,
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 56px 24px;
+      gap: 12px;
+
+      ion-icon {
+        font-size: 48px;
+        color: var(--ion-color-primary);
+      }
+
+      h3 {
+        margin: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--ion-color-medium);
+        max-width: 280px;
+      }
+    }
+
+    .error-state {
+      ion-icon {
+        color: var(--ion-color-danger);
+      }
     }
 
     .calendar-container {
@@ -435,21 +487,27 @@ interface CalendarDay {
   `]
 })
 export class AppointmentsCalendarPage implements OnInit {
-  private store = inject(Store<AppState>);
-  private router = inject(Router);
+  private readonly store = inject(Store<AppState>);
+  private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   viewMode: ViewMode = 'month';
   currentDate = new Date();
+  currentPeriodLabel = '';
   calendarDays: CalendarDay[] = [];
   selectedDay: CalendarDay | null = null;
   weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   esLocale = es;
   format = format;
+  hasAppointments = false;
 
-  appointments$ = this.store.select(selectAllAppointments);
-  loading$ = this.store.select(selectAppointmentsLoading);
+  readonly appointments$ = this.store.select(selectAllAppointments);
+  readonly loading$ = this.store.select(selectAppointmentsLoading);
+  readonly error$ = this.store.select(selectAppointmentsError);
 
   private appointments: Appointment[] = [];
+  private appointmentsByDate = new Map<string, Appointment[]>();
 
   constructor() {
     addIcons({
@@ -458,82 +516,116 @@ export class AppointmentsCalendarPage implements OnInit {
       addOutline,
       calendarOutline,
       timeOutline,
-      personOutline
+      personOutline,
+      alertCircleOutline
     });
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
+    this.updateCurrentPeriodLabel();
     this.loadAppointments();
-    this.appointments$.subscribe(appointments => {
-      this.appointments = appointments;
-      this.generateCalendar();
-    });
+
+    this.appointments$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((appointments) => {
+        this.appointments = appointments ?? [];
+        this.hasAppointments = this.appointments.length > 0;
+        this.rebuildAppointmentsIndex();
+        this.generateCalendar();
+        this.cdr.markForCheck();
+      });
   }
 
-  get currentPeriodLabel(): string {
-    if (this.viewMode === 'month') {
-      return format(this.currentDate, "MMMM yyyy", { locale: es });
-    } else {
-      const start = startOfWeek(this.currentDate, { weekStartsOn: 0 });
-      const end = endOfWeek(this.currentDate, { weekStartsOn: 0 });
-      return `${format(start, "d MMM", { locale: es })} - ${format(end, "d MMM yyyy", { locale: es })}`;
-    }
-  }
-
-  loadAppointments() {
-    // Load all appointments (filtering will happen client-side)
+  loadAppointments(): void {
     this.store.dispatch(AppointmentsActions.loadAppointments());
   }
 
-  generateCalendar() {
+  generateCalendar(): void {
     if (this.viewMode === 'month') {
       this.generateMonthView();
     } else {
       this.generateWeekView();
     }
+    this.syncSelectedDay();
   }
 
-  private generateMonthView() {
+  private generateMonthView(): void {
     const monthStart = startOfMonth(this.currentDate);
     const monthEnd = endOfMonth(this.currentDate);
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-    this.calendarDays = days.map(date => ({
-      date,
-      isCurrentMonth: isSameMonth(date, this.currentDate),
-      isToday: isToday(date),
-      appointments: this.getAppointmentsForDay(date)
-    }));
+    this.calendarDays = days.map((date) => this.createCalendarDay(date, isSameMonth(date, this.currentDate)));
   }
 
-  private generateWeekView() {
+  private generateWeekView(): void {
     const weekStart = startOfWeek(this.currentDate, { weekStartsOn: 0 });
     const weekEnd = endOfWeek(this.currentDate, { weekStartsOn: 0 });
-
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-    this.calendarDays = days.map(date => ({
+    this.calendarDays = days.map((date) => this.createCalendarDay(date, true));
+  }
+
+  private createCalendarDay(date: Date, isCurrentMonth: boolean): CalendarDay {
+    const appointments = this.getAppointmentsForDay(date);
+    const previewAppointments = appointments.slice(0, 3);
+
+    return {
       date,
-      isCurrentMonth: true,
+      isCurrentMonth,
       isToday: isToday(date),
-      appointments: this.getAppointmentsForDay(date)
-    }));
+      appointments,
+      previewAppointments,
+      extraAppointmentsCount: Math.max(appointments.length - previewAppointments.length, 0)
+    };
+  }
+
+  private rebuildAppointmentsIndex(): void {
+    const byDate = new Map<string, Appointment[]>();
+
+    for (const appointment of this.appointments) {
+      const dateKey = appointment.appointment_date?.split('T')[0];
+      if (!dateKey) {
+        continue;
+      }
+
+      const appointmentsInDay = byDate.get(dateKey);
+      if (appointmentsInDay) {
+        appointmentsInDay.push(appointment);
+      } else {
+        byDate.set(dateKey, [appointment]);
+      }
+    }
+
+    this.appointmentsByDate = byDate;
   }
 
   private getAppointmentsForDay(date: Date): Appointment[] {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return this.appointments.filter(apt => {
-      // appointment_date includes time, so we extract just the date part
-      const aptDate = apt.appointment_date.split('T')[0];
-      return aptDate === dateStr;
-    });
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return this.appointmentsByDate.get(dateKey) ?? [];
+  }
+
+  private updateCurrentPeriodLabel(): void {
+    if (this.viewMode === 'month') {
+      this.currentPeriodLabel = format(this.currentDate, 'MMMM yyyy', { locale: es });
+      return;
+    }
+
+    const start = startOfWeek(this.currentDate, { weekStartsOn: 0 });
+    const end = endOfWeek(this.currentDate, { weekStartsOn: 0 });
+    this.currentPeriodLabel = `${format(start, 'd MMM', { locale: es })} - ${format(end, 'd MMM yyyy', { locale: es })}`;
+  }
+
+  private syncSelectedDay(): void {
+    if (!this.selectedDay) {
+      return;
+    }
+
+    this.selectedDay = this.calendarDays.find((day) => isSameDay(day.date, this.selectedDay!.date)) ?? null;
   }
 
   getAppointmentTime(appointmentDate: string): string {
-    // Extract time from ISO date string
     try {
       const date = new Date(appointmentDate);
       return format(date, 'HH:mm');
@@ -542,53 +634,60 @@ export class AppointmentsCalendarPage implements OnInit {
     }
   }
 
-  onViewModeChange() {
+  onViewModeChange(): void {
+    this.selectedDay = null;
+    this.updateCurrentPeriodLabel();
     this.generateCalendar();
-    this.loadAppointments();
   }
 
-  navigatePrevious() {
+  navigatePrevious(): void {
     if (this.viewMode === 'month') {
       this.currentDate = subMonths(this.currentDate, 1);
     } else {
       this.currentDate = subWeeks(this.currentDate, 1);
     }
+
     this.selectedDay = null;
-    this.loadAppointments();
+    this.updateCurrentPeriodLabel();
+    this.generateCalendar();
   }
 
-  navigateNext() {
+  navigateNext(): void {
     if (this.viewMode === 'month') {
       this.currentDate = addMonths(this.currentDate, 1);
     } else {
       this.currentDate = addWeeks(this.currentDate, 1);
     }
+
     this.selectedDay = null;
-    this.loadAppointments();
+    this.updateCurrentPeriodLabel();
+    this.generateCalendar();
   }
 
-  goToToday() {
+  goToToday(): void {
     this.currentDate = new Date();
     this.selectedDay = null;
-    this.loadAppointments();
+    this.updateCurrentPeriodLabel();
+    this.generateCalendar();
   }
 
-  selectDay(day: CalendarDay) {
+  selectDay(day: CalendarDay): void {
     this.selectedDay = day;
   }
 
-  viewAppointment(id: number) {
+  viewAppointment(id: number): void {
     this.router.navigate(['/appointments', id]);
   }
 
-  createAppointment(date?: Date) {
+  createAppointment(date?: Date): void {
     if (date) {
       this.router.navigate(['/appointments/new'], {
         queryParams: { date: format(date, 'yyyy-MM-dd') }
       });
-    } else {
-      this.router.navigate(['/appointments/new']);
+      return;
     }
+
+    this.router.navigate(['/appointments/new']);
   }
 
   getStatusColor(status: string): string {

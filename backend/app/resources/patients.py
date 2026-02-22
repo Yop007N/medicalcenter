@@ -19,6 +19,19 @@ patient_schema = PatientSchema()
 patients_schema = PatientSchema(many=True)
 
 
+def serialize_patient(patient):
+    """Serialize patient payload with frontend-friendly defaults."""
+    payload = patient_schema.dump(patient)
+    payload.setdefault('is_active', True)
+    payload.setdefault('notes', None)
+    payload.setdefault('insurance_provider', None)
+    payload.setdefault('insurance_number', None)
+    payload.setdefault('document_type', None)
+    payload.setdefault('document_number', None)
+    payload.setdefault('gender', None)
+    return payload
+
+
 def check_access(patient_id):
     """
     Check if the current user is authorized to access the patient's data.
@@ -72,7 +85,7 @@ def list_patients():
     if not current_user or current_user.role not in ['admin', 'professional']:
         return jsonify({'msg': 'Unauthorized'}), 403
 
-    search = request.args.get('search')
+    search = request.args.get('search') or request.args.get('q')
 
     query = Patient.query
     if search:
@@ -89,7 +102,7 @@ def list_patients():
             )
 
     patients = query.all()
-    return jsonify(patients_schema.dump(patients)), 200
+    return jsonify([serialize_patient(patient) for patient in patients]), 200
 
 
 @blueprint.route('/<int:patient_id>', methods=['GET'])
@@ -124,7 +137,7 @@ def get_patient(patient_id):
     if not check_access(patient.id):
         return jsonify({'msg': 'Unauthorized'}), 403
 
-    return jsonify(patient_schema.dump(patient)), 200
+    return jsonify(serialize_patient(patient)), 200
 
 
 @blueprint.route('', methods=['POST'])
@@ -233,7 +246,7 @@ def create_patient():
     db.session.add(patient)
     db.session.commit()
 
-    return jsonify(patient_schema.dump(patient)), 201
+    return jsonify(serialize_patient(patient)), 201
 
 
 @blueprint.route('/<int:patient_id>', methods=['PUT'])
@@ -300,19 +313,30 @@ def update_patient(patient_id):
     updatable_fields = [
         'first_name', 'last_name', 'phone', 'address',
         'emergency_contact', 'emergency_phone', 'blood_type',
-        'allergies', 'medical_history', 'date_of_birth'
+        'allergies', 'medical_history', 'is_active'
     ]
 
     for field in updatable_fields:
         if field in data:
             setattr(patient, field, data[field])
 
+    if 'date_of_birth' in data:
+        if not data['date_of_birth']:
+            patient.date_of_birth = None
+        else:
+            try:
+                patient.date_of_birth = datetime.strptime(
+                    str(data['date_of_birth'])[:10], '%Y-%m-%d'
+                ).date()
+            except ValueError:
+                return jsonify({'msg': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
     if 'password' in data:
         patient.set_password(data['password'])
 
     db.session.commit()
 
-    return jsonify(patient_schema.dump(patient)), 200
+    return jsonify(serialize_patient(patient)), 200
 
 
 @blueprint.route('/<int:patient_id>', methods=['DELETE'])

@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   IonCard,
-  IonCardHeader,
-  IonCardTitle,
   IonCardContent,
   IonButton,
   IonIcon,
@@ -38,8 +36,6 @@ import { ToothImageData } from '../../../odontogram/tooth-image.component';
     CommonModule,
     FormsModule,
     IonCard,
-    IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     IonButton,
     IonIcon,

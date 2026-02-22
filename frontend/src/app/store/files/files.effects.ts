@@ -6,6 +6,7 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { MedicalFile } from '../../models/file.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
 import * as FilesActions from './files.actions';
 
 @Injectable()
@@ -24,7 +25,7 @@ export class FilesEffects {
         return this.http.get<MedicalFile[]>(`${environment.apiUrl}/files`, { params }).pipe(
           map(files => FilesActions.loadFilesSuccess({ files })),
           catchError(error => of(FilesActions.loadFilesFailure({
-            error: error.error?.msg || 'Error al cargar archivos'
+            error: getApiErrorMessage(error, 'Error al cargar archivos')
           })))
         );
       })
@@ -38,7 +39,7 @@ export class FilesEffects {
         this.http.get<MedicalFile>(`${environment.apiUrl}/files/${id}`).pipe(
           map(file => FilesActions.loadFileSuccess({ file })),
           catchError(error => of(FilesActions.loadFileFailure({
-            error: error.error?.msg || 'Error al cargar archivo'
+            error: getApiErrorMessage(error, 'Error al cargar archivo')
           })))
         )
       )
@@ -61,7 +62,7 @@ export class FilesEffects {
         return this.http.post<MedicalFile>(`${environment.apiUrl}/files/upload`, formData).pipe(
           map(uploadedFile => FilesActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(FilesActions.uploadFileFailure({
-            error: error.error?.msg || 'Error al subir archivo'
+            error: getApiErrorMessage(error, 'Error al subir archivo')
           })))
         );
       })
@@ -85,7 +86,7 @@ export class FilesEffects {
         this.http.delete(`${environment.apiUrl}/files/${id}`).pipe(
           map(() => FilesActions.deleteFileSuccess({ id })),
           catchError(error => of(FilesActions.deleteFileFailure({
-            error: error.error?.msg || 'Error al eliminar archivo'
+            error: getApiErrorMessage(error, 'Error al eliminar archivo')
           })))
         )
       )
@@ -117,7 +118,7 @@ export class FilesEffects {
           }),
           map(() => FilesActions.downloadFileSuccess()),
           catchError(error => of(FilesActions.downloadFileFailure({
-            error: error.error?.msg || 'Error al descargar archivo'
+            error: getApiErrorMessage(error, 'Error al descargar archivo')
           })))
         )
       )

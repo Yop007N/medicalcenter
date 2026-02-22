@@ -9,12 +9,13 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
 import { loadingInterceptor } from './core/interceptors/loading.interceptor';
+import { tokenInterceptor } from './core/auth/token.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([loadingInterceptor])),
+    provideHttpClient(withInterceptors([tokenInterceptor, loadingInterceptor])),
     provideAnimations(),
     provideStore(),
     provideEffects(),

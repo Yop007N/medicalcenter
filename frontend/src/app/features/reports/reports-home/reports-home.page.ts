@@ -144,7 +144,7 @@ import {
               <ion-col>
                 <ion-button expand="block" color="secondary" (click)="exportReport()" [disabled]="exporting$ | async">
                   <ion-spinner *ngIf="exporting$ | async" name="crescent"></ion-spinner>
-                  <ion-icon *ngIf="!(exporting$ | async)" slot="start" name="download-outline"></ion-icon>
+                  <ion-icon *ngIf="(exporting$ | async) === false" slot="start" name="download-outline"></ion-icon>
                   Exportar
                 </ion-button>
               </ion-col>

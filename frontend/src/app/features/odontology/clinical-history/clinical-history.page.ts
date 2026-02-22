@@ -15,7 +15,6 @@ import {
   IonSegment,
   IonSegmentButton,
   IonLabel,
-  IonSpinner,
   IonText
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -72,7 +71,6 @@ interface TabConfig {
     IonSegment,
     IonSegmentButton,
     IonLabel,
-    IonSpinner,
     IonText,
     HistoryTabComponent,
     EvolutionsTabComponent,

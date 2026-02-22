@@ -170,6 +170,34 @@ class TestCreatePayment:
         json_data = response.json
         assert json_data['budget_id'] == budget_id
 
+    def test_create_payment_supports_payment_date_and_transaction_reference(self, client, auth_headers):
+        """Test creating payment with frontend aliases payment_date/transaction_reference."""
+        data = {
+            'amount': 350.00,
+            'payment_method': 'transfer',
+            'payment_date': '2026-02-14T15:30:00Z',
+            'transaction_reference': 'REF-12345'
+        }
+
+        response = client.post('/api/payments', json=data, headers=auth_headers)
+
+        assert response.status_code == 201
+        json_data = response.json
+        assert json_data['transaction_id'] == 'REF-12345'
+        assert json_data['transaction_reference'] == 'REF-12345'
+        assert json_data['payment_date'].startswith('2026-02-14T15:30:00')
+
+    def test_create_payment_invalid_payment_date(self, client, auth_headers):
+        """Test creating payment rejects invalid payment_date format."""
+        data = {
+            'amount': 200.00,
+            'payment_method': 'cash',
+            'payment_date': '14/02/2026 15:30'
+        }
+
+        response = client.post('/api/payments', json=data, headers=auth_headers)
+        assert response.status_code == 400
+
     def test_create_payment_missing_fields(self, client, auth_headers):
         """Test creating payment with missing required fields"""
         data = {
@@ -245,6 +273,53 @@ class TestUpdatePayment:
             headers=patient_auth_headers
         )
         assert response.status_code in [401, 403]
+
+    def test_update_payment_supports_payment_date_and_reference_alias(self, client, auth_headers, app):
+        """Test update supports payment_date and transaction_reference alias."""
+        with app.app_context():
+            payment = Payment(
+                amount=Decimal('420.00'),
+                payment_method='cash',
+                payment_status='pending'
+            )
+            db.session.add(payment)
+            db.session.commit()
+            payment_id = payment.id
+
+        response = client.put(
+            f'/api/payments/{payment_id}',
+            json={
+                'payment_date': '2026-02-14T18:00:00Z',
+                'transaction_reference': 'UPD-REF-001'
+            },
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json
+        assert data['transaction_id'] == 'UPD-REF-001'
+        assert data['transaction_reference'] == 'UPD-REF-001'
+        assert data['payment_date'].startswith('2026-02-14T18:00:00')
+
+    def test_update_payment_invalid_payment_date(self, client, auth_headers, app):
+        """Test update rejects invalid payment_date format."""
+        with app.app_context():
+            payment = Payment(
+                amount=Decimal('510.00'),
+                payment_method='card',
+                payment_status='pending'
+            )
+            db.session.add(payment)
+            db.session.commit()
+            payment_id = payment.id
+
+        response = client.put(
+            f'/api/payments/{payment_id}',
+            json={'payment_date': '14-02-2026 18:00'},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 400
 
 
 class TestProcessPayment:

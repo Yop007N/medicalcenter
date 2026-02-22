@@ -7,7 +7,23 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Budget } from '../../models/budget.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
+import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as BudgetsActions from './budgets.actions';
+
+const normalizeBudget = (budget: Partial<Budget>): Budget => ({
+  id: budget.id ?? 0,
+  patient_id: budget.patient_id ?? 0,
+  created_by: budget.created_by ?? 0,
+  title: budget.title ?? '',
+  total_amount: budget.total_amount ?? 0,
+  currency: budget.currency ?? 'ARS',
+  status: budget.status ?? 'draft',
+  total_paid: budget.total_paid ?? 0,
+  payments_count: budget.payments_count ?? 0,
+  created_at: budget.created_at ?? new Date().toISOString(),
+  ...budget
+});
 
 @Injectable()
 export class BudgetsEffects {
@@ -23,10 +39,15 @@ export class BudgetsEffects {
         let params = new HttpParams();
         if (patientId) params = params.set('patient_id', patientId.toString());
 
-        return this.http.get<Budget[]>(`${environment.apiUrl}/budgets`, { params }).pipe(
-          map(budgets => BudgetsActions.loadBudgetsSuccess({ budgets })),
+        return this.http.get<CollectionResponse<Budget>>(`${environment.apiUrl}/budgets`, { params }).pipe(
+          map((response) => {
+            const budgets = toItemsArray(response);
+            return BudgetsActions.loadBudgetsSuccess({
+              budgets: budgets.map((budget) => normalizeBudget(budget))
+            });
+          }),
           catchError(error => of(BudgetsActions.loadBudgetsFailure({
-            error: error.error?.msg || 'Error al cargar presupuestos'
+            error: getApiErrorMessage(error, 'Error al cargar presupuestos')
           })))
         );
       })
@@ -38,9 +59,9 @@ export class BudgetsEffects {
       ofType(BudgetsActions.loadBudget),
       switchMap(({ id }) =>
         this.http.get<Budget>(`${environment.apiUrl}/budgets/${id}`).pipe(
-          map(budget => BudgetsActions.loadBudgetSuccess({ budget })),
+          map(budget => BudgetsActions.loadBudgetSuccess({ budget: normalizeBudget(budget) })),
           catchError(error => of(BudgetsActions.loadBudgetFailure({
-            error: error.error?.msg || 'Error al cargar presupuesto'
+            error: getApiErrorMessage(error, 'Error al cargar presupuesto')
           })))
         )
       )
@@ -52,9 +73,9 @@ export class BudgetsEffects {
       ofType(BudgetsActions.createBudget),
       switchMap(({ budget }) =>
         this.http.post<Budget>(`${environment.apiUrl}/budgets`, budget).pipe(
-          map(newBudget => BudgetsActions.createBudgetSuccess({ budget: newBudget })),
+          map(newBudget => BudgetsActions.createBudgetSuccess({ budget: normalizeBudget(newBudget) })),
           catchError(error => of(BudgetsActions.createBudgetFailure({
-            error: error.error?.msg || 'Error al crear presupuesto'
+            error: getApiErrorMessage(error, 'Error al crear presupuesto')
           })))
         )
       )
@@ -77,9 +98,9 @@ export class BudgetsEffects {
       ofType(BudgetsActions.updateBudget),
       switchMap(({ id, budget }) =>
         this.http.put<Budget>(`${environment.apiUrl}/budgets/${id}`, budget).pipe(
-          map(updatedBudget => BudgetsActions.updateBudgetSuccess({ budget: updatedBudget })),
+          map(updatedBudget => BudgetsActions.updateBudgetSuccess({ budget: normalizeBudget(updatedBudget) })),
           catchError(error => of(BudgetsActions.updateBudgetFailure({
-            error: error.error?.msg || 'Error al actualizar presupuesto'
+            error: getApiErrorMessage(error, 'Error al actualizar presupuesto')
           })))
         )
       )
@@ -104,7 +125,7 @@ export class BudgetsEffects {
         this.http.delete(`${environment.apiUrl}/budgets/${id}`).pipe(
           map(() => BudgetsActions.deleteBudgetSuccess({ id })),
           catchError(error => of(BudgetsActions.deleteBudgetFailure({
-            error: error.error?.msg || 'Error al eliminar presupuesto'
+            error: getApiErrorMessage(error, 'Error al eliminar presupuesto')
           })))
         )
       )
@@ -127,9 +148,9 @@ export class BudgetsEffects {
       ofType(BudgetsActions.sendBudget),
       switchMap(({ id }) =>
         this.http.post<Budget>(`${environment.apiUrl}/budgets/${id}/send`, {}).pipe(
-          map(budget => BudgetsActions.sendBudgetSuccess({ budget })),
+          map(budget => BudgetsActions.sendBudgetSuccess({ budget: normalizeBudget(budget) })),
           catchError(error => of(BudgetsActions.sendBudgetFailure({
-            error: error.error?.msg || 'Error al enviar presupuesto'
+            error: getApiErrorMessage(error, 'Error al enviar presupuesto')
           })))
         )
       )
@@ -151,9 +172,9 @@ export class BudgetsEffects {
       ofType(BudgetsActions.acceptBudget),
       switchMap(({ id }) =>
         this.http.post<Budget>(`${environment.apiUrl}/budgets/${id}/accept`, {}).pipe(
-          map(budget => BudgetsActions.acceptBudgetSuccess({ budget })),
+          map(budget => BudgetsActions.acceptBudgetSuccess({ budget: normalizeBudget(budget) })),
           catchError(error => of(BudgetsActions.acceptBudgetFailure({
-            error: error.error?.msg || 'Error al aceptar presupuesto'
+            error: getApiErrorMessage(error, 'Error al aceptar presupuesto')
           })))
         )
       )

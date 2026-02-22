@@ -27,6 +27,10 @@ import { personCircleOutline, callOutline, mailOutline, addOutline, chevronForwa
 import { environment } from '../../../../environments/environment';
 import { Professional } from '../../../models';
 
+interface PaginatedProfessionalsResponse {
+  items: Professional[];
+}
+
 @Component({
   selector: 'app-professionals-list',
   standalone: true, // Updated
@@ -81,6 +85,14 @@ import { Professional } from '../../../models';
             </ion-item>
           }
         </ion-list>
+      } @else if (errorMessage) {
+        <div class="empty-state">
+          <ion-icon name="person-circle-outline"></ion-icon>
+          <p>{{ errorMessage }}</p>
+          <ion-button fill="outline" (click)="loadProfessionals()">
+            Reintentar
+          </ion-button>
+        </div>
       } @else {
         <ion-list>
           @for (professional of professionals; track professional.id) {
@@ -186,6 +198,7 @@ export class ProfessionalsListPage implements OnInit {
 
   professionals: Professional[] = [];
   loading = true;
+  errorMessage: string | null = null;
 
   constructor() {
     addIcons({ personCircleOutline, callOutline, mailOutline, addOutline, chevronForwardOutline });
@@ -197,13 +210,16 @@ export class ProfessionalsListPage implements OnInit {
 
   loadProfessionals(): void {
     this.loading = true;
-    this.http.get<Professional[]>(`${environment.apiUrl}/professionals`).subscribe({
-      next: (data) => {
+    this.errorMessage = null;
+    this.http.get<Professional[] | PaginatedProfessionalsResponse>(`${environment.apiUrl}/professionals`).subscribe({
+      next: (response) => {
+        const data = Array.isArray(response) ? response : (response.items || []);
         this.professionals = data;
         this.loading = false;
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
+        this.errorMessage = err.error?.msg || err.error?.message || 'No se pudo cargar la lista de profesionales';
       }
     });
   }

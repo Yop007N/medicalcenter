@@ -88,6 +88,34 @@ class TestListMedicalRecords:
         response = client.get('/api/medical-records')
         assert response.status_code == 401
 
+    def test_list_medical_records_include_patient_and_professional_summary(
+        self,
+        client,
+        auth_headers,
+        sample_patient,
+        sample_professional,
+        app
+    ):
+        """Test list payload includes nested patient/professional summaries."""
+        with app.app_context():
+            from app.extensions import db
+            record = MedicalRecord(
+                patient_id=sample_patient.id,
+                professional_id=sample_professional.id,
+                chief_complaint='Summary check'
+            )
+            db.session.add(record)
+            db.session.commit()
+            record_id = record.id
+
+        response = client.get('/api/medical-records', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        target = next(item for item in data if item['id'] == record_id)
+        assert target['patient']['id'] == sample_patient.id
+        assert target['professional']['id'] == sample_professional.id
+
 
 class TestGetMedicalRecord:
     """Test getting a single medical record"""
@@ -128,6 +156,38 @@ class TestGetMedicalRecord:
         assert response.status_code == 404
         data = json.loads(response.data)
         assert 'msg' in data
+
+    def test_get_medical_record_includes_patient_and_professional_summary(
+        self,
+        client,
+        auth_headers,
+        sample_patient,
+        sample_professional,
+        app
+    ):
+        """Test detail payload includes nested patient/professional summaries for frontend."""
+        with app.app_context():
+            from app.extensions import db
+            record = MedicalRecord(
+                patient_id=sample_patient.id,
+                professional_id=sample_professional.id,
+                chief_complaint='Routine visit'
+            )
+            db.session.add(record)
+            db.session.commit()
+            record_id = record.id
+
+        response = client.get(f'/api/medical-records/{record_id}', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['patient']['id'] == sample_patient.id
+        assert data['patient']['first_name'] == 'Test'
+        assert data['patient']['last_name'] == 'Patient'
+        assert data['professional']['id'] == sample_professional.id
+        assert data['professional']['first_name'] == 'Test'
+        assert data['professional']['last_name'] == 'Doctor'
+        assert data['professional']['specialty'] == 'General Practice'
 
     def test_get_medical_record_unauthorized(self, client, sample_patient, sample_professional, app):
         """Test getting medical record without authentication"""

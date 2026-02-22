@@ -7,6 +7,19 @@ import os
 from datetime import timedelta
 
 
+def _parse_bool(raw_value, default=False):
+    if raw_value is None:
+        return default
+    return str(raw_value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _parse_csv(raw_value, default=None):
+    if raw_value is None:
+        return list(default or [])
+    values = [item.strip() for item in str(raw_value).split(',')]
+    return [item for item in values if item]
+
+
 class Config:
     """Base configuration"""
 
@@ -45,9 +58,14 @@ class Config:
     S3_REGION = os.getenv('S3_REGION', 'us-east-1')
 
     # CORS Configuration
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:4200,http://localhost:3000').split(',')
-    CORS_ALLOW_CREDENTIALS = True
-    CORS_MAX_AGE = 3600
+    CORS_ORIGINS = _parse_csv(
+        os.getenv('CORS_ORIGINS', 'http://localhost:4200,http://localhost:3000')
+    )
+    CORS_ALLOW_CREDENTIALS = _parse_bool(
+        os.getenv('CORS_ALLOW_CREDENTIALS'),
+        default=True
+    )
+    CORS_MAX_AGE = int(os.getenv('CORS_MAX_AGE', '3600'))
 
 
 class DevelopmentConfig(Config):
@@ -72,6 +90,11 @@ class ProductionConfig(Config):
     SECRET_KEY = os.getenv('SECRET_KEY')
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    CORS_ORIGINS = _parse_csv(os.getenv('CORS_ORIGINS', ''))
+    CORS_ALLOW_CREDENTIALS = _parse_bool(
+        os.getenv('CORS_ALLOW_CREDENTIALS'),
+        default=False
+    )
 
     def __init__(self):
         super().__init__()
@@ -82,6 +105,8 @@ class ProductionConfig(Config):
             raise ValueError('JWT_SECRET_KEY environment variable must be set in production')
         if not self.SQLALCHEMY_DATABASE_URI:
             raise ValueError('DATABASE_URL environment variable must be set in production')
+        if not self.CORS_ORIGINS:
+            raise ValueError('CORS_ORIGINS environment variable must be set in production')
 
     # Security
     SESSION_COOKIE_SECURE = True

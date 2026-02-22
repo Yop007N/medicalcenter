@@ -12,7 +12,6 @@ import {
   IonButtons,
   IonBackButton,
   IonButton,
-  IonList,
   IonItem,
   IonInput,
   IonSelect,
@@ -20,9 +19,7 @@ import {
   IonTextarea,
   IonSpinner,
   IonText,
-  IonNote,
-  IonItemDivider,
-  IonLabel
+  IonNote
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { saveOutline } from 'ionicons/icons';
@@ -34,6 +31,10 @@ import {
 } from '../../../store/medical-records/medical-records.selectors';
 import { environment } from '../../../../environments/environment';
 import { Patient } from '../../../models/patient.model';
+
+interface PaginatedPatientsResponse {
+  items: Patient[];
+}
 
 @Component({
   selector: 'app-medical-record-form',
@@ -48,7 +49,6 @@ import { Patient } from '../../../models/patient.model';
     IonButtons,
     IonBackButton,
     IonButton,
-    IonList,
     IonItem,
     IonInput,
     IonSelect,
@@ -56,9 +56,7 @@ import { Patient } from '../../../models/patient.model';
     IonTextarea,
     IonSpinner,
     IonText,
-    IonNote,
-    IonItemDivider,
-    IonLabel
+    IonNote
   ],
   template: `
     <ion-header>
@@ -458,8 +456,10 @@ export class MedicalRecordFormPage implements OnInit {
   }
 
   loadPatients(): void {
-    this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
-      next: (patients) => this.patients = patients,
+    this.http.get<Patient[] | PaginatedPatientsResponse>(`${environment.apiUrl}/patients`).subscribe({
+      next: (response) => {
+        this.patients = Array.isArray(response) ? response : (response.items || []);
+      },
       error: (err) => console.error('Error loading patients:', err)
     });
   }

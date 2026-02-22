@@ -13,14 +13,12 @@ import {
   IonButton,
   IonIcon,
   IonItem,
-  IonLabel,
   IonInput,
   IonTextarea,
   IonSelect,
   IonSelectOption,
   IonSpinner,
-  IonText,
-  IonList
+  IonText
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { saveOutline } from 'ionicons/icons';
@@ -43,14 +41,12 @@ import { PaymentCreate, PaymentUpdate } from '../../../models/budget.model';
     IonButton,
     IonIcon,
     IonItem,
-    IonLabel,
     IonInput,
     IonTextarea,
     IonSelect,
     IonSelectOption,
     IonSpinner,
-    IonText,
-    IonList
+    IonText
   ],
   template: `
     <ion-header>
@@ -353,7 +349,7 @@ export class PaymentFormPage implements OnInit {
             currency: payment.currency,
             payment_method: payment.payment_method,
             payment_date: this.formatDateTime(payment.payment_date),
-            transaction_reference: payment.transaction_reference || '',
+            transaction_reference: payment.transaction_reference || payment.transaction_id || '',
             notes: payment.notes || ''
           });
         }

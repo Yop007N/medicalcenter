@@ -1,60 +1,61 @@
-# Alcance del Sistema - Medical Services
+﻿# Alcance del Sistema - Medical Services
+
+Actualizado: 2026-02-14
 
 ## 1. Objetivo general
-Medical Services es una plataforma para gestion clinica que centraliza operaciones asistenciales, administrativas y de seguimiento de pacientes en una arquitectura web + API + PWA.
+Plataforma de gestion clinica para centralizar operacion asistencial, administrativa y trazabilidad sobre pacientes, turnos e historia clinica.
 
 ## 2. Actores principales
-- Administrador: configura el sistema, usuarios, auditoria y reportes.
-- Profesional de salud: gestiona pacientes, turnos, historia clinica y tratamientos.
-- Paciente: consulta informacion y seguimiento desde canales orientados a autoservicio.
+- Administrador: gobierno del sistema, usuarios, auditoria, reportes.
+- Profesional de salud: operacion diaria clinica y administrativa.
+- Paciente: consulta/autogestion desde canales web/moviles.
 
-## 3. Alcance funcional (incluido)
-### 3.1 Core clinico y operativo
+## 3. Alcance funcional incluido
+### Core
 - Autenticacion JWT y control por roles.
 - Gestion de usuarios, pacientes y profesionales.
-- Agenda de citas con estados y filtros.
-- Historia clinica y registros medicos.
-- Archivos clinicos asociados a registros.
+- Agenda de citas y estados de atencion.
+- Historia clinica y archivos medicos.
 - Presupuestos y pagos.
 
-### 3.2 Modulos especializados
-- Odontologia (odontograma y tratamientos dentales).
-- Psicologia.
-- Psicopedagogia.
+### Especialidades
+- Odontologia (odontograma, tratamientos, historia clinica odontologica).
+- Psicologia (evaluaciones y sesiones).
+- Psicopedagogia (evaluaciones e intervenciones).
 
-### 3.3 Operacion y soporte
-- Reportes operativos y financieros.
-- Dashboard con metricas.
+### Gobierno operativo
 - Auditoria de acciones.
-- WebSockets para eventos en tiempo real.
-- Tareas asincronas (notificaciones, sync, backups).
+- Reportes y dashboard.
+- Base de tiempo real via WebSockets.
+- Soporte de tareas asincronas con Celery.
 
-## 4. Alcance tecnico (incluido)
-- Backend Python/Flask con SQLAlchemy y Marshmallow.
-- Persistencia principal PostgreSQL (y soporte local en flujos de desarrollo).
-- Redis/Celery para cache y tareas asincronas.
-- Frontend Angular/Ionic con estado NgRx.
+## 4. Alcance tecnico incluido
+- Backend Flask + SQLAlchemy + PostgreSQL.
+- Redis + Celery para cache/tareas.
+- Frontends Angular/Ionic en multiples clientes.
 - Contenerizacion con Docker Compose.
-- Pipelines CI en GitHub Actions.
 
-## 5. Fuera de alcance actual
-- Integraciones productivas con pasarelas de pago externas.
-- Integraciones hospitalarias avanzadas (HL7/FHIR completas).
-- Multi-tenant empresarial completo.
-- Aplicaciones moviles nativas separadas (fuera de Ionic/Capacitor).
+## 5. Fuera de alcance actual (todavia)
+- Integraciones productivas completas con pasarelas de pago.
+- Integraciones hospitalarias HL7/FHIR de nivel enterprise.
+- Multi-tenant completo por organizacion.
+- PWA de paciente con paridad funcional total.
 
-## 6. Estado general actual
-- Base backend amplia y funcional con multiples modulos cubiertos por tests.
-- Frontend en evolucion con mejoras activas de rendimiento, accesibilidad y pipeline.
-- Se realizo limpieza de documentos legacy para reducir ruido y facilitar continuidad.
+## 6. Estado real por capa
+- Backend: alto avance funcional en modulos core y especialidades.
+- Frontend principal (`frontend/`): avance medio/alto.
+- Frontend web (`frontend-web/`): avance medio con vistas aun scaffold.
+- Frontend PWA (`frontend-pwa/`): avance inicial.
+- Sync cloud/local: funcionalidad base, cierre productivo pendiente.
 
-## 7. Limites y dependencias clave
-- Requiere servicios de infraestructura (PostgreSQL, Redis) para escenarios completos.
-- Compatibilidad de toolchain frontend depende de version de Node/NPM/Pnpm.
-- Cambios de seguridad (RBAC/IDOR/JWT) deben validarse con tests de regresion.
+## 7. Veredicto de avance
+El sistema NO esta cerrado al 100% como producto integral.
 
-## 8. Criterios para considerar el sistema estable
-- Tests backend criticos en verde.
-- Builds frontend en verde en entorno LTS compatible.
-- Endpoints criticos (auth, patients, appointments, medical_records) verificados.
-- Healthcheck y servicios base disponibles en entorno de despliegue.
+Si se evalua solo backend, el avance es alto.
+Si se evalua producto completo (backend + frontends + sync + despliegue operativo), todavia hay trabajo de cierre.
+
+## 8. Criterios para considerar "desarrollo terminado"
+- Backend + frontend elegido para produccion con paridad funcional completa.
+- Sincronizacion validada end-to-end con conflictos y reintentos.
+- Pipeline CI estable (tests + build) en entorno limpio.
+- Despliegue productivo documentado y probado (backup/restore, monitoreo, alertas).

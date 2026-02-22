@@ -16,11 +16,77 @@ blueprint = Blueprint('files', __name__, url_prefix='/api/files')
 
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'}
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
+BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def resolve_upload_dir():
+    """Resolve upload directory relative to backend root when configured as relative path."""
+    if os.path.isabs(UPLOAD_FOLDER):
+        return UPLOAD_FOLDER
+    return os.path.abspath(os.path.join(BACKEND_ROOT, UPLOAD_FOLDER))
+
+
+def resolve_file_path(file_path):
+    """Resolve legacy relative file paths to absolute paths across known roots."""
+    if not file_path:
+        return file_path
+    if os.path.isabs(file_path):
+        return file_path
+
+    backend_candidate = os.path.abspath(os.path.join(BACKEND_ROOT, file_path))
+    if os.path.exists(backend_candidate):
+        return backend_candidate
+
+    project_candidate = os.path.abspath(os.path.join(BACKEND_ROOT, '..', file_path))
+    if os.path.exists(project_candidate):
+        return project_candidate
+
+    return backend_candidate
+
+
+def serialize_file(file_record):
+    """Serialize file record with frontend-compatible aliases."""
+    patient_id = None
+    if file_record.medical_record:
+        patient_id = file_record.medical_record.patient_id
+
+    created_at = file_record.created_at.isoformat() if file_record.created_at else None
+    file_type = file_record.file_type or 'other'
+
+    return {
+        'id': file_record.id,
+        'patient_id': patient_id,
+        'uploaded_by': file_record.uploaded_by,
+        'filename': file_record.filename,
+        'original_filename': file_record.filename,
+        'file_type': file_type,
+        'category': file_type,
+        'file_size': file_record.file_size,
+        'description': file_record.description,
+        'medical_record_id': file_record.medical_record_id,
+        'is_private': False,
+        'created_at': created_at,
+        'upload_date': created_at
+    }
+
+
+@blueprint.route('', methods=['GET'])
+@jwt_required()
+def list_files():
+    """List file metadata with optional patient filter."""
+    patient_id = request.args.get('patient_id', type=int)
+
+    query = File.query
+    if patient_id:
+        query = query.join(MedicalRecord).filter(MedicalRecord.patient_id == patient_id)
+
+    files = query.order_by(File.created_at.desc()).all()
+    return jsonify([serialize_file(file_record) for file_record in files]), 200
 
 
 @blueprint.route('/upload', methods=['POST'])
@@ -89,11 +155,20 @@ def upload_file():
 
     # Get additional data
     medical_record_id = request.form.get('medical_record_id', type=int)
-    file_type = request.form.get('file_type', 'other')
+    # Accept frontend alias "category" as file_type.
+    file_type = request.form.get('file_type') or request.form.get('category') or 'other'
     description = request.form.get('description', '')
+    patient_id = request.form.get('patient_id', type=int)
 
     if not medical_record_id:
-        return jsonify({'msg': 'medical_record_id is required'}), 400
+        if patient_id:
+            latest_record = MedicalRecord.query.filter_by(
+                patient_id=patient_id
+            ).order_by(MedicalRecord.created_at.desc()).first()
+            if latest_record:
+                medical_record_id = latest_record.id
+        if not medical_record_id:
+            return jsonify({'msg': 'medical_record_id is required'}), 400
 
     # Verify medical record exists
     medical_record = MedicalRecord.query.get(medical_record_id)
@@ -104,11 +179,13 @@ def upload_file():
     original_filename = secure_filename(file.filename)
     unique_filename = generate_unique_filename(original_filename)
 
-    # Ensure upload directory exists
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    # Ensure upload directory exists and normalize to absolute path so
+    # downstream send_file/delete calls resolve consistently.
+    upload_dir = resolve_upload_dir()
+    os.makedirs(upload_dir, exist_ok=True)
 
     # Save file
-    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+    file_path = os.path.join(upload_dir, unique_filename)
     file.save(file_path)
 
     # Get file size
@@ -130,13 +207,7 @@ def upload_file():
     db.session.add(file_record)
     db.session.commit()
 
-    return jsonify({
-        'id': file_record.id,
-        'filename': file_record.filename,
-        'file_type': file_record.file_type,
-        'file_size': file_record.file_size,
-        'created_at': file_record.created_at.isoformat()
-    }), 201
+    return jsonify(serialize_file(file_record)), 201
 
 
 @blueprint.route('/<int:file_id>', methods=['GET'])
@@ -180,14 +251,7 @@ def get_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
-    return jsonify({
-        'id': file_record.id,
-        'filename': file_record.filename,
-        'file_type': file_record.file_type,
-        'file_size': file_record.file_size,
-        'description': file_record.description,
-        'created_at': file_record.created_at.isoformat()
-    }), 200
+    return jsonify(serialize_file(file_record)), 200
 
 
 @blueprint.route('/<int:file_id>/download', methods=['GET'])
@@ -222,11 +286,12 @@ def download_file(file_id):
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
 
-    if not os.path.exists(file_record.file_path):
+    resolved_path = resolve_file_path(file_record.file_path)
+    if not os.path.exists(resolved_path):
         return jsonify({'msg': 'File not found on disk'}), 404
 
     return send_file(
-        file_record.file_path,
+        resolved_path,
         as_attachment=True,
         download_name=file_record.filename,
         mimetype=file_record.mime_type
@@ -262,8 +327,9 @@ def delete_file(file_id):
         return jsonify({'msg': 'File not found'}), 404
 
     # Delete physical file
-    if os.path.exists(file_record.file_path):
-        os.remove(file_record.file_path)
+    resolved_path = resolve_file_path(file_record.file_path)
+    if os.path.exists(resolved_path):
+        os.remove(resolved_path)
 
     # Delete database record
     db.session.delete(file_record)

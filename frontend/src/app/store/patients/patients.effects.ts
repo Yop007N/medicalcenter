@@ -7,7 +7,19 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Patient } from '../../models';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
+import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as PatientsActions from './patients.actions';
+
+const normalizePatient = (patient: Partial<Patient>): Patient => ({
+  id: patient.id ?? 0,
+  first_name: patient.first_name ?? '',
+  last_name: patient.last_name ?? '',
+  email: patient.email ?? '',
+  is_active: patient.is_active ?? true,
+  created_at: patient.created_at ?? new Date().toISOString(),
+  ...patient
+});
 
 @Injectable()
 export class PatientsEffects {
@@ -20,10 +32,15 @@ export class PatientsEffects {
     this.actions$.pipe(
       ofType(PatientsActions.loadPatients),
       switchMap(() =>
-        this.http.get<Patient[]>(`${environment.apiUrl}/patients`).pipe(
-          map(patients => PatientsActions.loadPatientsSuccess({ patients })),
+        this.http.get<CollectionResponse<Patient>>(`${environment.apiUrl}/patients`).pipe(
+          map((response) => {
+            const patients = toItemsArray(response);
+            return PatientsActions.loadPatientsSuccess({
+              patients: patients.map((patient) => normalizePatient(patient))
+            });
+          }),
           catchError(error => of(PatientsActions.loadPatientsFailure({
-            error: error.error?.message || 'Error al cargar pacientes'
+            error: getApiErrorMessage(error, 'Error al cargar pacientes')
           })))
         )
       )
@@ -35,9 +52,9 @@ export class PatientsEffects {
       ofType(PatientsActions.loadPatient),
       switchMap(({ id }) =>
         this.http.get<Patient>(`${environment.apiUrl}/patients/${id}`).pipe(
-          map(patient => PatientsActions.loadPatientSuccess({ patient })),
+          map(patient => PatientsActions.loadPatientSuccess({ patient: normalizePatient(patient) })),
           catchError(error => of(PatientsActions.loadPatientFailure({
-            error: error.error?.message || 'Error al cargar paciente'
+            error: getApiErrorMessage(error, 'Error al cargar paciente')
           })))
         )
       )
@@ -49,9 +66,9 @@ export class PatientsEffects {
       ofType(PatientsActions.createPatient),
       switchMap(({ patient }) =>
         this.http.post<Patient>(`${environment.apiUrl}/patients`, patient).pipe(
-          map(newPatient => PatientsActions.createPatientSuccess({ patient: newPatient })),
+          map(newPatient => PatientsActions.createPatientSuccess({ patient: normalizePatient(newPatient) })),
           catchError(error => of(PatientsActions.createPatientFailure({
-            error: error.error?.message || 'Error al crear paciente'
+            error: getApiErrorMessage(error, 'Error al crear paciente')
           })))
         )
       )
@@ -74,9 +91,9 @@ export class PatientsEffects {
       ofType(PatientsActions.updatePatient),
       switchMap(({ id, patient }) =>
         this.http.put<Patient>(`${environment.apiUrl}/patients/${id}`, patient).pipe(
-          map(updatedPatient => PatientsActions.updatePatientSuccess({ patient: updatedPatient })),
+          map(updatedPatient => PatientsActions.updatePatientSuccess({ patient: normalizePatient(updatedPatient) })),
           catchError(error => of(PatientsActions.updatePatientFailure({
-            error: error.error?.message || 'Error al actualizar paciente'
+            error: getApiErrorMessage(error, 'Error al actualizar paciente')
           })))
         )
       )
@@ -100,7 +117,7 @@ export class PatientsEffects {
         this.http.delete(`${environment.apiUrl}/patients/${id}`).pipe(
           map(() => PatientsActions.deletePatientSuccess({ id })),
           catchError(error => of(PatientsActions.deletePatientFailure({
-            error: error.error?.message || 'Error al eliminar paciente'
+            error: getApiErrorMessage(error, 'Error al eliminar paciente')
           })))
         )
       )

@@ -5,7 +5,7 @@ Payment CRUD endpoints
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models.payment import Payment
 from app.schemas.payment_schema import PaymentSchema
 from app.extensions import db
@@ -15,6 +15,25 @@ blueprint = Blueprint('payments', __name__, url_prefix='/api/payments')
 
 payment_schema = PaymentSchema()
 payments_schema = PaymentSchema(many=True)
+
+
+def _parse_datetime(value):
+    """Parse datetime-like payloads into naive UTC datetimes."""
+    if value in (None, ''):
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError as exc:
+            raise ValueError('Invalid datetime format. Use ISO 8601') from exc
+    else:
+        raise ValueError('Invalid datetime value')
+
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 @blueprint.route('', methods=['GET'])
@@ -139,12 +158,19 @@ def create_payment():
         return jsonify({'msg': 'Missing required fields'}), 400
 
     # Create payment
+    try:
+        payment_date = _parse_datetime(data.get('payment_date'))
+    except ValueError as exc:
+        return jsonify({'msg': str(exc)}), 400
+
     payment = Payment(
         budget_id=data.get('budget_id'),
         amount=data['amount'],
         currency=data.get('currency', 'ARS'),
         payment_method=data['payment_method'],
         payment_status='pending',
+        transaction_id=data.get('transaction_id') or data.get('transaction_reference'),
+        payment_date=payment_date,
         notes=data.get('notes')
     )
 
@@ -216,6 +242,11 @@ def update_payment(payment_id):
         payment.transaction_id = data['transaction_id']
     if 'transaction_reference' in data:
         payment.transaction_id = data['transaction_reference']
+    if 'payment_date' in data:
+        try:
+            payment.payment_date = _parse_datetime(data.get('payment_date'))
+        except ValueError as exc:
+            return jsonify({'msg': str(exc)}), 400
     if 'notes' in data:
         payment.notes = data['notes']
 

@@ -25,7 +25,6 @@ import {
   IonRow,
   IonCol,
   IonList,
-  IonNote,
   IonBadge,
   IonRefresher,
   IonRefresherContent,
@@ -79,7 +78,6 @@ import { AuditFilter } from '../../../models/report.model';
     IonRow,
     IonCol,
     IonList,
-    IonNote,
     IonBadge,
     IonRefresher,
     IonRefresherContent,
@@ -220,7 +218,7 @@ import { AuditFilter } from '../../../models/report.model';
       </div>
 
       <!-- Logs List -->
-      <ion-card *ngIf="!(loading$ | async)">
+      <ion-card *ngIf="(loading$ | async) === false">
         <ion-card-header>
           <ion-card-title>
             Logs de Auditoría

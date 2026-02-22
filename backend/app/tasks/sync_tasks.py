@@ -12,6 +12,7 @@ from app.models.medical_record import MedicalRecord
 from app.models.file import File
 from app.models.budget import Budget
 from app.models.payment import Payment
+from app.models.sync_log import SyncLog
 from datetime import datetime, timedelta
 import logging
 import hashlib
@@ -350,15 +351,31 @@ def cleanup_old_sync_logs_task(days=30):
         dict: Cleanup summary
     """
     try:
+        days = int(days)
+        if days < 1:
+            raise ValueError('days must be >= 1')
+
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         logger.info(f"Cleaning up sync logs older than {cutoff_date}")
 
-        # In production, would delete old sync log records
-        # For now, just report what would be deleted
+        terminal_statuses = ['completed', 'failed']
+        old_logs_query = SyncLog.query.filter(
+            SyncLog.status.in_(terminal_statuses),
+            (
+                ((SyncLog.completed_at.isnot(None)) & (SyncLog.completed_at < cutoff_date))
+                |
+                ((SyncLog.completed_at.is_(None)) & (SyncLog.created_at < cutoff_date))
+            )
+        )
+        matched = old_logs_query.count()
+        cleaned_up = old_logs_query.delete(synchronize_session=False)
+        db.session.commit()
 
         summary = {
+            'days': days,
             'cutoff_date': cutoff_date.isoformat(),
-            'cleaned_up': 0,
+            'matched': matched,
+            'cleaned_up': cleaned_up,
             'timestamp': datetime.utcnow().isoformat()
         }
 
@@ -366,5 +383,6 @@ def cleanup_old_sync_logs_task(days=30):
         return summary
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Error in cleanup_old_sync_logs_task: {str(e)}")
         return {'error': str(e)}

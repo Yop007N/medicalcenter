@@ -7,7 +7,7 @@ WORKDIR /app
 COPY frontend-web/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install --legacy-peer-deps --no-audit --no-fund; fi
 
 # Copy source code
 COPY frontend-web/ .
@@ -19,7 +19,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy nginx configuration
-COPY docker/frontend-web/nginx.conf /etc/nginx/nginx.conf
+COPY frontend-web/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application
 COPY --from=builder /app/dist/medical-services-web /usr/share/nginx/html

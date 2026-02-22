@@ -11,6 +11,8 @@ import {
   ComplianceReport
 } from '../../models/report.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
+import { toItemsArray } from '../pagination.adapter';
 import * as AuditActions from './audit.actions';
 
 interface PaginatedResponse<T> {
@@ -42,11 +44,11 @@ export class AuditEffects {
 
         return this.http.get<PaginatedResponse<AuditLog>>(`${environment.apiUrl}/audit/logs`, { params }).pipe(
           map(response => AuditActions.loadAuditLogsSuccess({
-            logs: response.items,
+            logs: toItemsArray(response),
             total: response.total
           })),
           catchError(error => of(AuditActions.loadAuditLogsFailure({
-            error: error.error?.msg || 'Error al cargar logs de auditoría'
+            error: getApiErrorMessage(error, 'Error al cargar logs de auditoria')
           })))
         );
       })
@@ -60,7 +62,7 @@ export class AuditEffects {
         this.http.get<EntityHistory>(`${environment.apiUrl}/audit/entity/${entityType}/${entityId}/history`).pipe(
           map(history => AuditActions.loadEntityHistorySuccess({ history })),
           catchError(error => of(AuditActions.loadEntityHistoryFailure({
-            error: error.error?.msg || 'Error al cargar historial de entidad'
+            error: getApiErrorMessage(error, 'Error al cargar historial de entidad')
           })))
         )
       )
@@ -74,7 +76,7 @@ export class AuditEffects {
         this.http.get<UserActivity>(`${environment.apiUrl}/audit/user/${userId}/activity`).pipe(
           map(activity => AuditActions.loadUserActivitySuccess({ activity })),
           catchError(error => of(AuditActions.loadUserActivityFailure({
-            error: error.error?.msg || 'Error al cargar actividad de usuario'
+            error: getApiErrorMessage(error, 'Error al cargar actividad de usuario')
           })))
         )
       )
@@ -92,7 +94,7 @@ export class AuditEffects {
         return this.http.get<ComplianceReport>(`${environment.apiUrl}/audit/compliance/report`, { params }).pipe(
           map(report => AuditActions.loadComplianceReportSuccess({ report })),
           catchError(error => of(AuditActions.loadComplianceReportFailure({
-            error: error.error?.msg || 'Error al cargar reporte de cumplimiento'
+            error: getApiErrorMessage(error, 'Error al cargar reporte de cumplimiento')
           })))
         );
       })

@@ -19,6 +19,9 @@ class SyncLog(db.Model):
     entity_id = db.Column(db.Integer, nullable=False)
     operation = db.Column(db.String(20), nullable=False)  # create, update, delete
     direction = db.Column(db.String(20), nullable=False)  # cloud_to_local, local_to_cloud
+    idempotency_key = db.Column(db.String(128), index=True)
+    external_entity_ref = db.Column(db.String(128))  # e.g. local-123 from client
+    result_entity_id = db.Column(db.Integer)  # ID generated/affected on server side
 
     # Status
     status = db.Column(
@@ -26,6 +29,7 @@ class SyncLog(db.Model):
         default='pending'
     )  # pending, in_progress, completed, failed
     error_message = db.Column(db.Text)
+    conflict_payload = db.Column(db.JSON)
     retry_count = db.Column(db.Integer, default=0)
 
     # Timestamps

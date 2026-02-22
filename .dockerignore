@@ -1,0 +1,38 @@
+# VCS and editor
+.git
+.github
+.vscode
+.idea
+
+# Python environments and caches
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+backend/.venv311/
+backend/venv/
+.venv/
+venv/
+env/
+ENV/
+
+# Node artifacts
+**/node_modules/
+**/.angular/
+**/.cache/
+
+# Build/test artifacts
+dist/
+build/
+htmlcov/
+.coverage
+.coverage.*
+logs/
+tmp/
+temp/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+

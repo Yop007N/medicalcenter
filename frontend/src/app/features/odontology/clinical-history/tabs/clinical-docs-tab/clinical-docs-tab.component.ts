@@ -11,8 +11,7 @@ import {
   IonItem,
   IonLabel,
   IonCheckbox,
-  IonSpinner,
-  IonList
+  IonSpinner
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, documentOutline, trashOutline, eyeOutline, printOutline } from 'ionicons/icons';
@@ -33,8 +32,7 @@ import { ClinicalDocument, CLINICAL_DOCUMENT_TYPES } from '../../../../../models
     IonItem,
     IonLabel,
     IonCheckbox,
-    IonSpinner,
-    IonList
+    IonSpinner
   ],
   template: `
     <div class="clinical-docs-container">

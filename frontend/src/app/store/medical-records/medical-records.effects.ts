@@ -7,7 +7,19 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { MedicalRecord, MedicalFile } from '../../models/medical-record.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
+import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as MedicalRecordsActions from './medical-records.actions';
+
+const normalizeMedicalRecord = (record: Partial<MedicalRecord>): MedicalRecord => ({
+  ...record,
+  id: record.id ?? 0,
+  patient_id: record.patient_id ?? 0,
+  professional_id: record.professional_id ?? 0,
+  record_date: record.record_date ?? record.created_at ?? new Date().toISOString(),
+  files: record.files ?? [],
+  created_at: record.created_at ?? record.record_date ?? new Date().toISOString()
+});
 
 @Injectable()
 export class MedicalRecordsEffects {
@@ -24,10 +36,15 @@ export class MedicalRecordsEffects {
         if (patientId) params = params.set('patient_id', patientId.toString());
         if (professionalId) params = params.set('professional_id', professionalId.toString());
 
-        return this.http.get<MedicalRecord[]>(`${environment.apiUrl}/medical-records`, { params }).pipe(
-          map(medicalRecords => MedicalRecordsActions.loadMedicalRecordsSuccess({ medicalRecords })),
+        return this.http.get<CollectionResponse<MedicalRecord>>(`${environment.apiUrl}/medical-records`, { params }).pipe(
+          map((response) => {
+            const medicalRecords = toItemsArray(response);
+            return MedicalRecordsActions.loadMedicalRecordsSuccess({
+              medicalRecords: medicalRecords.map((record) => normalizeMedicalRecord(record))
+            });
+          }),
           catchError(error => of(MedicalRecordsActions.loadMedicalRecordsFailure({
-            error: error.error?.msg || 'Error al cargar historiales médicos'
+            error: getApiErrorMessage(error, 'Error al cargar historiales medicos')
           })))
         );
       })
@@ -39,9 +56,11 @@ export class MedicalRecordsEffects {
       ofType(MedicalRecordsActions.loadMedicalRecord),
       switchMap(({ id }) =>
         this.http.get<MedicalRecord>(`${environment.apiUrl}/medical-records/${id}`).pipe(
-          map(medicalRecord => MedicalRecordsActions.loadMedicalRecordSuccess({ medicalRecord })),
+          map(medicalRecord => MedicalRecordsActions.loadMedicalRecordSuccess({
+            medicalRecord: normalizeMedicalRecord(medicalRecord)
+          })),
           catchError(error => of(MedicalRecordsActions.loadMedicalRecordFailure({
-            error: error.error?.msg || 'Error al cargar historial médico'
+            error: getApiErrorMessage(error, 'Error al cargar historial medico')
           })))
         )
       )
@@ -53,9 +72,11 @@ export class MedicalRecordsEffects {
       ofType(MedicalRecordsActions.createMedicalRecord),
       switchMap(({ medicalRecord }) =>
         this.http.post<MedicalRecord>(`${environment.apiUrl}/medical-records`, medicalRecord).pipe(
-          map(newRecord => MedicalRecordsActions.createMedicalRecordSuccess({ medicalRecord: newRecord })),
+          map(newRecord => MedicalRecordsActions.createMedicalRecordSuccess({
+            medicalRecord: normalizeMedicalRecord(newRecord)
+          })),
           catchError(error => of(MedicalRecordsActions.createMedicalRecordFailure({
-            error: error.error?.msg || 'Error al crear historial médico'
+            error: getApiErrorMessage(error, 'Error al crear historial medico')
           })))
         )
       )
@@ -66,7 +87,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.createMedicalRecordSuccess),
       tap(({ medicalRecord }) => {
-        this.notification.showSuccess('Historial médico creado correctamente');
+        this.notification.showSuccess('Historial medico creado correctamente');
         this.router.navigate(['/medical-records', medicalRecord.id]);
       })
     ),
@@ -78,9 +99,11 @@ export class MedicalRecordsEffects {
       ofType(MedicalRecordsActions.updateMedicalRecord),
       switchMap(({ id, medicalRecord }) =>
         this.http.put<MedicalRecord>(`${environment.apiUrl}/medical-records/${id}`, medicalRecord).pipe(
-          map(updatedRecord => MedicalRecordsActions.updateMedicalRecordSuccess({ medicalRecord: updatedRecord })),
+          map(updatedRecord => MedicalRecordsActions.updateMedicalRecordSuccess({
+            medicalRecord: normalizeMedicalRecord(updatedRecord)
+          })),
           catchError(error => of(MedicalRecordsActions.updateMedicalRecordFailure({
-            error: error.error?.msg || 'Error al actualizar historial médico'
+            error: getApiErrorMessage(error, 'Error al actualizar historial medico')
           })))
         )
       )
@@ -91,7 +114,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.updateMedicalRecordSuccess),
       tap(() => {
-        this.notification.showSuccess('Historial médico actualizado correctamente');
+        this.notification.showSuccess('Historial medico actualizado correctamente');
       })
     ),
     { dispatch: false }
@@ -104,7 +127,7 @@ export class MedicalRecordsEffects {
         this.http.delete(`${environment.apiUrl}/medical-records/${id}`).pipe(
           map(() => MedicalRecordsActions.deleteMedicalRecordSuccess({ id })),
           catchError(error => of(MedicalRecordsActions.deleteMedicalRecordFailure({
-            error: error.error?.msg || 'Error al eliminar historial médico'
+            error: getApiErrorMessage(error, 'Error al eliminar historial medico')
           })))
         )
       )
@@ -115,7 +138,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.deleteMedicalRecordSuccess),
       tap(() => {
-        this.notification.showSuccess('Historial médico eliminado correctamente');
+        this.notification.showSuccess('Historial medico eliminado correctamente');
         this.router.navigate(['/medical-records']);
       })
     ),
@@ -136,7 +159,7 @@ export class MedicalRecordsEffects {
         return this.http.post<MedicalFile>(`${environment.apiUrl}/files/upload`, formData).pipe(
           map(uploadedFile => MedicalRecordsActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(MedicalRecordsActions.uploadFileFailure({
-            error: error.error?.msg || 'Error al subir archivo'
+            error: getApiErrorMessage(error, 'Error al subir archivo')
           })))
         );
       })
@@ -161,7 +184,7 @@ export class MedicalRecordsEffects {
         this.http.delete(`${environment.apiUrl}/files/${fileId}`).pipe(
           map(() => MedicalRecordsActions.deleteFileSuccess({ fileId })),
           catchError(error => of(MedicalRecordsActions.deleteFileFailure({
-            error: error.error?.msg || 'Error al eliminar archivo'
+            error: getApiErrorMessage(error, 'Error al eliminar archivo')
           })))
         )
       )

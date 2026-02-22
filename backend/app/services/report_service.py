@@ -279,7 +279,7 @@ class ReportService:
             'by_payment_method': {method: float(total) if total else 0 for method, total in by_method},
             'daily_revenue': [
                 {
-                    'date': date.isoformat(),
+                    'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
                     'amount': float(total) if total else 0
                 } for date, total in daily_revenue
             ],

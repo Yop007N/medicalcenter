@@ -26,7 +26,7 @@ services:
     volumes:
       - redis_data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --protected-mode no
     networks:
       - medical-services-network
 
@@ -79,7 +79,7 @@ services:
       dockerfile: docker/frontend-web/Dockerfile
     container_name: medical-services-frontend-web
     ports:
-      - "4200:80"
+      - "${FRONTEND_WEB_PORT:-4200}:80"
     depends_on:
       - backend
     networks:
@@ -92,7 +92,7 @@ services:
       dockerfile: docker/frontend-pwa/Dockerfile
     container_name: medical-services-frontend-pwa
     ports:
-      - "8100:80"
+      - "${FRONTEND_PWA_PORT:-8100}:80"
     depends_on:
       - backend
     networks:

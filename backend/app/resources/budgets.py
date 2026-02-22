@@ -3,6 +3,7 @@
 Budget CRUD endpoints
 """
 
+from datetime import date, datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.budget import Budget
@@ -14,6 +15,24 @@ blueprint = Blueprint('budgets', __name__, url_prefix='/api/budgets')
 
 budget_schema = BudgetSchema()
 budgets_schema = BudgetSchema(many=True)
+
+VALID_BUDGET_STATUSES = {'draft', 'sent', 'accepted', 'rejected', 'expired'}
+
+
+def _parse_date(value):
+    """Parse date-like payloads into date objects."""
+    if value in (None, ''):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace('Z', '+00:00')).date()
+        except ValueError as exc:
+            raise ValueError('Invalid date format. Use YYYY-MM-DD') from exc
+    raise ValueError('Invalid date value')
 
 
 @blueprint.route('', methods=['GET'])
@@ -147,6 +166,11 @@ def create_budget():
         return jsonify({'msg': 'Missing required fields'}), 400
 
     # Create budget
+    try:
+        valid_until = _parse_date(data.get('valid_until'))
+    except ValueError as exc:
+        return jsonify({'msg': str(exc)}), 400
+
     budget = Budget(
         patient_id=data['patient_id'],
         created_by=current_user_id,
@@ -155,7 +179,7 @@ def create_budget():
         total_amount=data['total_amount'],
         currency=data.get('currency', 'ARS'),
         status='draft',
-        valid_until=data.get('valid_until'),
+        valid_until=valid_until,
         items=data.get('items', [])
     )
 
@@ -211,12 +235,23 @@ def update_budget(budget_id):
     # Update allowed fields
     if 'title' in data:
         budget.title = data['title']
+    if 'patient_id' in data:
+        budget.patient_id = data['patient_id']
     if 'description' in data:
         budget.description = data['description']
     if 'total_amount' in data:
         budget.total_amount = data['total_amount']
+    if 'currency' in data:
+        budget.currency = data['currency']
     if 'valid_until' in data:
-        budget.valid_until = data['valid_until']
+        try:
+            budget.valid_until = _parse_date(data['valid_until'])
+        except ValueError as exc:
+            return jsonify({'msg': str(exc)}), 400
+    if 'status' in data:
+        if data['status'] not in VALID_BUDGET_STATUSES:
+            return jsonify({'msg': 'Invalid budget status'}), 400
+        budget.status = data['status']
     if 'items' in data:
         budget.items = data['items']
 

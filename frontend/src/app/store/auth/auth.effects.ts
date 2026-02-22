@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Router } from '@angular/router';
 import { of, from } from 'rxjs';
@@ -8,9 +8,26 @@ import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { StorageService } from '../../core/services/storage.service';
 import { LoggerService } from '../../core/services/logger.service';
+import { getApiErrorMessage } from '../error.adapter';
 import { environment } from '../../../environments/environment';
+import { User } from '../../models';
 
 const LOG_SOURCE = 'AuthEffects';
+
+const isUser = (value: unknown): value is User => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const user = value as Partial<User>;
+  return (
+    Number.isFinite(user.id) &&
+    typeof user.email === 'string' &&
+    (user.role === 'admin' || user.role === 'professional' || user.role === 'patient') &&
+    typeof user.is_active === 'boolean' &&
+    typeof user.created_at === 'string'
+  );
+};
 
 @Injectable()
 export class AuthEffects {
@@ -41,10 +58,10 @@ export class AuthEffects {
           catchError((error) => {
             this.logger.error(LOG_SOURCE, 'Login failed', {
               status: error.status,
-              message: error.error?.msg || error.message
+              message: getApiErrorMessage(error, 'Unknown auth error')
             });
             return of(AuthActions.loginFailure({
-              error: error.error?.msg || 'Error al iniciar sesión'
+              error: getApiErrorMessage(error, 'Error al iniciar sesion')
             }));
           })
         )
@@ -65,7 +82,7 @@ export class AuthEffects {
           });
           this.notification.showSuccess(`Bienvenido, ${user.first_name || 'Usuario'}`);
         }),
-        // Usar switchMap para esperar que la navegación se complete
+        // Usar switchMap para esperar que la navegacion se complete
         switchMap(() => {
           this.logger.info(LOG_SOURCE, 'Navigating to /dashboard...');
           return from(this.router.navigate(['/dashboard'])).pipe(
@@ -99,10 +116,10 @@ export class AuthEffects {
           catchError((error) => {
             this.logger.error(LOG_SOURCE, 'Registration failed', {
               status: error.status,
-              message: error.error?.msg || error.message
+              message: getApiErrorMessage(error, 'Unknown auth error')
             });
             return of(AuthActions.registerFailure({
-              error: error.error?.msg || 'Error al registrarse'
+              error: getApiErrorMessage(error, 'Error al registrarse')
             }));
           })
         )
@@ -116,7 +133,7 @@ export class AuthEffects {
         ofType(AuthActions.registerSuccess),
         tap(({ user }) => {
           this.logger.info(LOG_SOURCE, 'Register success, redirecting to login', { email: user?.email });
-          this.notification.showSuccess('Registro exitoso. Por favor inicie sesión.');
+          this.notification.showSuccess('Registro exitoso. Por favor inicie sesion.');
           this.router.navigate(['/auth/login']);
         })
       ),
@@ -162,10 +179,10 @@ export class AuthEffects {
           this.storage.get('current_user')
         ])).pipe(
           map(([token, user]) => {
-            if (token && user) {
+            if (token && isUser(user)) {
               this.logger.info(LOG_SOURCE, 'Stored auth found', { hasToken: true, hasUser: true });
               return AuthActions.loadStoredAuthSuccess({
-                user: user as any,
+                user,
                 accessToken: token
               });
             }
@@ -181,3 +198,5 @@ export class AuthEffects {
     )
   );
 }
+
+

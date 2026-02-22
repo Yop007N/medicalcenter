@@ -4,10 +4,12 @@ User CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models.user import User
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
+from app.utils.decorators import admin_required
 
 
 blueprint = Blueprint('users', __name__, url_prefix='/api/users')
@@ -17,7 +19,7 @@ users_schema = UserSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@admin_required
 def list_users():
     """List users with optional query filters (role, email) and pagination
     ---
@@ -126,6 +128,9 @@ def get_user(user_id):
       401:
         description: No autenticado
     """
+    if not _can_manage_user(user_id):
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     user = UserService.get_user_by_id(user_id)
     if not user:
         return jsonify({'msg': 'User not found'}), 404
@@ -133,7 +138,7 @@ def get_user(user_id):
 
 
 @blueprint.route('', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create new user
     ---
@@ -221,6 +226,9 @@ def update_user(user_id):
       401:
         description: No autenticado
     """
+    if not _can_manage_user(user_id):
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     data = request.get_json() or {}
     try:
         user = UserService.update_user(user_id, data)
@@ -232,7 +240,7 @@ def update_user(user_id):
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(user_id):
     """Delete user
     ---
@@ -258,3 +266,22 @@ def delete_user(user_id):
     if not ok:
         return jsonify({'msg': 'User not found'}), 404
     return jsonify({'msg': 'User deleted'}), 200
+
+
+def _can_manage_user(target_user_id):
+    """Allow admin to manage any user; non-admin only self access/update."""
+    current_user = _get_current_user()
+    if not current_user:
+        return False
+    if current_user.role == 'admin':
+        return True
+    return current_user.id == target_user_id
+
+
+def _get_current_user():
+    identity = get_jwt_identity()
+    try:
+        user_id = int(identity)
+    except (TypeError, ValueError):
+        return None
+    return User.query.get(user_id)

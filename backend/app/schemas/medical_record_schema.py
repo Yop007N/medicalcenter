@@ -17,3 +17,5 @@ class MedicalRecordSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
     files = fields.Nested('FileSchema', many=True, exclude=('medical_record',))
+    patient = fields.Nested('PatientSchema', only=('id', 'first_name', 'last_name'))
+    professional = fields.Nested('ProfessionalSchema', only=('id', 'first_name', 'last_name', 'specialty'))

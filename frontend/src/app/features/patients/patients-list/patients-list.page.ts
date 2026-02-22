@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -8,46 +8,43 @@ import {
   IonTitle,
   IonContent,
   IonSearchbar,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonAvatar,
   IonIcon,
   IonButtons,
   IonMenuButton,
   IonRefresher,
   IonRefresherContent,
-  IonItemSliding,
-  IonItemOptions,
-  IonItemOption,
   IonFab,
   IonFabButton,
   IonSkeletonText,
-  IonBadge,
   IonCard,
   IonCardContent,
-  IonChip,
-  IonText
+  IonButton
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   addOutline,
-  createOutline,
-  trashOutline,
-  personCircleOutline,
   callOutline,
   mailOutline,
   peopleOutline,
-  searchOutline,
   chevronForwardOutline
 } from 'ionicons/icons';
 import { environment } from '../../../../environments/environment';
 import { Patient } from '../../../models';
 import { NotificationService } from '../../../core/services';
 
+interface PaginatedPatientsResponse {
+  items: Patient[];
+}
+
+interface PatientListItem extends Patient {
+  initials: string;
+  searchIndex: string;
+}
+
 @Component({
   selector: 'app-patients-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     RouterModule,
@@ -56,32 +53,23 @@ import { NotificationService } from '../../../core/services';
     IonTitle,
     IonContent,
     IonSearchbar,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonAvatar,
     IonIcon,
     IonButtons,
     IonMenuButton,
     IonRefresher,
     IonRefresherContent,
-    IonItemSliding,
-    IonItemOptions,
-    IonItemOption,
     IonFab,
     IonFabButton,
     IonSkeletonText,
-    IonBadge,
     IonCard,
     IonCardContent,
-    IonChip,
-    IonText
+    IonButton
   ],
   template: `
     <ion-header class="ion-no-border">
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
         </ion-buttons>
         <ion-title>Pacientes</ion-title>
       </ion-toolbar>
@@ -106,11 +94,11 @@ import { NotificationService } from '../../../core/services';
         <div class="stats-row">
           <div class="stat-chip active">
             <span class="stat-dot"></span>
-            <span>{{ getActiveCount() }} activos</span>
+            <span>{{ activeCount }} activos</span>
           </div>
           <div class="stat-chip inactive">
             <span class="stat-dot"></span>
-            <span>{{ getInactiveCount() }} inactivos</span>
+            <span>{{ inactiveCount }} inactivos</span>
           </div>
         </div>
       </div>
@@ -118,6 +106,7 @@ import { NotificationService } from '../../../core/services';
       <!-- Buscador -->
       <div class="search-container">
         <ion-searchbar
+          aria-label="Buscar pacientes"
           placeholder="Buscar por nombre o email..."
           (ionInput)="onSearch($event)"
           [debounce]="300"
@@ -127,7 +116,7 @@ import { NotificationService } from '../../../core/services';
 
       @if (loading) {
         <div class="patients-grid">
-          @for (i of [1,2,3,4,5,6]; track i) {
+          @for (i of skeletonCards; track i) {
             <ion-card class="patient-card skeleton-card">
               <ion-card-content>
                 <div class="patient-avatar skeleton">
@@ -138,6 +127,17 @@ import { NotificationService } from '../../../core/services';
               </ion-card-content>
             </ion-card>
           }
+        </div>
+      } @else if (errorMessage) {
+        <div class="empty-state" role="alert" aria-live="assertive">
+          <div class="empty-icon">
+            <ion-icon name="people-outline"></ion-icon>
+          </div>
+          <h3>Error al cargar pacientes</h3>
+          <p>{{ errorMessage }}</p>
+          <ion-button shape="round" (click)="loadPatients()">
+            Reintentar
+          </ion-button>
         </div>
       } @else {
         @if (filteredPatients.length === 0) {
@@ -160,7 +160,7 @@ import { NotificationService } from '../../../core/services';
               <ion-card class="patient-card" [routerLink]="['/patients', patient.id]">
                 <ion-card-content>
                   <div class="patient-avatar" [class.inactive]="!patient.is_active">
-                    <span class="avatar-initials">{{ getInitials(patient) }}</span>
+                    <span class="avatar-initials">{{ patient.initials }}</span>
                     <span class="status-indicator" [class.active]="patient.is_active"></span>
                   </div>
                   <h3 class="patient-name">{{ patient.first_name }} {{ patient.last_name }}</h3>
@@ -191,7 +191,7 @@ import { NotificationService } from '../../../core/services';
 
       <!-- FAB para crear nuevo paciente (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/patients/new">
+        <ion-fab-button aria-label="Crear nuevo paciente" routerLink="/patients/new">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -538,78 +538,102 @@ import { NotificationService } from '../../../core/services';
   `]
 })
 export class PatientsListPage implements OnInit {
-  private http = inject(HttpClient);
-  private notification = inject(NotificationService);
+  private readonly http = inject(HttpClient);
+  private readonly notification = inject(NotificationService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
-  patients: Patient[] = [];
-  filteredPatients: Patient[] = [];
+  private allPatients: PatientListItem[] = [];
+  filteredPatients: PatientListItem[] = [];
+  readonly skeletonCards = [1, 2, 3, 4, 5, 6];
+
   loading = true;
   searchTerm = '';
+  errorMessage: string | null = null;
+  activeCount = 0;
+  inactiveCount = 0;
 
   constructor() {
     addIcons({
       addOutline,
-      createOutline,
-      trashOutline,
-      personCircleOutline,
       callOutline,
       mailOutline,
       peopleOutline,
-      searchOutline,
       chevronForwardOutline
     });
-  }
-
-  getInitials(patient: Patient): string {
-    return (patient.first_name?.charAt(0) || '') + (patient.last_name?.charAt(0) || '');
-  }
-
-  getActiveCount(): number {
-    return this.patients.filter(p => p.is_active).length;
-  }
-
-  getInactiveCount(): number {
-    return this.patients.filter(p => !p.is_active).length;
   }
 
   ngOnInit(): void {
     this.loadPatients();
   }
 
-  loadPatients(): void {
+  loadPatients(onComplete?: () => void): void {
     this.loading = true;
-    this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
-      next: (data) => {
-        this.patients = data;
-        this.filterPatients();
+    this.errorMessage = null;
+    this.cdr.markForCheck();
+
+    this.http.get<Patient[] | PaginatedPatientsResponse>(`${environment.apiUrl}/patients`).subscribe({
+      next: (response) => {
+        const data = Array.isArray(response) ? response : response.items ?? [];
+        this.setPatients(data);
         this.loading = false;
+        onComplete?.();
+        this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
+        this.errorMessage = this.resolveErrorMessage(err);
+        onComplete?.();
+        this.cdr.markForCheck();
       }
     });
   }
 
-  onSearch(event: any): void {
-    this.searchTerm = event.target.value?.toLowerCase() || '';
-    this.filterPatients();
+  onSearch(event: Event): void {
+    const customEvent = event as CustomEvent<{ value?: string | null }>;
+    this.searchTerm = (customEvent.detail?.value ?? '').trim().toLowerCase();
+    this.applyFilter();
+    this.cdr.markForCheck();
   }
 
-  filterPatients(): void {
+  private applyFilter(): void {
     if (!this.searchTerm) {
-      this.filteredPatients = this.patients;
+      this.filteredPatients = this.allPatients;
     } else {
-      this.filteredPatients = this.patients.filter(p =>
-        p.first_name.toLowerCase().includes(this.searchTerm) ||
-        p.last_name.toLowerCase().includes(this.searchTerm) ||
-        p.email.toLowerCase().includes(this.searchTerm)
-      );
+      this.filteredPatients = this.allPatients.filter(patient => patient.searchIndex.includes(this.searchTerm));
     }
   }
 
-  onRefresh(event: any): void {
-    this.loadPatients();
-    setTimeout(() => event.target.complete(), 1000);
+  private setPatients(patients: Patient[]): void {
+    const mappedPatients = patients.map((patient) => this.mapPatient(patient));
+
+    this.allPatients = mappedPatients;
+    this.activeCount = mappedPatients.reduce((total, patient) => total + (patient.is_active ? 1 : 0), 0);
+    this.inactiveCount = mappedPatients.length - this.activeCount;
+    this.applyFilter();
+  }
+
+  private mapPatient(patient: Patient): PatientListItem {
+    const firstName = patient.first_name ?? '';
+    const lastName = patient.last_name ?? '';
+    const email = patient.email ?? '';
+
+    return {
+      ...patient,
+      initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
+      searchIndex: `${firstName} ${lastName} ${email}`.toLowerCase()
+    };
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    const errorObject = error as { error?: { msg?: string; message?: string } } | null;
+    return errorObject?.error?.msg || errorObject?.error?.message || 'No se pudo cargar la lista';
+  }
+
+  onRefresh(event: Event): void {
+    const refresher = event.target as { complete?: () => Promise<void> | void } | null;
+    this.loadPatients(() => {
+      void refresher?.complete?.();
+    });
   }
 
   async deletePatient(patient: Patient): Promise<void> {

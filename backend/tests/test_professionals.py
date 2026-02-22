@@ -111,6 +111,32 @@ class TestGetProfessional:
         response = client.get(f'/api/professionals/{prof_id}')
         assert response.status_code == 401
 
+    def test_get_professional_includes_frontend_aliases(self, client, auth_headers, app):
+        """Test detail payload exposes frontend alias fields."""
+        with app.app_context():
+            prof = Professional(
+                email='alias@test.com',
+                first_name='Alias',
+                last_name='Doctor',
+                role='professional',
+                license_number='ALIAS123',
+                specialty='General',
+                address='Main Street 123'
+            )
+            prof.set_password('Doctor123')
+            db.session.add(prof)
+            db.session.commit()
+            prof_id = prof.id
+
+        response = client.get(f'/api/professionals/{prof_id}', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json
+        assert data['office_address'] == 'Main Street 123'
+        assert 'working_hours' in data
+        assert 'consultation_fee' in data
+        assert 'bio' in data
+
 
 class TestCreateProfessional:
     """Test create professional endpoint"""
@@ -184,6 +210,22 @@ class TestCreateProfessional:
         # Should fail - only admins can create professionals
         assert response.status_code in [401, 403]
 
+    def test_create_professional_supports_office_address_alias(self, client, admin_auth_headers):
+        """Test create supports office_address payload alias from frontend."""
+        response = client.post('/api/professionals', headers=admin_auth_headers, json={
+            'email': 'office-alias@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Office',
+            'last_name': 'Alias',
+            'license_number': 'LIC-OFFICE',
+            'specialty': 'General',
+            'office_address': 'Street 456'
+        })
+
+        assert response.status_code == 201
+        data = response.json
+        assert data['office_address'] == 'Street 456'
+
 
 class TestUpdateProfessional:
     """Test update professional endpoint"""
@@ -244,6 +286,32 @@ class TestUpdateProfessional:
 
         assert response.status_code == 401
 
+    def test_update_professional_office_address_and_is_active(self, client, admin_auth_headers, app):
+        """Test update supports frontend aliases and status flag."""
+        with app.app_context():
+            prof = Professional(
+                email='upd-alias@test.com',
+                first_name='Update',
+                last_name='Alias',
+                role='professional',
+                license_number='UPD-ALIAS',
+                specialty='General',
+                is_active=True
+            )
+            prof.set_password('Doctor123')
+            db.session.add(prof)
+            db.session.commit()
+            prof_id = prof.id
+
+        response = client.put(f'/api/professionals/{prof_id}', headers=admin_auth_headers, json={
+            'office_address': 'Updated Office',
+            'is_active': False
+        })
+
+        assert response.status_code == 200
+        assert response.json['office_address'] == 'Updated Office'
+        assert response.json['is_active'] is False
+
 
 class TestDeleteProfessional:
     """Test delete professional endpoint"""
@@ -293,3 +361,52 @@ class TestDeleteProfessional:
 
         # Should fail - only admins can delete professionals
         assert response.status_code in [401, 403]
+
+
+class TestProfessionalCrudWorkflow:
+    """End-to-end CRUD validation for professionals API."""
+
+    def test_professional_crud_end_to_end(self, client, admin_auth_headers):
+        """Validate create -> get/list -> update -> delete -> not found flow."""
+        create_response = client.post('/api/professionals', headers=admin_auth_headers, json={
+            'email': 'flow-professional@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Flow',
+            'last_name': 'Professional',
+            'license_number': 'FLOW-LIC-001',
+            'specialty': 'Odontologia',
+            'office_address': 'Flow Office 123'
+        })
+
+        assert create_response.status_code == 201
+        created_professional = create_response.json
+        professional_id = created_professional['id']
+        assert created_professional['email'] == 'flow-professional@test.com'
+        assert created_professional['office_address'] == 'Flow Office 123'
+
+        get_response = client.get(f'/api/professionals/{professional_id}', headers=admin_auth_headers)
+        assert get_response.status_code == 200
+        assert get_response.json['id'] == professional_id
+
+        list_response = client.get('/api/professionals?specialty=Odontologia', headers=admin_auth_headers)
+        assert list_response.status_code == 200
+        assert any(row['id'] == professional_id for row in list_response.json)
+
+        update_response = client.put(f'/api/professionals/{professional_id}', headers=admin_auth_headers, json={
+            'specialty': 'Ortodoncia',
+            'office_address': 'Updated Flow Office',
+            'is_active': False
+        })
+
+        assert update_response.status_code == 200
+        updated_professional = update_response.json
+        assert updated_professional['specialty'] == 'Ortodoncia'
+        assert updated_professional['office_address'] == 'Updated Flow Office'
+        assert updated_professional['is_active'] is False
+
+        delete_response = client.delete(f'/api/professionals/{professional_id}', headers=admin_auth_headers)
+        assert delete_response.status_code == 200
+        assert delete_response.json['msg'] == 'Professional deleted'
+
+        not_found_response = client.get(f'/api/professionals/{professional_id}', headers=admin_auth_headers)
+        assert not_found_response.status_code == 404

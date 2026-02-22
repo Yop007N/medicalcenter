@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -7,6 +7,7 @@ import { map, catchError, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PsychopedagogicalEvaluation, InterventionSession } from '../../models/psychopedagogy.model';
 import { NotificationService } from '../../core/services';
+import { getApiErrorMessage } from '../error.adapter';
 import * as PsychopedagogyActions from './psychopedagogy.actions';
 
 @Injectable()
@@ -26,7 +27,7 @@ export class PsychopedagogyEffects {
         return this.http.get<PsychopedagogicalEvaluation[]>(`${environment.apiUrl}/psychopedagogy/evaluations`, { params }).pipe(
           map(evaluations => PsychopedagogyActions.loadEvaluationsSuccess({ evaluations })),
           catchError(error => of(PsychopedagogyActions.loadEvaluationsFailure({
-            error: error.error?.msg || 'Error al cargar evaluaciones'
+            error: getApiErrorMessage(error, 'Error al cargar evaluaciones')
           })))
         );
       })
@@ -40,7 +41,7 @@ export class PsychopedagogyEffects {
         this.http.get<PsychopedagogicalEvaluation>(`${environment.apiUrl}/psychopedagogy/evaluations/${id}`).pipe(
           map(evaluation => PsychopedagogyActions.loadEvaluationSuccess({ evaluation })),
           catchError(error => of(PsychopedagogyActions.loadEvaluationFailure({
-            error: error.error?.msg || 'Error al cargar evaluación'
+            error: getApiErrorMessage(error, 'Error al cargar evaluacion')
           })))
         )
       )
@@ -54,7 +55,7 @@ export class PsychopedagogyEffects {
         this.http.post<PsychopedagogicalEvaluation>(`${environment.apiUrl}/psychopedagogy/evaluations`, evaluation).pipe(
           map(newEvaluation => PsychopedagogyActions.createEvaluationSuccess({ evaluation: newEvaluation })),
           catchError(error => of(PsychopedagogyActions.createEvaluationFailure({
-            error: error.error?.msg || 'Error al crear evaluación'
+            error: getApiErrorMessage(error, 'Error al crear evaluacion')
           })))
         )
       )
@@ -65,7 +66,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.createEvaluationSuccess),
       tap(({ evaluation }) => {
-        this.notification.showSuccess('Evaluación psicopedagógica creada correctamente');
+        this.notification.showSuccess('Evaluacion psicopedagogica creada correctamente');
         this.router.navigate(['/psychopedagogy/evaluations', evaluation.id]);
       })
     ),
@@ -79,7 +80,7 @@ export class PsychopedagogyEffects {
         this.http.put<PsychopedagogicalEvaluation>(`${environment.apiUrl}/psychopedagogy/evaluations/${id}`, evaluation).pipe(
           map(updatedEvaluation => PsychopedagogyActions.updateEvaluationSuccess({ evaluation: updatedEvaluation })),
           catchError(error => of(PsychopedagogyActions.updateEvaluationFailure({
-            error: error.error?.msg || 'Error al actualizar evaluación'
+            error: getApiErrorMessage(error, 'Error al actualizar evaluacion')
           })))
         )
       )
@@ -90,7 +91,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.updateEvaluationSuccess),
       tap(() => {
-        this.notification.showSuccess('Evaluación actualizada correctamente');
+        this.notification.showSuccess('Evaluacion actualizada correctamente');
       })
     ),
     { dispatch: false }
@@ -103,7 +104,7 @@ export class PsychopedagogyEffects {
         this.http.delete(`${environment.apiUrl}/psychopedagogy/evaluations/${id}`).pipe(
           map(() => PsychopedagogyActions.deleteEvaluationSuccess({ id })),
           catchError(error => of(PsychopedagogyActions.deleteEvaluationFailure({
-            error: error.error?.msg || 'Error al eliminar evaluación'
+            error: getApiErrorMessage(error, 'Error al eliminar evaluacion')
           })))
         )
       )
@@ -114,7 +115,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.deleteEvaluationSuccess),
       tap(() => {
-        this.notification.showSuccess('Evaluación eliminada correctamente');
+        this.notification.showSuccess('Evaluacion eliminada correctamente');
         this.router.navigate(['/psychopedagogy/evaluations']);
       })
     ),
@@ -128,7 +129,7 @@ export class PsychopedagogyEffects {
         this.http.get<InterventionSession[]>(`${environment.apiUrl}/psychopedagogy/evaluations/${evaluationId}/sessions`).pipe(
           map(sessions => PsychopedagogyActions.loadSessionsSuccess({ sessions })),
           catchError(error => of(PsychopedagogyActions.loadSessionsFailure({
-            error: error.error?.msg || 'Error al cargar sesiones'
+            error: getApiErrorMessage(error, 'Error al cargar sesiones')
           })))
         )
       )
@@ -142,7 +143,7 @@ export class PsychopedagogyEffects {
         this.http.get<InterventionSession>(`${environment.apiUrl}/psychopedagogy/sessions/${id}`).pipe(
           map(session => PsychopedagogyActions.loadSessionSuccess({ session })),
           catchError(error => of(PsychopedagogyActions.loadSessionFailure({
-            error: error.error?.msg || 'Error al cargar sesión'
+            error: getApiErrorMessage(error, 'Error al cargar sesion')
           })))
         )
       )
@@ -156,7 +157,7 @@ export class PsychopedagogyEffects {
         this.http.post<InterventionSession>(`${environment.apiUrl}/psychopedagogy/sessions`, session).pipe(
           map(newSession => PsychopedagogyActions.createSessionSuccess({ session: newSession })),
           catchError(error => of(PsychopedagogyActions.createSessionFailure({
-            error: error.error?.msg || 'Error al crear sesión'
+            error: getApiErrorMessage(error, 'Error al crear sesion')
           })))
         )
       )
@@ -167,7 +168,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.createSessionSuccess),
       tap(({ session }) => {
-        this.notification.showSuccess('Sesión de intervención registrada correctamente');
+        this.notification.showSuccess('Sesion de intervencion registrada correctamente');
         this.router.navigate(['/psychopedagogy/sessions', session.id]);
       })
     ),
@@ -181,7 +182,7 @@ export class PsychopedagogyEffects {
         this.http.put<InterventionSession>(`${environment.apiUrl}/psychopedagogy/sessions/${id}`, session).pipe(
           map(updatedSession => PsychopedagogyActions.updateSessionSuccess({ session: updatedSession })),
           catchError(error => of(PsychopedagogyActions.updateSessionFailure({
-            error: error.error?.msg || 'Error al actualizar sesión'
+            error: getApiErrorMessage(error, 'Error al actualizar sesion')
           })))
         )
       )
@@ -192,7 +193,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.updateSessionSuccess),
       tap(() => {
-        this.notification.showSuccess('Sesión actualizada correctamente');
+        this.notification.showSuccess('Sesion actualizada correctamente');
       })
     ),
     { dispatch: false }
@@ -205,7 +206,7 @@ export class PsychopedagogyEffects {
         this.http.delete(`${environment.apiUrl}/psychopedagogy/sessions/${id}`).pipe(
           map(() => PsychopedagogyActions.deleteSessionSuccess({ id })),
           catchError(error => of(PsychopedagogyActions.deleteSessionFailure({
-            error: error.error?.msg || 'Error al eliminar sesión'
+            error: getApiErrorMessage(error, 'Error al eliminar sesion')
           })))
         )
       )
@@ -216,7 +217,7 @@ export class PsychopedagogyEffects {
     this.actions$.pipe(
       ofType(PsychopedagogyActions.deleteSessionSuccess),
       tap(() => {
-        this.notification.showSuccess('Sesión eliminada correctamente');
+        this.notification.showSuccess('Sesion eliminada correctamente');
       })
     ),
     { dispatch: false }
@@ -243,3 +244,5 @@ export class PsychopedagogyEffects {
     { dispatch: false }
   );
 }
+
+

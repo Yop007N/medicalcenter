@@ -1,0 +1,122 @@
+[
+    {
+        "component":  "ClinicalHistoryPage\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonSpinner",
+        "file":  "src/app/features/odontology/clinical-history/clinical-history.page.ts",
+        "line":  75
+    },
+    {
+        "component":  "ClinicalDocsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonList",
+        "file":  "src/app/features/odontology/clinical-history/tabs/clinical-docs-tab/clinical-docs-tab.component.ts",
+        "line":  37
+    },
+    {
+        "component":  "DocumentsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardHeader",
+        "file":  "src/app/features/odontology/clinical-history/tabs/documents-tab/documents-tab.component.ts",
+        "line":  25
+    },
+    {
+        "component":  "DocumentsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardTitle",
+        "file":  "src/app/features/odontology/clinical-history/tabs/documents-tab/documents-tab.component.ts",
+        "line":  26
+    },
+    {
+        "component":  "EvolutionsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardTitle",
+        "file":  "src/app/features/odontology/clinical-history/tabs/evolutions-tab/evolutions-tab.component.ts",
+        "line":  45
+    },
+    {
+        "component":  "EvolutionsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonBadge",
+        "file":  "src/app/features/odontology/clinical-history/tabs/evolutions-tab/evolutions-tab.component.ts",
+        "line":  49
+    },
+    {
+        "component":  "HistoryTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardTitle",
+        "file":  "src/app/features/odontology/clinical-history/tabs/history-tab/history-tab.component.ts",
+        "line":  43
+    },
+    {
+        "component":  "HistoryTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonText",
+        "file":  "src/app/features/odontology/clinical-history/tabs/history-tab/history-tab.component.ts",
+        "line":  54
+    },
+    {
+        "component":  "OdontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardHeader",
+        "file":  "src/app/features/odontology/clinical-history/tabs/odontogram-tab/odontogram-tab.component.ts",
+        "line":  41
+    },
+    {
+        "component":  "OdontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardTitle",
+        "file":  "src/app/features/odontology/clinical-history/tabs/odontogram-tab/odontogram-tab.component.ts",
+        "line":  42
+    },
+    {
+        "component":  "PeriodontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonSelect",
+        "file":  "src/app/features/odontology/clinical-history/tabs/periodontogram-tab/periodontogram-tab.component.ts",
+        "line":  36
+    },
+    {
+        "component":  "PeriodontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonSelectOption",
+        "file":  "src/app/features/odontology/clinical-history/tabs/periodontogram-tab/periodontogram-tab.component.ts",
+        "line":  37
+    },
+    {
+        "component":  "PeriodontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonInput",
+        "file":  "src/app/features/odontology/clinical-history/tabs/periodontogram-tab/periodontogram-tab.component.ts",
+        "line":  38
+    },
+    {
+        "component":  "PeriodontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonItem",
+        "file":  "src/app/features/odontology/clinical-history/tabs/periodontogram-tab/periodontogram-tab.component.ts",
+        "line":  40
+    },
+    {
+        "component":  "PeriodontogramTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonLabel",
+        "file":  "src/app/features/odontology/clinical-history/tabs/periodontogram-tab/periodontogram-tab.component.ts",
+        "line":  41
+    },
+    {
+        "component":  "PrescriptionsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonCardTitle",
+        "file":  "src/app/features/odontology/clinical-history/tabs/prescriptions-tab/prescriptions-tab.component.ts",
+        "line":  34
+    },
+    {
+        "component":  "PrescriptionsTabComponent\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonList",
+        "file":  "src/app/features/odontology/clinical-history/tabs/prescriptions-tab/prescriptions-tab.component.ts",
+        "line":  45
+    },
+    {
+        "component":  "TreatmentDetailPage\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonList",
+        "file":  "src/app/features/odontology/treatment-detail/treatment-detail.page.ts",
+        "line":  76
+    },
+    {
+        "component":  "TreatmentDetailPage\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonItem",
+        "file":  "src/app/features/odontology/treatment-detail/treatment-detail.page.ts",
+        "line":  77
+    },
+    {
+        "component":  "TreatmentDetailPage\u001b[0m \u001b[1m\u001b[35m[plugin angular-compiler]\u001b[0m",
+        "symbol":  "IonLabel",
+        "file":  "src/app/features/odontology/treatment-detail/treatment-detail.page.ts",
+        "line":  78
+    }
+]

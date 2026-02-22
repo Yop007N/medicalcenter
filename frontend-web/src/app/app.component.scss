@@ -55,6 +55,37 @@
   text-decoration: none;
 }
 
+.auth-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.user-chip {
+  background: #f2f4f7;
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  color: #344054;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.6rem;
+}
+
+.logout-button {
+  background: #ffffff;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  color: #344054;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+}
+
+.logout-button:hover {
+  background: #f2f4f7;
+}
+
 .content {
   margin: 0 auto;
   max-width: 1200px;
@@ -71,5 +102,9 @@
   .nav {
     flex-wrap: wrap;
     margin: 0;
+  }
+
+  .auth-actions {
+    width: 100%;
   }
 }

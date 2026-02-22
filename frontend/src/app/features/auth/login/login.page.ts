@@ -7,12 +7,10 @@ import {
   IonContent,
   IonCard,
   IonCardContent,
-  IonItem,
   IonInput,
   IonButton,
   IonSpinner,
-  IonIcon,
-  IonText
+  IonIcon
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -37,12 +35,10 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
     IonContent,
     IonCard,
     IonCardContent,
-    IonItem,
     IonInput,
     IonButton,
     IonSpinner,
-    IonIcon,
-    IonText
+    IonIcon
   ],
   template: `
     <ion-content [fullscreen]="true" class="login-content">
@@ -125,7 +121,13 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
                     <ion-icon
                       [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
                       class="toggle-password"
+                      role="button"
+                      tabindex="0"
+                      [attr.aria-label]="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+                      [attr.aria-pressed]="showPassword"
                       (click)="showPassword = !showPassword"
+                      (keydown.enter)="showPassword = !showPassword"
+                      (keydown.space)="$event.preventDefault(); showPassword = !showPassword"
                     ></ion-icon>
                   </div>
                   @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {

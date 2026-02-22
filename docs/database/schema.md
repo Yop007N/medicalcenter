@@ -1,251 +1,97 @@
-# Medical Services - Database Schema
+﻿# Medical Services - Database Schema (Estado real)
 
-## Diagrama de Entidad-Relación
+Actualizado: 2026-02-14
 
-```
-┌─────────────────┐
-│     users       │ (Tabla base - Herencia)
-├─────────────────┤
-│ PK id           │
-│    email        │ (UNIQUE)
-│    password_hash│
-│    first_name   │
-│    last_name    │
-│    role         │ (admin, professional, patient)
-│    is_active    │
-│    user_type    │ (polymorphic)
-│    created_at   │
-│    updated_at   │
-└─────────────────┘
-         △
-         │ (Herencia)
-    ┌────┴────┐
-    │         │
-┌───▼──────┐  │
-│professionals│  │
-├──────────┤  │
-│PK/FK id  │  │
-│ license_number│ (UNIQUE)
-│ specialty│  │
-│ phone    │  │
-│ address  │  │
-└──────────┘  │
-              │
-         ┌────▼─────┐
-         │ patients │
-         ├──────────┤
-         │PK/FK id  │
-         │date_of_birth│
-         │phone     │
-         │address   │
-         │emergency_contact│
-         │emergency_phone│
-         │blood_type│
-         │allergies │
-         │medical_history│
-         └──────────┘
+## Fuente de verdad
+- Modelos SQLAlchemy en `backend/app/models/`
+- Migraciones en `backend/migrations/`
 
+Este documento reemplaza la version anterior simplificada de 9 tablas.
 
-┌─────────────────┐       ┌──────────────────┐
-│  appointments   │       │ medical_records  │
-├─────────────────┤       ├──────────────────┤
-│ PK id           │       │ PK id            │
-│ FK patient_id   │───┐   │ FK patient_id    │───┐
-│ FK professional_id│─┐│   │ FK professional_id│─┐│
-│ appointment_date│ ││   │ FK appointment_id│ ││
-│ duration_minutes│ ││   │ record_date      │ ││
-│ status          │ ││   │ chief_complaint  │ ││
-│ appointment_type│ ││   │ symptoms         │ ││
-│ reason          │ ││   │ diagnosis        │ ││
-│ notes           │ ││   │ treatment        │ ││
-│ reminder_sent   │ ││   │ prescriptions    │ ││
-│ created_at      │ ││   │ notes            │ ││
-│ updated_at      │ ││   │ blood_pressure   │ ││
-└─────────────────┘ ││   │ heart_rate       │ ││
-                    ││   │ temperature      │ ││
-                    ││   │ weight           │ ││
-                    ││   │ height           │ ││
-                    ││   │ created_at       │ ││
-                    ││   │ updated_at       │ ││
-                    ││   └──────────────────┘ ││
-                    ││            │            ││
-                    ││            │            ││
-                    ││   ┌────────▼────────┐  ││
-                    ││   │     files       │  ││
-                    ││   ├─────────────────┤  ││
-                    ││   │ PK id           │  ││
-                    ││   │ FK medical_record_id│
-                    ││   │ filename        │  ││
-                    ││   │ file_type       │  ││
-                    ││   │ mime_type       │  ││
-                    ││   │ file_size       │  ││
-                    ││   │ storage_type    │  ││
-                    ││   │ file_path       │  ││
-                    ││   │ thumbnail_path  │  ││
-                    ││   │ description     │  ││
-                    ││   │ FK uploaded_by  │  ││
-                    ││   │ created_at      │  ││
-                    ││   └─────────────────┘  ││
-                    ││                         ││
-                    │└─────────────────────────┘│
-                    └───────────────────────────┘
+## Inventario actual
+- Total: 25 tablas de negocio
 
+### 1) Identidad
+- `users`: usuario base (email unico, rol, user_type)
+- `professionals`: extension de `users` para profesionales
+- `patients`: extension de `users` para pacientes
 
-┌─────────────────┐       ┌──────────────────┐
-│    budgets      │       │    payments      │
-├─────────────────┤       ├──────────────────┤
-│ PK id           │       │ PK id            │
-│ FK patient_id   │───┐   │ FK budget_id     │───┐
-│ FK created_by   │   │   │ amount           │   │
-│ title           │   │   │ currency         │   │
-│ description     │   │   │ payment_method   │   │
-│ total_amount    │   │   │ payment_status   │   │
-│ currency        │   │   │ transaction_id   │   │
-│ status          │   │   │ payment_date     │   │
-│ valid_until     │   │   │ notes            │   │
-│ items (JSON)    │   │   │ created_at       │   │
-│ created_at      │   │   │ updated_at       │   │
-│ updated_at      │   │   └──────────────────┘   │
-└─────────────────┘   │                           │
-                      └───────────────────────────┘
+### 2) Operacion clinica core
+- `appointments`: turnos
+- `medical_records`: fichas medicas
+- `files`: archivos vinculados a ficha
+- `budgets`: presupuestos
+- `payments`: pagos
+- `sync_logs`: trazas de sincronizacion
+- `audit_logs`: trazas de auditoria
 
+### 3) Odontologia
+- `odontograms`: cabecera de odontograma
+- `teeth`: detalle por pieza dental
+- `dental_treatments`: tratamientos dentales
 
-┌─────────────────┐
-│   sync_logs     │
-├─────────────────┤
-│ PK id           │
-│ entity_type     │
-│ entity_id       │
-│ operation       │
-│ direction       │
-│ status          │
-│ error_message   │
-│ retry_count     │
-│ created_at      │
-│ completed_at    │
-└─────────────────┘
-```
+### 4) Psicologia
+- `psychological_evaluations`: evaluacion psicologica
+- `therapy_sessions`: sesiones terapeuticas
 
-## Tablas Principales
+### 5) Psicopedagogia
+- `psychopedagogical_evaluations`: evaluacion psicopedagogica
+- `intervention_sessions`: sesiones de intervencion
 
-### 1. users (Tabla base)
-- **Propósito**: Tabla base para todos los usuarios del sistema
-- **Tipo**: Herencia de tabla única con columna discriminadora
-- **Índices**: email (UNIQUE)
+### 6) Historia clinica odontologica
+- `evolutions`: evoluciones
+- `anamnesis`: anamnesis (1 por paciente)
+- `periodontal_records`: periodontograma por pieza/fecha
+- `patient_documents`: documentos de paciente
+- `prescriptions`: recetas
+- `clinical_documents`: documentos clinicos
+- `informed_consents`: consentimientos informados
+- `clinical_history_events`: eventos timeline
 
-### 2. professionals
-- **Propósito**: Profesionales de la salud
-- **Hereda de**: users
-- **Índices**: license_number (UNIQUE)
-- **Relaciones**:
-  - appointments (1:N)
-  - medical_records (1:N)
+## Relaciones principales
+- `professionals.id` -> `users.id`
+- `patients.id` -> `users.id`
+- `appointments.patient_id` -> `patients.id`
+- `appointments.professional_id` -> `professionals.id`
+- `medical_records.patient_id` -> `patients.id`
+- `medical_records.professional_id` -> `professionals.id`
+- `medical_records.appointment_id` -> `appointments.id`
+- `files.medical_record_id` -> `medical_records.id`
+- `files.uploaded_by` -> `users.id`
+- `budgets.patient_id` -> `patients.id`
+- `budgets.created_by` -> `users.id`
+- `payments.budget_id` -> `budgets.id`
 
-### 3. patients
-- **Propósito**: Pacientes del sistema
-- **Hereda de**: users
-- **Relaciones**:
-  - appointments (1:N)
-  - medical_records (1:N)
-  - budgets (1:N)
+Relaciones de especialidad:
+- Odontologia: `odontograms`, `teeth`, `dental_treatments`
+- Psicologia: `psychological_evaluations`, `therapy_sessions`
+- Psicopedagogia: `psychopedagogical_evaluations`, `intervention_sessions`
+- Historia clinica: `evolutions`, `anamnesis`, `periodontal_records`, `patient_documents`, `prescriptions`, `clinical_documents`, `informed_consents`, `clinical_history_events`
 
-### 4. appointments
-- **Propósito**: Gestión de turnos médicos
-- **Relaciones**:
-  - patient (N:1)
-  - professional (N:1)
-  - medical_record (1:1)
-- **Índices**: appointment_date
+## Indices declarados en modelos
+- `appointments`: `idx_professional_date`, `idx_patient_date`, `idx_status_date`
+- `medical_records`: `idx_patient_record_date`, `idx_professional_record_date`
+- `audit_logs`: `idx_audit_user_timestamp`, `idx_audit_entity`, `idx_audit_action_timestamp`, `idx_audit_timestamp`
 
-### 5. medical_records
-- **Propósito**: Fichas médicas de consultas
-- **Relaciones**:
-  - patient (N:1)
-  - professional (N:1)
-  - appointment (1:1) - Opcional
-  - files (1:N)
+## Constraints relevantes declarados
+- Unicos:
+  - `users.email`
+  - `professionals.license_number`
+  - `payments.transaction_id`
+  - `teeth(odontogram_id, tooth_number)`
+  - `periodontal_records(patient_id, measurement_date, tooth_number)`
+  - `anamnesis.patient_id`
 
-### 6. files
-- **Propósito**: Archivos médicos (estudios, imágenes, etc.)
-- **Relaciones**:
-  - medical_record (N:1)
-  - uploaded_by → users (N:1)
+## Notas de alineacion
+- El modelo `files.storage_type` mantiene default `cloud`, pero los endpoints y servicios actuales guardan en almacenamiento local (`storage/files`).
+- La estrategia de sincronizacion tiene endpoints funcionales, pero la aplicacion por entidad todavia esta simplificada (ver `docs/architecture/sync-strategy.md`).
 
-### 7. budgets
-- **Propósito**: Presupuestos de tratamientos
-- **Relaciones**:
-  - patient (N:1)
-  - created_by → professionals (N:1)
-  - payments (1:N)
+## Sync Logs (detalle relevante)
+`sync_logs` incluye campos para trazabilidad de idempotencia y conflictos:
+- `idempotency_key`
+- `external_entity_ref`
+- `result_entity_id`
+- `conflict_payload`
 
-### 8. payments
-- **Propósito**: Pagos de presupuestos
-- **Relaciones**:
-  - budget (N:1) - Opcional
-
-### 9. sync_logs
-- **Propósito**: Logs de sincronización nube-local
-- **Sin relaciones directas**
-
-## Constraints y Validaciones
-
-### Check Constraints
-- `users.role IN ('admin', 'professional', 'patient')`
-- `appointments.status IN ('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show')`
-- `budgets.status IN ('draft', 'sent', 'accepted', 'rejected', 'expired')`
-- `payments.payment_status IN ('pending', 'completed', 'failed', 'refunded')`
-- `files.storage_type IN ('cloud', 'local')`
-- `sync_logs.direction IN ('cloud_to_local', 'local_to_cloud')`
-
-### Unique Constraints
-- `users.email`
-- `professionals.license_number`
-- `payments.transaction_id` (cuando no es NULL)
-
-### Foreign Keys
-Todas las relaciones tienen FK con `ON DELETE` apropiado:
-- `CASCADE`: Cuando se elimina el padre, eliminar hijos (ej: user → appointments)
-- `SET NULL`: Cuando se elimina el padre, setear NULL (ej: appointment → medical_record)
-- `RESTRICT`: Prevenir eliminación si hay referencias
-
-## Índices para Performance
-
-```sql
--- Índices de búsqueda frecuente
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_professionals_specialty ON professionals(specialty);
-CREATE INDEX idx_appointments_date ON appointments(appointment_date);
-CREATE INDEX idx_appointments_status ON appointments(status);
-CREATE INDEX idx_medical_records_date ON medical_records(record_date);
-CREATE INDEX idx_sync_logs_status ON sync_logs(status);
-
--- Índices compuestos
-CREATE INDEX idx_appointments_prof_date ON appointments(professional_id, appointment_date);
-CREATE INDEX idx_medical_records_patient ON medical_records(patient_id, record_date);
-```
-
-## Triggers Potenciales
-
-1. **update_timestamp**: Actualizar `updated_at` automáticamente
-2. **validate_appointment_conflict**: Prevenir conflictos de horarios
-3. **sync_log_creation**: Crear log cuando se modifica una entidad sincronizable
-
-## Volumetría Estimada
-
-- **users**: ~1,000-10,000 registros
-- **professionals**: ~100-1,000 registros
-- **patients**: ~5,000-50,000 registros
-- **appointments**: ~50,000-500,000 registros/año
-- **medical_records**: ~50,000-500,000 registros/año
-- **files**: ~100,000-1,000,000 registros
-- **budgets**: ~10,000-100,000 registros/año
-- **payments**: ~10,000-100,000 registros/año
-- **sync_logs**: ~100,000-1,000,000 registros (con limpieza periódica)
-
-## Estrategia de Backup
-
-1. **Backup completo**: Diario a las 2 AM
-2. **Backup incremental**: Cada 6 horas
-3. **Retención**: 30 días de backups diarios, 12 meses de backups mensuales
-4. **Archivos**: Backup a S3/DigitalOcean Spaces con versionado
+## Recomendacion operativa
+Para dudas de consistencia entre documentacion y codigo, tomar como autoridad el codigo en `backend/app/models/`.

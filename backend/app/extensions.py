@@ -5,6 +5,7 @@ All extensions are initialized here and imported by the application factory
 """
 
 import os
+from urllib.parse import urlparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_marshmallow import Marshmallow
@@ -46,13 +47,30 @@ celery = Celery(
     backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 )
 
+
+def _build_redis_client_kwargs():
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url:
+        parsed = urlparse(redis_url)
+        if parsed.scheme.startswith('redis'):
+            return {
+                'host': parsed.hostname or 'localhost',
+                'port': int(parsed.port or 6379),
+                'db': int((parsed.path or '/0').lstrip('/')) if (parsed.path or '/0').lstrip('/').isdigit() else 0,
+                'password': parsed.password,
+                'decode_responses': True,
+            }
+
+    return {
+        'host': os.getenv('REDIS_HOST', 'localhost'),
+        'port': int(os.getenv('REDIS_PORT', '6379')),
+        'db': int(os.getenv('REDIS_DB', '0')),
+        'decode_responses': True,
+    }
+
+
 # Redis client for caching
-redis_client = Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    port=int(os.getenv('REDIS_PORT', '6379')),
-    db=int(os.getenv('REDIS_DB', '0')),
-    decode_responses=True
-)
+redis_client = Redis(**_build_redis_client_kwargs())
 
 # SocketIO for real-time communication
 socketio = SocketIO(

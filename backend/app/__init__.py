@@ -42,7 +42,20 @@ def create_app(config_name='development'):
     })
 
     # Configure CORS with specific origins from config
-    cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:4200'])
+    cors_origins = [
+        origin.strip()
+        for origin in app.config.get('CORS_ORIGINS', ['http://localhost:4200'])
+        if isinstance(origin, str) and origin.strip()
+    ]
+    if not cors_origins and config_name != 'production':
+        cors_origins = ['http://localhost:4200', 'http://localhost:3000']
+
+    supports_credentials = app.config.get('CORS_ALLOW_CREDENTIALS', True)
+    if '*' in cors_origins and supports_credentials:
+        app.logger.warning(
+            'CORS wildcard origin with credentials is insecure; disabling credentials.'
+        )
+        supports_credentials = False
 
     CORS(app, resources={
         r"/api/*": {
@@ -50,7 +63,7 @@ def create_app(config_name='development'):
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "expose_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": app.config.get('CORS_ALLOW_CREDENTIALS', True),
+            "supports_credentials": supports_credentials,
             "max_age": app.config.get('CORS_MAX_AGE', 3600)
         }
     })

@@ -298,3 +298,58 @@ class TestAppointmentConflict:
         # Should either return conflict error (409) or create successfully
         # depending on implementation
         assert response.status_code in [201, 400, 409]
+
+
+class TestAppointmentWorkflow:
+    """End-to-end workflow validation for appointments API."""
+
+    def test_appointments_list_calendar_detail_flow(self, client, auth_headers, sample_professional, sample_patient):
+        """Validate create -> calendar/list -> detail -> update -> cancel flow."""
+        appointment_date = datetime.now() + timedelta(days=5)
+
+        create_response = client.post('/api/appointments', headers=auth_headers, json={
+            'patient_id': sample_patient.id,
+            'professional_id': sample_professional.id,
+            'appointment_date': appointment_date.isoformat(),
+            'duration_minutes': 45,
+            'appointment_type': 'consultation',
+            'reason': 'Workflow validation'
+        })
+
+        assert create_response.status_code == 201
+        created_appointment = create_response.json
+        appointment_id = created_appointment['id']
+        assert created_appointment['status'] == 'scheduled'
+
+        date_from = (appointment_date - timedelta(days=1)).isoformat()
+        date_to = (appointment_date + timedelta(days=1)).isoformat()
+
+        calendar_response = client.get(
+            f'/api/appointments?professional_id={sample_professional.id}&date_from={date_from}&date_to={date_to}',
+            headers=auth_headers
+        )
+
+        assert calendar_response.status_code == 200
+        calendar_payload = calendar_response.json
+        assert 'items' in calendar_payload
+        assert any(item['id'] == appointment_id for item in calendar_payload['items'])
+
+        detail_response = client.get(f'/api/appointments/{appointment_id}', headers=auth_headers)
+        assert detail_response.status_code == 200
+        assert detail_response.json['id'] == appointment_id
+
+        update_response = client.put(f'/api/appointments/{appointment_id}', headers=auth_headers, json={
+            'status': 'confirmed',
+            'notes': 'Confirmed during workflow test'
+        })
+
+        assert update_response.status_code == 200
+        assert update_response.json['status'] == 'confirmed'
+
+        cancel_response = client.delete(f'/api/appointments/{appointment_id}', headers=auth_headers)
+        assert cancel_response.status_code == 200
+        assert cancel_response.json['msg'] == 'Appointment cancelled'
+
+        post_cancel_detail = client.get(f'/api/appointments/{appointment_id}', headers=auth_headers)
+        assert post_cancel_detail.status_code == 200
+        assert post_cancel_detail.json['status'] == 'cancelled'

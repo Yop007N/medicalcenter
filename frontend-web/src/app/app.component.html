@@ -1,19 +1,30 @@
 <app-loading-bar></app-loading-bar>
 <header class="topbar">
   <a class="brand" routerLink="/dashboard">Medical Services</a>
-  <nav class="nav">
-    @for (item of navItems; track item.path) {
-      <a
-        class="nav-link"
-        [routerLink]="item.path"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-      >
-        {{ item.label }}
-      </a>
-    }
-  </nav>
-  <a class="login-link" routerLink="/auth/login">Login</a>
+
+  @if (isAuthenticated$ | async) {
+    <nav class="nav">
+      @for (item of navItems; track item.path) {
+        <a
+          class="nav-link"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="auth-actions">
+      @if (currentUser$ | async; as currentUser) {
+        <span class="user-chip">{{ currentUser.first_name }} {{ currentUser.last_name }}</span>
+      }
+      <button type="button" class="logout-button" (click)="logout()">Salir</button>
+    </div>
+  } @else {
+    <a class="login-link" routerLink="/auth/login">Login</a>
+  }
 </header>
 
 <main class="content">

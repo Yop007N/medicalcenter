@@ -7,6 +7,7 @@ import pytest
 from decimal import Decimal
 from datetime import date, timedelta
 from app.models.budget import Budget
+from app.models.patient import Patient
 from app.extensions import db
 
 
@@ -226,6 +227,68 @@ class TestUpdateBudget:
             headers=patient_auth_headers
         )
         assert response.status_code in [401, 403]
+
+    def test_update_budget_supports_currency_patient_and_valid_until(self, client, auth_headers, sample_patient, sample_professional, app):
+        """Test update supports frontend fields currency/patient_id/valid_until."""
+        with app.app_context():
+            another_patient = Patient(
+                email='budget-update-patient@test.com',
+                first_name='Budget',
+                last_name='Patient',
+                role='patient'
+            )
+            another_patient.set_password('Patient123')
+            db.session.add(another_patient)
+            db.session.flush()
+
+            budget = Budget(
+                patient_id=sample_patient.id,
+                created_by=sample_professional.id,
+                title='Budget Update Fields',
+                total_amount=Decimal('1200.00'),
+                currency='ARS'
+            )
+            db.session.add(budget)
+            db.session.commit()
+            budget_id = budget.id
+            another_patient_id = another_patient.id
+
+        response = client.put(
+            f'/api/budgets/{budget_id}',
+            json={
+                'patient_id': another_patient_id,
+                'currency': 'USD',
+                'valid_until': '2026-12-31'
+            },
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json
+        assert data['patient_id'] == another_patient_id
+        assert data['currency'] == 'USD'
+        assert data['valid_until'] == '2026-12-31'
+
+    def test_update_budget_invalid_valid_until(self, client, auth_headers, sample_patient, sample_professional, app):
+        """Test update rejects invalid valid_until format."""
+        with app.app_context():
+            budget = Budget(
+                patient_id=sample_patient.id,
+                created_by=sample_professional.id,
+                title='Budget Invalid Date',
+                total_amount=Decimal('1500.00')
+            )
+            db.session.add(budget)
+            db.session.commit()
+            budget_id = budget.id
+
+        response = client.put(
+            f'/api/budgets/{budget_id}',
+            json={'valid_until': '31/12/2026'},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 400
 
 
 class TestDeleteBudget:
