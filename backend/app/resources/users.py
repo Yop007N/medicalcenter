@@ -4,10 +4,11 @@ User CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.user_service import UserService
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
+from app.utils.decorators import admin_required
 
 
 blueprint = Blueprint('users', __name__, url_prefix='/api/users')
@@ -17,7 +18,7 @@ users_schema = UserSchema(many=True)
 
 
 @blueprint.route('', methods=['GET'])
-@jwt_required()
+@admin_required
 def list_users():
     """List users with optional query filters (role, email) and pagination
     ---
@@ -64,6 +65,8 @@ def list_users():
               type: integer
       401:
         description: No autenticado
+      403:
+        description: No autorizado (solo admin)
     """
     # Pagination parameters using helper
     page, per_page = get_pagination_params(request)
@@ -121,11 +124,23 @@ def get_user(user_id):
               type: string
             role:
               type: string
+      403:
+        description: No autorizado
       404:
         description: Usuario no encontrado
       401:
         description: No autenticado
     """
+    # Access control: Admin or same user
+    current_user_id = int(get_jwt_identity())
+    current_user = UserService.get_user_by_id(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'Current user not found'}), 401
+
+    if current_user.role != 'admin' and current_user.id != user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     user = UserService.get_user_by_id(user_id)
     if not user:
         return jsonify({'msg': 'User not found'}), 404
@@ -133,7 +148,7 @@ def get_user(user_id):
 
 
 @blueprint.route('', methods=['POST'])
-@jwt_required()
+@admin_required
 def create_user():
     """Create new user
     ---
@@ -173,6 +188,8 @@ def create_user():
         description: Datos inválidos o email duplicado
       401:
         description: No autenticado
+      403:
+        description: No autorizado (solo admin)
     """
     data = request.get_json() or {}
     try:
@@ -216,12 +233,32 @@ def update_user(user_id):
     responses:
       200:
         description: Usuario actualizado
+      403:
+        description: No autorizado
       404:
         description: Usuario no encontrado
       401:
         description: No autenticado
     """
+    # Access control: Admin or same user
+    current_user_id = int(get_jwt_identity())
+    current_user = UserService.get_user_by_id(current_user_id)
+
+    if not current_user:
+        return jsonify({'msg': 'Current user not found'}), 401
+
+    if current_user.role != 'admin' and current_user.id != user_id:
+        return jsonify({'msg': 'Insufficient permissions'}), 403
+
     data = request.get_json() or {}
+
+    # Prevent non-admins from changing roles or active status
+    if current_user.role != 'admin':
+        if 'role' in data:
+            del data['role']
+        if 'is_active' in data:
+            del data['is_active']
+
     try:
         user = UserService.update_user(user_id, data)
         if not user:
@@ -232,7 +269,7 @@ def update_user(user_id):
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
-@jwt_required()
+@admin_required
 def delete_user(user_id):
     """Delete user
     ---
@@ -249,6 +286,8 @@ def delete_user(user_id):
     responses:
       200:
         description: Usuario eliminado
+      403:
+        description: No autorizado (solo admin)
       404:
         description: Usuario no encontrado
       401:
