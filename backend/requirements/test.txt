@@ -10,3 +10,9 @@ pytest-mock==3.12.0
 faker==21.0.0
 coverage==7.3.4
 flake8==6.1.0
+
+# Missing extensions
+Flask-Limiter==3.5.0
+Flask-Caching==2.1.0
+Flask-SocketIO==5.3.6
+Flask-Migrate==4.0.5
