@@ -4,6 +4,7 @@ Pytest configuration and fixtures
 """
 
 import pytest
+from unittest.mock import patch
 from app import create_app
 from app.extensions import db
 from app.models.user import User
@@ -305,3 +306,20 @@ def sample_file(app, sample_patient, sample_professional):
             self.id = id
 
     return FileData(file_id)
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_redis_auth_service():
+    """Mock Redis client for all tests to prevent connection errors"""
+    with patch('app.services.auth_service.redis_client') as mock:
+        store = {}
+
+        def set_mock(key, value, ex=None, exat=None):
+            store[key] = value
+
+        def get_mock(key):
+            return store.get(key)
+
+        mock.set.side_effect = set_mock
+        mock.get.side_effect = get_mock
+        yield mock

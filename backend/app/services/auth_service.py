@@ -4,12 +4,42 @@ Authentication Service - Handles user authentication logic
 """
 
 import re
+from datetime import timedelta
 from app.models.user import User
-from app.extensions import db
+from app.extensions import db, redis_client
 
 
 class AuthService:
     """Authentication business logic"""
+
+    @staticmethod
+    def revoke_token(jti, expires_at=None):
+        """
+        Revoke a token by adding it to the blocklist
+
+        Args:
+            jti: JWT ID
+            expires_at: Expiration timestamp (unix epoch)
+        """
+        if expires_at:
+            redis_client.set(f'blocklist:{jti}', 'revoked', exat=expires_at)
+        else:
+            redis_client.set(f'blocklist:{jti}', 'revoked', ex=timedelta(hours=24))
+
+    @staticmethod
+    def is_token_revoked(jwt_header, jwt_payload):
+        """
+        Check if a token is revoked (callback for flask-jwt-extended)
+
+        Args:
+            jwt_header: JWT Header
+            jwt_payload: JWT Payload
+
+        Returns:
+            True if token is revoked
+        """
+        jti = jwt_payload['jti']
+        return redis_client.get(f'blocklist:{jti}') is not None
 
     @staticmethod
     def validate_password(password):

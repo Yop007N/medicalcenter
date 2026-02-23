@@ -34,8 +34,9 @@ class Config:
 
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=365)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=365)
+    # Use 24 hours for access token as frontend lacks refresh logic, but we have revocation now.
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     JWT_IDENTITY_CLAIM = 'sub'  # Claim name for identity
     JWT_ERROR_MESSAGE_KEY = 'msg'  # Key for error messages
 
