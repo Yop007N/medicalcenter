@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Development server runner with WebSocket support
+
+Author: Enrique Bobadilla
+License: Codigo personal (see LICENSE)
 """
 
 import os

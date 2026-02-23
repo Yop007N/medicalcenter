@@ -6,6 +6,12 @@ Plataforma de gestion clinica con arquitectura modular para:
 - Frontend web (Angular)
 - Frontend PWA (Angular/Ionic)
 
+## Autor y licencia
+- Autor del codigo: Enrique Bobadilla
+- Licencia vigente: Codigo personal (ver `LICENSE`)
+- Todos los derechos reservados. Se requiere autorizacion escrita para uso,
+  copia, modificacion o distribucion.
+
 ## Estado actual
 - Proyecto en rama de integracion: `retoma/jules-integracion`
 - Backend con avance funcional alto
