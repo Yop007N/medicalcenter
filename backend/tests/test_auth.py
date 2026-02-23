@@ -301,3 +301,23 @@ class TestLogout:
         response = client.post('/api/auth/logout')
 
         assert response.status_code == 401
+
+    def test_logout_revokes_token(self, client, admin_user):
+        """Test that token is revoked after logout"""
+        # Login
+        login_response = client.post('/api/auth/login', json={
+            'email': 'admin@test.com',
+            'password': 'Admin123'
+        })
+        access_token = login_response.json['access_token']
+        user_id = login_response.json['user']['id']
+        headers = {'Authorization': f'Bearer {access_token}'}
+
+        # Verify access works
+        assert client.get(f'/api/users/{user_id}', headers=headers).status_code == 200
+
+        # Logout
+        client.post('/api/auth/logout', headers=headers)
+
+        # Verify access fails
+        assert client.get(f'/api/users/{user_id}', headers=headers).status_code == 401

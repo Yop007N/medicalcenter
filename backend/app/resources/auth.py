@@ -4,7 +4,7 @@ Authentication endpoints - Login, refresh token, logout
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from flasgger import swag_from
 from app.services.auth_service import AuthService
 from app.extensions import limiter
@@ -124,8 +124,10 @@ def refresh():
 @blueprint.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
-	"""Logout endpoint. If token revocation/blacklist is implemented, add token to blocklist here.
-	Currently this is a placeholder that returns success."""
+	"""Logout endpoint. Revokes the current token."""
+	jti = get_jwt()['jti']
+	exp = get_jwt()['exp']
+	AuthService.revoke_token(jti, expires_at=exp)
 	return jsonify({'msg': 'Successfully logged out'}), 200
 
 

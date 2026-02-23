@@ -30,6 +30,14 @@ def create_app(config_name='development'):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    # Register token blocklist loader
+    from app.services.auth_service import AuthService
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        return AuthService.is_token_revoked(jwt_header, jwt_payload)
+
     ma.init_app(app)
     limiter.init_app(app)
     socketio.init_app(app)
