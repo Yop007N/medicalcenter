@@ -1,115 +1,44 @@
 # Medical Services - Frontend Web
 
-Angular 17+ web application for healthcare professionals.
+Actualizado: 2026-02-23
 
-## Stack
+Cliente web para operacion profesional sobre la API de Medical Services.
 
-- **Angular**: 17+
-- **TypeScript**: 5.0+
-- **Angular Material**: 17+
-- **State Management**: NgRx 17+
-- **RxJS**: 7.8+
-- **Charts**: Chart.js 4.4+
+## Stack real
+- Angular 17
+- Angular Material 17
+- NgRx 17
+- TypeScript 5.2
+- Chart.js / ng2-charts
 
-## Project Structure
-
-```
-frontend-web/
-├── src/
-│   ├── app/
-│   │   ├── core/              # Singleton services, guards, interceptors
-│   │   ├── shared/            # Shared components, pipes, directives
-│   │   ├── features/          # Feature modules
-│   │   ├── store/             # NgRx store
-│   │   └── app.routes.ts      # App routing
-│   ├── assets/                # Static assets
-│   ├── environments/          # Environment configs
-│   └── styles/                # Global styles
-└── package.json
-```
-
-## Setup
-
-### 1. Install dependencies
-
+## Comandos
 ```bash
 npm install
-```
-
-### 2. Configure environment
-
-Edit `src/environments/environment.ts` with your API URL and settings.
-
-### 3. Run development server
-
-```bash
 npm start
-# or
-ng serve
-```
-
-Navigate to `http://localhost:4200/`
-
-### 4. Build for production
-
-```bash
 npm run build
-# or
-ng build --configuration production
-```
-
-## Features
-
-- User authentication with JWT
-- Role-based access control
-- Appointment management and calendar
-- Medical record management
-- Patient management
-- File upload and management
-- Budget creation and tracking
-- Real-time state management with NgRx
-- Responsive Material Design UI
-- Internationalization (i18n) support
-
-## Testing
-
-Run unit tests:
-```bash
 npm test
-# or
-ng test
-```
-
-## Linting
-
-```bash
 npm run lint
-# or
-ng lint
 ```
 
-## Key Modules
+## Rutas principales actuales
+Definidas en `frontend-web/src/app/app.routes.ts`:
+- `auth/login`
+- `dashboard`
+- `professionals`
+- `patients`
+- `appointments`
+- `medical-records`
+- `budgets`
 
-- **Auth**: Login, registration, authentication
-- **Dashboard**: Overview widgets and statistics
-- **Professionals**: Professional management
-- **Patients**: Patient management and medical history
-- **Appointments**: Appointment scheduling and calendar
-- **Medical Records**: Clinical record management
-- **Budgets**: Budget creation and management
-- **Settings**: User preferences and profile
+## Estructura principal
+- `src/app/core`: auth, guards, servicios base.
+- `src/app/shared`: componentes y utilidades compartidas.
+- `src/app/pages`: paginas standalone usadas por el router.
+- `src/app/store`: estado global con NgRx.
 
-## State Management
+## Configuracion API
+Actualizar `src/environments/environment.ts` con la URL backend correspondiente.
 
-The application uses NgRx for state management with:
-- Actions
-- Reducers
-- Effects
-- Selectors
-
-## API Integration
-
-All API calls go through the `ApiService` which handles:
-- HTTP requests
-- Error handling
-- Token management
+## Estado funcional
+- Build local disponible (`npm run build`).
+- Cobertura funcional parcial enfocada en flujo profesional.

@@ -1,6 +1,6 @@
 ﻿# Alcance del Sistema - Medical Services
 
-Actualizado: 2026-02-14
+Actualizado: 2026-02-23
 
 ## 1. Objetivo general
 Plataforma de gestion clinica para centralizar operacion asistencial, administrativa y trazabilidad sobre pacientes, turnos e historia clinica.
@@ -43,9 +43,9 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 
 ## 6. Estado real por capa
 - Backend: alto avance funcional en modulos core y especialidades.
-- Frontend principal (`frontend/`): avance medio/alto.
-- Frontend web (`frontend-web/`): avance medio con vistas aun scaffold.
-- Frontend PWA (`frontend-pwa/`): avance inicial.
+- Frontend principal (`frontend/`): avance alto relativo y mayor cobertura funcional.
+- Frontend web (`frontend-web/`): avance medio con foco profesional.
+- Frontend PWA (`frontend-pwa/`): base tecnica inicial, paridad funcional pendiente.
 - Sync cloud/local: funcionalidad base, cierre productivo pendiente.
 
 ## 7. Veredicto de avance

@@ -1,0 +1,48 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor Admin as A
+actor Profesional as P
+actor Paciente as C
+actor "Cliente Offline" as O
+
+rectangle "Medical Services API" {
+  usecase "UC-MS-001\nAutenticar usuario" as UC1
+  usecase "UC-MS-003\nAdministrar usuarios" as UC3
+  usecase "UC-MS-005\nGestionar pacientes" as UC5
+  usecase "UC-MS-006\nGestionar turnos" as UC6
+  usecase "UC-MS-007\nGestionar historial medico" as UC7
+  usecase "UC-MS-012\nGestionar presupuestos" as UC12
+  usecase "UC-MS-013\nGestionar pagos" as UC13
+  usecase "UC-MS-014\nConsultar dashboard" as UC14
+  usecase "UC-MS-015\nGenerar reportes" as UC15
+  usecase "UC-MS-016\nAuditoria y compliance" as UC16
+  usecase "UC-MS-017\nSincronizar local-nube" as UC17
+}
+
+A --> UC1
+A --> UC3
+A --> UC5
+A --> UC6
+A --> UC14
+A --> UC15
+A --> UC16
+
+P --> UC1
+P --> UC5
+P --> UC6
+P --> UC7
+P --> UC12
+P --> UC13
+P --> UC14
+P --> UC15
+P --> UC17
+
+C --> UC1
+C --> UC5
+C --> UC12
+C --> UC14
+
+O --> UC17
+@enduml

@@ -1,67 +1,117 @@
-﻿# Medical Services - Architecture (Estado actual)
+# Medical Services - Architecture (estado actual)
 
-Actualizado: 2026-02-14
+Actualizado: 2026-02-23
 
 ## Resumen
-Medical Services es una plataforma clinica modular con backend Flask y tres clientes frontend en distinto nivel de madurez.
+Medical Services es una plataforma clinica modular con backend Flask y tres clientes frontend en distinto nivel de madurez funcional.
 
-## Componentes
+## Diagrama Mermaid (estado actual)
+```mermaid
+flowchart LR
+  subgraph Clientes["Canales cliente"]
+    FEI["Frontend Principal\nAngular + Ionic"]
+    FEW["Frontend Web\nAngular"]
+    FEP["Frontend PWA\nAngular + Ionic"]
+    OFF["Cliente offline / edge"]
+  end
+
+  subgraph Edge["Entrada"]
+    NGINX["Nginx (produccion)"]
+  end
+
+  subgraph API["Backend Flask"]
+    REST["REST Blueprints\n/auth /users /patients /appointments\n/medical-records /files /budgets /payments\n/sync /dashboard /audit /reports\n/odontograms /dental-treatments\n/psychology /psychopedagogy /clinical-history"]
+    AUTH["JWT + RBAC\nadmin_required / professional_required"]
+    WS["SocketIO"]
+    CELERY["Celery Worker"]
+  end
+
+  subgraph Data["Datos y soporte"]
+    PG[("PostgreSQL")]
+    REDIS[("Redis")]
+    FILES[("Storage files\nstorage/files")]
+  end
+
+  FEI --> NGINX
+  FEW --> NGINX
+  FEP --> NGINX
+  OFF <--> NGINX
+  NGINX --> REST
+  REST --> AUTH
+  REST --> PG
+  REST --> REDIS
+  REST --> FILES
+  REST --> WS
+  REST --> CELERY
+  CELERY --> REDIS
+  CELERY --> PG
+```
+
+## Componentes principales
+
 ### Backend API (`backend/`)
-- Stack: Python + Flask + SQLAlchemy + Marshmallow
-- Base de datos principal: PostgreSQL
-- Soporte de cache y cola: Redis + Celery
-- Tiempo real: Flask-SocketIO
-- Seguridad: JWT + RBAC por roles
+- Stack: Python, Flask, SQLAlchemy, Marshmallow.
+- Seguridad: JWT + controles por rol en endpoints sensibles.
+- Recursos registrados en `backend/app/__init__.py`:
+  - auth, users, professionals, patients
+  - appointments, medical_records, files
+  - budgets, payments, sync, dashboard, audit, reports
+  - odontograms, dental_treatments, psychology, psychopedagogy, clinical_history, logs
+- Servicios transversales: cache Redis, Celery, Flask-SocketIO, migraciones con Flask-Migrate.
 
 ### Frontend principal (`frontend/`)
-- Stack: Angular + Ionic
-- Estado: cliente mas completo funcionalmente (modulos core + especialidades)
-- Uso recomendado hoy para flujo fullstack
+- Angular + Ionic.
+- Cliente con mayor cobertura funcional.
 
 ### Frontend web (`frontend-web/`)
-- Stack: Angular standalone
-- Estado: base funcional, con varias vistas aun en modo scaffold/mock
+- Angular standalone.
+- Build validado localmente el 2026-02-23.
 
 ### Frontend PWA (`frontend-pwa/`)
-- Stack: Angular + Ionic
-- Estado: base inicial (shell), aun sin paridad funcional con backend
+- Angular + Ionic.
+- Build validado localmente el 2026-02-23 con warnings no bloqueantes de tooling/CSS.
 
 ## Datos y almacenamiento
-- Datos transaccionales: PostgreSQL
-- Archivos: actualmente almacenamiento local (`storage/files`) via endpoints `files`
-- Variables S3 existen en configuracion para extension futura, pero no son el flujo operativo principal hoy
-
-## Integracion y despliegue
-### Desarrollo
-- `docker-compose.yml`: postgres, redis, backend, celery, frontend-web, frontend-pwa
-- `docker-compose.db.yml`: postgres + pgAdmin para entorno de datos
-
-### Produccion base
-- `docker-compose.prod.yml`: postgres, redis, backend, celery, nginx
-- Requiere completar hardening y observabilidad para operacion continua
+- Datos transaccionales: PostgreSQL.
+- Cache y broker: Redis.
+- Archivos: storage local (`storage/files`) con endpoints `files`; existe configuracion S3 para escenarios futuros.
+- Trazabilidad de sincronizacion: tabla `sync_logs`.
 
 ## Sincronizacion
-- Expuesta por `/api/sync/*`
-- Implementacion actual: handlers por entidad (`appointments`, `medical_records`, `budgets`, `payments`, `files`), idempotencia por `idempotency_key`, conflictos `server_wins` y trazabilidad en `sync_logs`
-- Hardening aplicado: validaciones de entrada en `push/logs` (tipos, limites y errores de contrato)
-- Pendiente principal: versionado distribuido por entidad (`row_version`) definido en `docs/roadmap/SYNC-03_VERSIONADO_POR_ENTIDAD.md`
-- Ver detalle operativo en `docs/architecture/sync-strategy.md`
+- Endpoints disponibles en `backend/app/resources/sync.py`:
+  - `POST /api/sync/push`
+  - `GET /api/sync/pull`
+  - `GET /api/sync/status`
+  - `GET /api/sync/logs` (admin)
+- Capacidades actuales:
+  - validacion de payload
+  - limite de lote (`MAX_SYNC_CHANGES=500`)
+  - idempotencia por `idempotency_key` o fingerprint
+  - conflictos por `updated_at` con politica `server_wins`
+- Alcance actual de entidades sync: appointments, medical_records, budgets, payments, files.
 
-## Estado por capa
-- Backend API: alto avance funcional
-- Frontend principal: avance medio/alto
-- Frontend web: avance medio (parcialmente desacoplado del backend real)
-- Frontend PWA: avance inicial
-- Despliegue productivo: base disponible, pendiente de cierre operativo
+## Despliegue
 
-## Riesgos tecnicos actuales
-- Brecha entre documentacion historica y comportamiento real de codigo
-- Brecha de paridad entre backend y `frontend-web`/`frontend-pwa`
-- Sincronizacion aun no productiva para escenarios de conflicto complejos
-- Versionado por entidad aun no implementado (ticket `SYNC-03` preparado)
+### Desarrollo
+- `docker-compose.yml`: postgres, redis, backend, celery, frontend-web, frontend-pwa.
+- `docker-compose.db.yml`: postgres + pgAdmin para entorno de datos.
+
+### Produccion base
+- `docker-compose.prod.yml`: postgres, redis, backend, celery, nginx.
+- Requiere cerrar healthchecks, observabilidad y politicas operativas para release estable.
+
+## Validaciones tecnicas recientes
+- Backend: `pytest backend/tests/test_patients.py backend/tests/test_sync_endpoints.py` -> `42 passed` (2026-02-23).
+- Frontend web: `npm --prefix frontend-web run build` -> OK (2026-02-23).
+- Frontend PWA: `npm --prefix frontend-pwa run build` -> OK con warnings no bloqueantes (2026-02-23).
+
+## Riesgos actuales
+- Sincronizacion aun limitada a un subconjunto de entidades.
+- Paridad funcional incompleta entre frontends secundarios y backend.
+- Hardening operativo de produccion aun pendiente en compose/productivo.
 
 ## Criterio de arquitectura estable (release candidate)
-- Contrato API-documentacion alineado
-- Paridad funcional minima entre backend y al menos un frontend de produccion
-- Pipeline CI/CD con tests backend y build frontend en verde
-- Observabilidad y politicas de backup/restore probadas
+- Contrato API y documentacion alineados.
+- Paridad funcional completa en al menos un frontend de produccion.
+- CI con tests backend y build frontend en verde de forma consistente.
+- Operacion productiva con backup/restore, monitoreo y rollback validados.

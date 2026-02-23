@@ -1,68 +1,66 @@
-﻿# Synchronization Strategy (Estado actual y plan)
+# Synchronization Strategy (estado real y cierre)
 
-Actualizado: 2026-02-14
+Actualizado: 2026-02-23
 
 ## Objetivo
-Definir claramente que parte de la sincronizacion ya esta implementada y que parte sigue en roadmap.
+Definir el estado actual de sincronizacion y el plan tecnico para cierre productivo sin ambiguedad documental.
 
-## Estado actual implementado
-### Endpoints disponibles
+## Implementado actualmente
+
+### Endpoints
 - `POST /api/sync/push`
 - `GET /api/sync/pull`
 - `GET /api/sync/status`
-- `GET /api/sync/logs`
+- `GET /api/sync/logs` (admin)
 
-### Comportamiento actual
-- `push`:
-  - recibe cambios desde cliente
-  - valida body JSON/objeto y estructura minima por cambio (`entity_type`, `operation`, `data`)
-  - limita lotes a `500` cambios por request
-  - registra `sync_logs`
-  - procesa cambios con handlers por entidad soportada (`appointment`, `medical_record`, `budget`, `payment`, `file`)
-  - aplica idempotencia por `idempotency_key` (o fingerprint derivado del payload)
-  - detecta conflictos de actualizacion por `updated_at` y responde `server_wins`
-  - devuelve mapeo `local_id -> server_id`
-- `pull`:
-  - devuelve cambios por timestamp para entidades soportadas
-- `status/logs`:
-  - exponen contadores y ultimos logs
-  - `logs` valida `limit` entero en rango `1..500`
-  - respuestas de errores internos en `push` se sanitizan para cliente, manteniendo detalle tecnico en `sync_logs`
+### Comportamiento actual en `push`
+- Valida cuerpo JSON y estructura minima por cambio.
+- Limita lotes a `500` cambios por request.
+- Registra eventos en `sync_logs`.
+- Aplica idempotencia por `idempotency_key` o fingerprint del payload.
+- Ejecuta handlers por entidad soportada.
+- Detecta conflictos por `updated_at`.
+- Responde conflictos con politica `server_wins`.
 
-### Tareas Celery relacionadas
-- Existen tareas y utilidades de sync en `backend/app/tasks/sync_tasks.py`
-- Hay validaciones y estructura de sync incremental/full
-- Parte de la logica aun se encuentra en modo base/placeholder para escenarios reales multi-entidad
+### Entidades soportadas hoy
+- `appointment`
+- `medical_record`
+- `budget`
+- `payment`
+- `file`
 
-## Lo que NO esta cerrado aun
-- Resolucion de conflictos granular por campo (hoy se aplica regla por `updated_at`)
-- Versionado consistente por registro para merge server/client en todas las entidades
-- Idempotencia distribuida multi-nodo (hoy se basa en `sync_logs`)
-- Reconciliacion completa de archivos en escenarios distribuidos
-- Cobertura E2E de sync offline/online en frontends
+### Comportamiento actual en `pull`
+- Entrega cambios por fecha (`since`), con serializacion por modelo.
+- Omite aliases plurales para no duplicar resultados.
 
-## Estrategia recomendada por fases
-### Fase 1 - Consolidar contrato
-- Definir contrato unico de payload (create/update/delete, metadata de version)
-- Unificar respuesta de conflictos
-- Instrumentar errores y metricas de sync
+## Validacion ejecutada
+- `backend/tests/test_sync_endpoints.py` y `backend/tests/test_patients.py`
+- Resultado 2026-02-23: `42 passed`
 
-### Fase 2 - Handlers por entidad
-- Reemplazar `process_sync_change` simplificado por handlers reales
-- Cubrir al menos: patients, appointments, medical_records, files, budgets, payments
+## Brechas tecnicas pendientes
+- Versionado por registro robusto para merge distribuido.
+- Resolucion de conflictos mas granular (no solo timestamp).
+- Estrategia de idempotencia multi-nodo.
+- Cobertura E2E offline/online en flujos frontend.
+- Cobertura sync para mas entidades de dominio segun alcance final.
 
-### Fase 3 - Conflictos e idempotencia
-- Implementar control de version (`updated_at` o `version`)
-- Resolver conflicto con politica explicita y auditable
-- Reintentos idempotentes
+## Plan de cierre recomendado
 
-### Fase 4 - Validacion end-to-end
-- Tests de sincronizacion offline/online
-- Escenarios de conflicto concurrente
-- Pruebas de carga para lotes grandes
+### Fase 1 - Contrato y observabilidad
+- Congelar contrato de payload de sync.
+- Unificar catalogo de errores funcionales.
+- Exponer metricas operativas de exito/error por ventana.
 
-## Criterios de salida a produccion
-- Sync bidireccional multi-entidad validado
-- Reintentos seguros y sin duplicados
-- Trazabilidad completa en `sync_logs` + auditoria
-- Reporte de metricas de exito/error por ventana de tiempo
+### Fase 2 - Versionado y conflictos
+- Incorporar campo de version por entidad.
+- Definir politicas de conflicto por entidad con trazabilidad.
+- Garantizar reintentos idempotentes en escenarios distribuidos.
+
+### Fase 3 - Expansión funcional
+- Extender sync a entidades adicionales requeridas por producto.
+- Cubrir create/update/delete en pruebas de integracion por entidad.
+
+### Fase 4 - Validacion de release
+- Suite E2E de sincronizacion offline/online.
+- Pruebas de carga con lotes altos.
+- Criterios GO/NO-GO de sync para despliegue productivo.
