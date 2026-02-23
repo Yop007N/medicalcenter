@@ -1,0 +1,57 @@
+sequenceDiagram
+    autonumber
+    actor A as Administrador
+    actor P as Profesional
+    actor C as Paciente
+    actor O as Cliente offline
+    participant FE as Frontends (web/pwa/mobile)
+    participant API as Backend API (Flask)
+    participant DB as PostgreSQL
+    participant R as Redis/Celery
+    participant AU as Auditoria/Sync logs
+
+    Note over A,C: Inicio de sesion y token JWT
+    A->>FE: Login
+    P->>FE: Login
+    C->>FE: Login
+    FE->>API: POST /api/auth/login
+    API->>DB: Validar credenciales
+    API-->>FE: access_token + refresh_token
+
+    Note over P,DB: Operacion clinica diaria (profesional)
+    P->>FE: Gestiona pacientes y turnos
+    FE->>API: /api/patients, /api/appointments
+    API->>DB: CRUD y validaciones
+    API->>AU: Registrar eventos relevantes
+    API-->>FE: Respuesta de negocio
+
+    P->>FE: Carga historia clinica y archivos
+    FE->>API: /api/medical-records, /api/clinical-history, /api/files
+    API->>DB: Persistencia clinica
+    API->>R: Tareas asincronas cuando aplica
+    API-->>FE: Confirmacion
+
+    Note over C,DB: Interaccion de paciente
+    C->>FE: Consulta informacion propia
+    FE->>API: /api/patients/{id}, /api/budgets/{id}
+    API->>DB: Validar acceso y obtener datos
+    API-->>FE: Datos de paciente
+    C->>FE: Acepta presupuesto
+    FE->>API: POST /api/budgets/{id}/accept
+    API->>DB: Actualiza estado
+    API->>AU: Traza de accion
+
+    Note over A,AU: Gobierno y control administrativo
+    A->>FE: Auditoria y reportes
+    FE->>API: /api/audit/*, /api/reports/*
+    API->>DB: Consultas agregadas
+    API->>AU: Lectura/registro de actividad
+    API-->>FE: Reportes y evidencias
+
+    Note over O,AU: Sincronizacion offline
+    O->>API: POST /api/sync/push (lotes)
+    API->>DB: Aplicar cambios e idempotencia
+    API->>AU: sync_logs + conflictos server_wins
+    API-->>O: synced/conflicts
+    O->>API: GET /api/sync/pull
+    API-->>O: Cambios desde servidor

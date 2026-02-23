@@ -5,6 +5,9 @@ Actualizado: 2026-02-23
 ## Resumen
 Medical Services es una plataforma clinica modular con backend Flask y tres clientes frontend en distinto nivel de madurez funcional.
 
+## Flujo operativo
+- Ver flujo operativo integral por actores en `docs/architecture/operational-flow.md`.
+
 ## Diagrama Mermaid (estado actual)
 ```mermaid
 flowchart LR

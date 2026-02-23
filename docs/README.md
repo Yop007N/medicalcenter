@@ -11,9 +11,11 @@ Actualizado: 2026-02-23
 ## Vision y arquitectura
 - `ALCANCE_SISTEMA_GENERAL.md`: alcance funcional y tecnico consolidado.
 - `architecture/architecture.md`: arquitectura actual por capa.
+- `architecture/operational-flow.md`: flujo operativo integral por actores.
 - `architecture/sync-strategy.md`: estado real de sincronizacion y estrategia de cierre.
 - `requirements/REQUISITOS_FUNCIONALES_CASOS_USO.md`: requisitos funcionales mapeados a casos de uso reales (UML + Mermaid).
 - `exports/REQUISITOS_FUNCIONALES_CASOS_USO.pdf`: version PDF del documento funcional.
+- `exports/FLUJO_OPERATIVO_DEL_SISTEMA.pdf`: version PDF del flujo operativo integral.
 
 ## Frontends
 - `../frontend/README.md`: cliente principal (Angular 20 + Ionic 8).
