@@ -25,6 +25,10 @@ AGENTS.local.md
 # Private project docs
 CONTRIBUTING.md
 
+# AI development artifacts (private)
+tools/autonomy/
+docs/roadmap/
+
 # Environment
 .env
 .env.local
