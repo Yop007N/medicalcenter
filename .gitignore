@@ -22,6 +22,9 @@ skills/
 AGENTS.md
 AGENTS.local.md
 
+# Private project docs
+CONTRIBUTING.md
+
 # Environment
 .env
 .env.local
