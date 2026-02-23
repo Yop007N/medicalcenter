@@ -9,30 +9,36 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
+from app.models.user import User
 from app.extensions import db
 from app.utils.helpers import generate_unique_filename
 
 blueprint = Blueprint('files', __name__, url_prefix='/api/files')
 
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'}
+ALLOWED_EXTENSIONS = {
+    'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'
+}
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
-BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+BACKEND_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..')
+)
 
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return ('.' in filename and
+            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS)
 
 
 def resolve_upload_dir():
-    """Resolve upload directory relative to backend root when configured as relative path."""
+    """Resolve upload directory relative to backend root."""
     if os.path.isabs(UPLOAD_FOLDER):
         return UPLOAD_FOLDER
     return os.path.abspath(os.path.join(BACKEND_ROOT, UPLOAD_FOLDER))
 
 
 def resolve_file_path(file_path):
-    """Resolve legacy relative file paths to absolute paths across known roots."""
+    """Resolve legacy relative file paths to absolute paths."""
     if not file_path:
         return file_path
     if os.path.isabs(file_path):
@@ -42,7 +48,9 @@ def resolve_file_path(file_path):
     if os.path.exists(backend_candidate):
         return backend_candidate
 
-    project_candidate = os.path.abspath(os.path.join(BACKEND_ROOT, '..', file_path))
+    project_candidate = os.path.abspath(
+        os.path.join(BACKEND_ROOT, '..', file_path)
+    )
     if os.path.exists(project_candidate):
         return project_candidate
 
@@ -55,7 +63,8 @@ def serialize_file(file_record):
     if file_record.medical_record:
         patient_id = file_record.medical_record.patient_id
 
-    created_at = file_record.created_at.isoformat() if file_record.created_at else None
+    created_at = (file_record.created_at.isoformat()
+                  if file_record.created_at else None)
     file_type = file_record.file_type or 'other'
 
     return {
@@ -73,6 +82,37 @@ def serialize_file(file_record):
         'created_at': created_at,
         'upload_date': created_at
     }
+
+
+def _get_current_user():
+    """Get the current authenticated user."""
+    identity = get_jwt_identity()
+    try:
+        user_id = int(identity)
+    except (TypeError, ValueError):
+        return None
+    return User.query.get(user_id)
+
+
+def _can_access_file(file_record, user):
+    """
+    Check if user has permission to access file.
+    - Admin/Professional: Can access all files.
+    - Patient: Can only access files linked to their medical record.
+    """
+    if not user:
+        return False
+
+    if user.role in ['admin', 'professional']:
+        return True
+
+    if user.role == 'patient':
+        # Check if file belongs to patient's medical record
+        if (file_record.medical_record and
+                file_record.medical_record.patient_id == user.id):
+            return True
+
+    return False
 
 
 @blueprint.route('', methods=['GET'])
@@ -156,7 +196,8 @@ def upload_file():
     # Get additional data
     medical_record_id = request.form.get('medical_record_id', type=int)
     # Accept frontend alias "category" as file_type.
-    file_type = request.form.get('file_type') or request.form.get('category') or 'other'
+    file_type = (request.form.get('file_type') or
+                 request.form.get('category') or 'other')
     description = request.form.get('description', '')
     patient_id = request.form.get('patient_id', type=int)
 
@@ -241,6 +282,8 @@ def get_file(file_id):
               type: integer
             description:
               type: string
+      403:
+        description: Acceso denegado
       404:
         description: Archivo no encontrado
       401:
@@ -250,6 +293,10 @@ def get_file(file_id):
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user = _get_current_user()
+    if not _can_access_file(file_record, current_user):
+        return jsonify({'msg': 'Access denied'}), 403
 
     return jsonify(serialize_file(file_record)), 200
 
@@ -276,6 +323,8 @@ def download_file(file_id):
         description: Archivo descargado
         schema:
           type: file
+      403:
+        description: Acceso denegado
       404:
         description: Archivo no encontrado
       401:
@@ -285,6 +334,10 @@ def download_file(file_id):
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user = _get_current_user()
+    if not _can_access_file(file_record, current_user):
+        return jsonify({'msg': 'Access denied'}), 403
 
     resolved_path = resolve_file_path(file_record.file_path)
     if not os.path.exists(resolved_path):
@@ -316,6 +369,8 @@ def delete_file(file_id):
     responses:
       200:
         description: Archivo eliminado
+      403:
+        description: Acceso denegado
       404:
         description: Archivo no encontrado
       401:
@@ -325,6 +380,10 @@ def delete_file(file_id):
 
     if not file_record:
         return jsonify({'msg': 'File not found'}), 404
+
+    current_user = _get_current_user()
+    if not _can_access_file(file_record, current_user):
+        return jsonify({'msg': 'Access denied'}), 403
 
     # Delete physical file
     resolved_path = resolve_file_path(file_record.file_path)
