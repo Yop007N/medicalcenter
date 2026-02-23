@@ -4,13 +4,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY frontend-web/package*.json ./
+COPY frontend-profesional/package*.json ./
 
 # Install dependencies
 RUN if [ -f package-lock.json ]; then npm ci; else npm install --legacy-peer-deps --no-audit --no-fund; fi
 
 # Copy source code
-COPY frontend-web/ .
+COPY frontend-profesional/ .
 
 # Build application
 RUN npm run build
@@ -19,10 +19,10 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy nginx configuration
-COPY frontend-web/nginx.conf /etc/nginx/nginx.conf
+COPY frontend-profesional/nginx.conf /etc/nginx/nginx.conf
 
-# Copy built application
-COPY --from=builder /app/dist/medical-services-web /usr/share/nginx/html
+# Copy built application (Angular output is nested under browser/)
+COPY --from=builder /app/dist/medical-services-web/browser/ /usr/share/nginx/html
 
 EXPOSE 80
 

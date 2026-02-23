@@ -22,9 +22,9 @@ Plataforma de gestion clinica con arquitectura modular para:
 
 ## Estructura del repositorio
 - `backend/`: API, modelos, recursos REST, servicios, tests y migraciones
-- `frontend/`: app Angular/Ionic principal con NgRx y E2E
-- `frontend-web/`: web app para profesionales
-- `frontend-pwa/`: app PWA para pacientes
+- `frontend-admin-profesional/`: app Angular/Ionic principal con NgRx y E2E
+- `frontend-profesional/`: web app para profesionales
+- `frontend-paciente/`: app PWA para pacientes
 - `docs/`: documentacion tecnica y funcional consolidada
 - `docker/` y `docker-compose*.yml`: despliegue local y productivo
 
@@ -45,7 +45,7 @@ python run.py
 ```
 4. Frontend principal:
 ```bash
-cd frontend
+cd frontend-admin-profesional
 npm install
 npm run start
 ```

@@ -9,7 +9,7 @@ Recuperar servicio de Medical Services ante despliegue fallido o degradacion cri
 - Backend no inicia despues de deploy.
 - Error de migracion/esquema incompatible.
 - Degradacion severa de API (`/health` no saludable).
-- Falla en frontend/nginx post-release.
+- Falla en frontends/nginx post-release.
 
 ## Prerrequisitos
 - Backup DB reciente validado.
@@ -83,4 +83,3 @@ docker compose up -d
 2. Documentar impacto y ventana de afectacion.
 3. Actualizar backlog tecnico con acciones correctivas.
 4. Revalidar plan de backup/restore.
-

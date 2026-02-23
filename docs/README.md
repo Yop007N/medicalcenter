@@ -18,9 +18,9 @@ Actualizado: 2026-02-23
 - `exports/FLUJO_OPERATIVO_DEL_SISTEMA.pdf`: version PDF del flujo operativo integral.
 
 ## Frontends
-- `../frontend/README.md`: cliente principal (Angular 20 + Ionic 8).
-- `../frontend-web/README.md`: cliente web profesional (Angular 17).
-- `../frontend-pwa/README.md`: cliente PWA base (Angular 17 + Ionic 7).
+- `../frontend-admin-profesional/README.md`: cliente principal (Angular 20 + Ionic 8).
+- `../frontend-profesional/README.md`: cliente web profesional (Angular 17).
+- `../frontend-paciente/README.md`: cliente PWA base (Angular 17 + Ionic 7).
 
 ## Desarrollo
 - `development/setup.md`: setup local recomendado.

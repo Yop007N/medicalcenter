@@ -32,7 +32,7 @@ Backend:
 
 ### 3) Frontend principal (recomendado para desarrollo funcional)
 ```bash
-cd frontend
+cd frontend-admin-profesional
 npm install
 npm run start
 ```
@@ -46,8 +46,8 @@ Incluye:
 - backend
 - redis
 - celery
-- frontend-web
-- frontend-pwa
+- frontend-web (cliente `frontend-profesional/`)
+- frontend-pwa (cliente `frontend-paciente/`)
 
 ## Variables de entorno backend clave
 Crear `backend/.env` (si aplica en tu entorno) con:
@@ -68,7 +68,7 @@ pytest
 
 ### Frontend principal
 ```bash
-cd frontend
+cd frontend-admin-profesional
 npm test
 ```
 

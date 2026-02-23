@@ -22,7 +22,7 @@ services:
     image: redis:7-alpine
     container_name: medical-services-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
@@ -76,7 +76,7 @@ services:
   frontend-web:
     build:
       context: .
-      dockerfile: docker/frontend-web/Dockerfile
+      dockerfile: docker/frontend-profesional/Dockerfile
     container_name: medical-services-frontend-web
     ports:
       - "${FRONTEND_WEB_PORT:-4200}:80"
@@ -89,7 +89,7 @@ services:
   frontend-pwa:
     build:
       context: .
-      dockerfile: docker/frontend-pwa/Dockerfile
+      dockerfile: docker/frontend-paciente/Dockerfile
     container_name: medical-services-frontend-pwa
     ports:
       - "${FRONTEND_PWA_PORT:-8100}:80"

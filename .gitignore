@@ -71,7 +71,7 @@ dist/
 build/
 .angular/
 www/
-frontend-pwa/www/
+frontend-paciente/www/
 coverage/
 *.tsbuildinfo
 

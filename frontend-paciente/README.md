@@ -38,4 +38,4 @@ npm run ionic:build
 Actualizar `src/environments/environment.ts` con endpoint backend.
 
 ## Nota operativa
-El frontend principal productivo hoy es `frontend/`; este cliente PWA requiere desarrollo adicional para paridad funcional completa.
+El frontend principal productivo hoy es `frontend-admin-profesional/`; este cliente PWA requiere desarrollo adicional para paridad funcional completa.

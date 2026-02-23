@@ -43,9 +43,9 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 
 ## 6. Estado real por capa
 - Backend: alto avance funcional en modulos core y especialidades.
-- Frontend principal (`frontend/`): avance alto relativo y mayor cobertura funcional.
-- Frontend web (`frontend-web/`): avance medio con foco profesional.
-- Frontend PWA (`frontend-pwa/`): base tecnica inicial, paridad funcional pendiente.
+- Frontend principal (`frontend-admin-profesional/`): avance alto relativo y mayor cobertura funcional.
+- Frontend web (`frontend-profesional/`): avance medio con foco profesional.
+- Frontend PWA (`frontend-paciente/`): base tecnica inicial, paridad funcional pendiente.
 - Sync cloud/local: funcionalidad base, cierre productivo pendiente.
 
 ## 7. Veredicto de avance

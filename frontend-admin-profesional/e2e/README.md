@@ -32,7 +32,7 @@ e2e/
 
 ```bash
 # Instalar dependencias del proyecto
-cd frontend
+cd frontend-admin-profesional
 npm install
 
 # Instalar navegadores de Playwright

@@ -21,7 +21,7 @@ npm run lint
 ```
 
 ## Rutas principales actuales
-Definidas en `frontend-web/src/app/app.routes.ts`:
+Definidas en `frontend-profesional/src/app/app.routes.ts`:
 - `auth/login`
 - `dashboard`
 - `professionals`

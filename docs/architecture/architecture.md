@@ -62,15 +62,15 @@ flowchart LR
   - odontograms, dental_treatments, psychology, psychopedagogy, clinical_history, logs
 - Servicios transversales: cache Redis, Celery, Flask-SocketIO, migraciones con Flask-Migrate.
 
-### Frontend principal (`frontend/`)
+### Frontend principal (`frontend-admin-profesional/`)
 - Angular + Ionic.
 - Cliente con mayor cobertura funcional.
 
-### Frontend web (`frontend-web/`)
+### Frontend web (`frontend-profesional/`)
 - Angular standalone.
 - Build validado localmente el 2026-02-23.
 
-### Frontend PWA (`frontend-pwa/`)
+### Frontend PWA (`frontend-paciente/`)
 - Angular + Ionic.
 - Build validado localmente el 2026-02-23 con warnings no bloqueantes de tooling/CSS.
 
@@ -105,8 +105,8 @@ flowchart LR
 
 ## Validaciones tecnicas recientes
 - Backend: `pytest backend/tests/test_patients.py backend/tests/test_sync_endpoints.py` -> `42 passed` (2026-02-23).
-- Frontend web: `npm --prefix frontend-web run build` -> OK (2026-02-23).
-- Frontend PWA: `npm --prefix frontend-pwa run build` -> OK con warnings no bloqueantes (2026-02-23).
+- Frontend web: `npm --prefix frontend-profesional run build` -> OK (2026-02-23).
+- Frontend PWA: `npm --prefix frontend-paciente run build` -> OK con warnings no bloqueantes (2026-02-23).
 
 ## Riesgos actuales
 - Sincronizacion aun limitada a un subconjunto de entidades.
