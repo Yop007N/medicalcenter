@@ -20,6 +20,13 @@ from app.schemas.clinical_history_schema import (
     InformedConsentSchema, ClinicalHistoryEventSchema
 )
 from app.extensions import db
+from app.services.clinical_history_service import EvolutionService
+from app.services.exceptions import (
+    AccessDeniedError,
+    ConflictError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from app.services.patient_access_service import PatientAccessService
 from app.utils.helpers import validate_required_fields
 
@@ -64,166 +71,109 @@ def _has_patient_access(patient_id):
     return PatientAccessService.can_access_patient(get_jwt_identity(), patient_id)
 
 
+def _service_error_response(error):
+    """Map service-layer errors to HTTP responses."""
+    status_map = {
+        ValidationError: 400,
+        AccessDeniedError: 403,
+        ResourceNotFoundError: 404,
+        ConflictError: 409,
+    }
+    status = status_map.get(type(error), 400)
+    payload = {'msg': error.message}
+    if getattr(error, 'details', None):
+        payload.update(error.details)
+    return jsonify(payload), status
+
+
 # ==================== EVOLUTIONS ====================
 
 @blueprint.route('/evolutions', methods=['GET'])
 @jwt_required()
 def list_evolutions():
     """List evolutions with optional filters"""
-    current_user_id = int(get_jwt_identity())
-    patient_id = request.args.get('patient_id', type=int)
-    status = request.args.get('status')
-    include_annulled = request.args.get('include_annulled', 'false').lower() == 'true'
-
-    if patient_id and not _has_patient_access(patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    if not patient_id and PatientAccessService.get_user_role(current_user_id) == 'patient':
-        patient_id = current_user_id
-
-    query = Evolution.query
-
-    if patient_id:
-        query = query.filter_by(patient_id=patient_id)
-    if status:
-        query = query.filter_by(status=status)
-    if not include_annulled:
-        query = query.filter(Evolution.status != 'annulled')
-
-    evolutions = query.order_by(Evolution.created_at.desc()).all()
-    return jsonify(evolutions_schema.dump(evolutions)), 200
+    try:
+        evolutions = EvolutionService.list_evolutions(
+            current_user_id=get_jwt_identity(),
+            patient_id=request.args.get('patient_id', type=int),
+            status=request.args.get('status'),
+            include_annulled=request.args.get('include_annulled', 'false').lower() == 'true',
+        )
+        return jsonify(evolutions_schema.dump(evolutions)), 200
+    except (ValidationError, AccessDeniedError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/evolutions', methods=['POST'])
 @jwt_required()
 def create_evolution():
     """Create new evolution"""
-    data = request.get_json() or {}
-
-    required_fields = ['patient_id', 'action_performed']
-    is_valid, missing_fields = validate_required_fields(data, required_fields)
-    if not is_valid:
-        return jsonify({'msg': 'Missing required fields', 'missing_fields': missing_fields}), 400
-
-    patient = Patient.query.get(data['patient_id'])
-    if not patient:
-        return jsonify({'msg': 'Patient not found'}), 404
-    if not _has_patient_access(data['patient_id']):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    evolution = Evolution(
-        patient_id=data['patient_id'],
-        professional_id=get_jwt_identity(),
-        treatment_plan_id=data.get('treatment_plan_id'),
-        action_performed=data['action_performed'],
-        notes=data.get('notes'),
-        status=data.get('status', 'pending')
-    )
-    db.session.add(evolution)
-
-    # Create timeline event
-    event = ClinicalHistoryEvent(
-        patient_id=data['patient_id'],
-        professional_id=get_jwt_identity(),
-        event_type='evolution',
-        reference_type='evolution',
-        title='Nueva evolución registrada',
-        description=data['action_performed'][:200] if data['action_performed'] else None
-    )
-    db.session.add(event)
-    db.session.commit()
-
-    event.reference_id = evolution.id
-    db.session.commit()
-
-    return jsonify(evolution_schema.dump(evolution)), 201
+    try:
+        evolution = EvolutionService.create_evolution(
+            current_user_id=get_jwt_identity(),
+            data=request.get_json() or {},
+        )
+        return jsonify(evolution_schema.dump(evolution)), 201
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>', methods=['GET'])
 @jwt_required()
 def get_evolution(evolution_id):
     """Get evolution by ID"""
-    evolution = Evolution.query.get(evolution_id)
-    if not evolution:
-        return jsonify({'msg': 'Evolution not found'}), 404
-    if not _has_patient_access(evolution.patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-    return jsonify(evolution_schema.dump(evolution)), 200
+    try:
+        evolution = EvolutionService.get_evolution(
+            current_user_id=get_jwt_identity(),
+            evolution_id=evolution_id,
+        )
+        return jsonify(evolution_schema.dump(evolution)), 200
+    except (AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>', methods=['PUT'])
 @jwt_required()
 def update_evolution(evolution_id):
     """Update evolution"""
-    evolution = Evolution.query.get(evolution_id)
-    if not evolution:
-        return jsonify({'msg': 'Evolution not found'}), 404
-    if not _has_patient_access(evolution.patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    if evolution.status == 'annulled':
-        return jsonify({'msg': 'Cannot modify annulled evolution'}), 400
-
-    data = request.get_json() or {}
-
-    if 'action_performed' in data:
-        evolution.action_performed = data['action_performed']
-    if 'notes' in data:
-        evolution.notes = data['notes']
-    if 'treatment_plan_id' in data:
-        evolution.treatment_plan_id = data['treatment_plan_id']
-
-    db.session.commit()
-    return jsonify(evolution_schema.dump(evolution)), 200
+    try:
+        evolution = EvolutionService.update_evolution(
+            current_user_id=get_jwt_identity(),
+            evolution_id=evolution_id,
+            data=request.get_json() or {},
+        )
+        return jsonify(evolution_schema.dump(evolution)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>/sign', methods=['POST'])
 @jwt_required()
 def sign_evolution(evolution_id):
     """Sign evolution (professional or patient)"""
-    evolution = Evolution.query.get(evolution_id)
-    if not evolution:
-        return jsonify({'msg': 'Evolution not found'}), 404
-    if not _has_patient_access(evolution.patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    data = request.get_json() or {}
-    signer_type = data.get('signer_type')  # 'professional' or 'patient'
-    signature = data.get('signature')
-
-    if not signer_type or not signature:
-        return jsonify({'msg': 'signer_type and signature are required'}), 400
-
-    if signer_type == 'professional':
-        evolution.professional_signature = signature
-        evolution.professional_signed_at = datetime.utcnow()
-    elif signer_type == 'patient':
-        evolution.patient_signature = signature
-        evolution.patient_signed_at = datetime.utcnow()
-    else:
-        return jsonify({'msg': 'signer_type must be professional or patient'}), 400
-
-    # If both signed, update status
-    if evolution.professional_signature and evolution.patient_signature:
-        evolution.status = 'signed'
-
-    db.session.commit()
-    return jsonify(evolution_schema.dump(evolution)), 200
+    try:
+        evolution = EvolutionService.sign_evolution(
+            current_user_id=get_jwt_identity(),
+            evolution_id=evolution_id,
+            data=request.get_json() or {},
+        )
+        return jsonify(evolution_schema.dump(evolution)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>/annul', methods=['POST'])
 @jwt_required()
 def annul_evolution(evolution_id):
     """Annul evolution"""
-    evolution = Evolution.query.get(evolution_id)
-    if not evolution:
-        return jsonify({'msg': 'Evolution not found'}), 404
-    if not _has_patient_access(evolution.patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    evolution.status = 'annulled'
-    db.session.commit()
-    return jsonify(evolution_schema.dump(evolution)), 200
+    try:
+        evolution = EvolutionService.annul_evolution(
+            current_user_id=get_jwt_identity(),
+            evolution_id=evolution_id,
+        )
+        return jsonify(evolution_schema.dump(evolution)), 200
+    except (AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 # ==================== ANAMNESIS ====================

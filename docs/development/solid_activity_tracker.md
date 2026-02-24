@@ -33,9 +33,9 @@ Un item se considera terminado solo cuando tiene al menos:
 | backend workflow integration tests | backend | DONE | `tests/integration/test_workflows.py` 2 passed | 2026-02-24 |
 | backend access/report suites | backend | DONE | 89 passed en suite focal | 2026-02-24 |
 | DB migration state (compose) | backend/db | DONE | `alembic_version=63f140c09d89` | 2026-02-24 |
-| backend `clinical_history` split services | backend | PENDING | refactor por submodulo + tests | 2026-02-24 |
-| backend `sync_service` TODOs | backend | PENDING | implementacion cloud sync + pruebas | 2026-02-24 |
-| backend `notification_service` TODOs | backend | PENDING | sms/push real + pruebas | 2026-02-24 |
+| backend `clinical_history` split services | backend | IN_PROGRESS | `evolutions` extraido a `EvolutionService` + tests `test_clinical_history_evolutions.py` | 2026-02-24 |
+| backend `sync_service` TODOs | backend | DONE | estados `pending/in_progress/completed/failed` + tests `test_sync_service.py` | 2026-02-24 |
+| backend `notification_service` TODOs | backend | DONE | proveedores `log/disabled` para sms/push + tests `test_notification_service.py` | 2026-02-24 |
 
 ## Regla operativa para no duplicar
 Antes de empezar un item:
@@ -49,3 +49,6 @@ Antes de empezar un item:
 - `docker compose exec -T backend pytest -q tests/integration/test_workflows.py` -> 2 passed.
 - `python3 scripts/e2e/solid_e2e_check.py --skip-register ...` -> PASS para admin/professional/patient.
 - `npm run db:reconcile-alembic` -> `alembic_version=63f140c09d89`.
+- `docker compose exec -T backend pytest -q tests/test_sync_service.py tests/test_notification_service.py tests/test_sync_tasks.py` -> 11 passed.
+- `docker compose exec -T backend pytest -q tests/test_clinical_history_evolutions.py tests/test_clinical_history_access.py tests/test_sync_service.py tests/test_notification_service.py` -> 18 passed.
+- `python3 scripts/e2e/solid_e2e_check.py --backend-url ... --skip-register` -> PASS.
