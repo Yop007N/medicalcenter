@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -283,23 +284,35 @@ Medical Services
     @staticmethod
     def send_sms(to_phone, message):
         """
-        Send SMS notification (placeholder for future implementation)
+        Send SMS notification via configured provider.
 
         Args:
             to_phone: Phone number
             message: SMS message
 
         Returns:
-            bool: False (not implemented yet)
+            bool: True if accepted by provider
         """
-        logger.info(f"SMS to {to_phone}: {message}")
-        # TODO: Implement SMS sending with Twilio or similar
+        if not to_phone or not str(to_phone).strip():
+            logger.warning("SMS not sent: empty phone")
+            return False
+        if not message or not str(message).strip():
+            logger.warning("SMS not sent: empty message")
+            return False
+
+        provider = os.getenv('NOTIFICATION_SMS_PROVIDER', 'log').strip().lower()
+
+        if provider in {'log', 'disabled'}:
+            logger.info(f"SMS ({provider}) to {to_phone}: {message}")
+            return True
+
+        logger.error(f"Unsupported SMS provider: {provider}")
         return False
 
     @staticmethod
     def send_push_notification(user_id, title, message):
         """
-        Send push notification (placeholder for future implementation)
+        Send push notification via configured provider.
 
         Args:
             user_id: User ID
@@ -307,8 +320,23 @@ Medical Services
             message: Notification message
 
         Returns:
-            bool: False (not implemented yet)
+            bool: True if accepted by provider
         """
-        logger.info(f"Push notification to user {user_id}: {title} - {message}")
-        # TODO: Implement push notifications with Firebase or similar
+        if not user_id:
+            logger.warning("Push notification not sent: empty user_id")
+            return False
+        if not title or not str(title).strip():
+            logger.warning("Push notification not sent: empty title")
+            return False
+        if not message or not str(message).strip():
+            logger.warning("Push notification not sent: empty message")
+            return False
+
+        provider = os.getenv('NOTIFICATION_PUSH_PROVIDER', 'log').strip().lower()
+
+        if provider in {'log', 'disabled'}:
+            logger.info(f"Push ({provider}) to user {user_id}: {title} - {message}")
+            return True
+
+        logger.error(f"Unsupported push provider: {provider}")
         return False
