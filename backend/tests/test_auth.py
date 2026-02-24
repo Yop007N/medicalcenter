@@ -5,6 +5,8 @@ Tests for authentication endpoints
 
 import pytest
 from flask import json
+from app.models.patient import Patient
+from app.models.professional import Professional
 
 
 class TestLogin:
@@ -105,6 +107,23 @@ class TestRegister:
         assert data['email'] == 'newpatient@test.com'
         assert data['role'] == 'patient'
 
+    def test_register_success_patient_creates_patient_record(self, client, app):
+        """Patient registration should create row in patients table."""
+        response = client.post('/api/auth/register', json={
+            'email': 'patiententity@test.com',
+            'password': 'Patient123',
+            'first_name': 'Entity',
+            'last_name': 'Patient',
+            'role': 'patient'
+        })
+
+        assert response.status_code == 201
+
+        with app.app_context():
+            patient = Patient.query.filter_by(email='patiententity@test.com').first()
+            assert patient is not None
+            assert patient.role == 'patient'
+
     def test_register_success_professional(self, client):
         """Test successful professional registration"""
         response = client.post('/api/auth/register', json={
@@ -119,6 +138,43 @@ class TestRegister:
         data = response.json
         assert data['email'] == 'newdoctor@test.com'
         assert data['role'] == 'professional'
+
+    def test_register_success_professional_creates_professional_record(self, client, app):
+        """Professional registration should create row in professionals table."""
+        response = client.post('/api/auth/register', json={
+            'email': 'doctorentity@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Entity',
+            'last_name': 'Doctor',
+            'role': 'professional'
+        })
+
+        assert response.status_code == 201
+
+        with app.app_context():
+            professional = Professional.query.filter_by(email='doctorentity@test.com').first()
+            assert professional is not None
+            assert professional.role == 'professional'
+            assert professional.license_number is not None
+            assert professional.license_number.startswith('PRO-')
+
+    def test_register_professional_with_custom_license(self, client, app):
+        """Professional can be registered with provided license_number."""
+        response = client.post('/api/auth/register', json={
+            'email': 'doctorcustom@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Custom',
+            'last_name': 'Doctor',
+            'role': 'professional',
+            'license_number': 'LIC-CUSTOM-123'
+        })
+
+        assert response.status_code == 201
+
+        with app.app_context():
+            professional = Professional.query.filter_by(email='doctorcustom@test.com').first()
+            assert professional is not None
+            assert professional.license_number == 'LIC-CUSTOM-123'
 
     def test_register_invalid_role_admin(self, client):
         """Test registration with admin role (should fail)"""
@@ -200,9 +256,34 @@ class TestRegister:
             'role': 'patient'
         })
 
-        assert response.status_code == 400
+        assert response.status_code in [400, 409]
         data = response.json
         assert 'already exists' in data['msg'] or 'already registered' in data['msg']
+
+    def test_register_duplicate_professional_license(self, client):
+        """Registering professional with existing license should fail."""
+        first = client.post('/api/auth/register', json={
+            'email': 'doctorlicense1@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Doc',
+            'last_name': 'One',
+            'role': 'professional',
+            'license_number': 'LIC-DUPLICATE-1'
+        })
+        assert first.status_code == 201
+
+        second = client.post('/api/auth/register', json={
+            'email': 'doctorlicense2@test.com',
+            'password': 'Doctor123',
+            'first_name': 'Doc',
+            'last_name': 'Two',
+            'role': 'professional',
+            'license_number': 'LIC-DUPLICATE-1'
+        })
+
+        assert second.status_code == 409
+        data = second.json
+        assert 'license' in data['msg'].lower()
 
     def test_register_missing_email(self, client):
         """Test registration with missing email"""

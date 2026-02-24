@@ -1,52 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-File upload/download endpoints
-"""
+"""File upload/download endpoints."""
 
-import os
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from werkzeug.utils import secure_filename
-from app.models.file import File
-from app.models.medical_record import MedicalRecord
-from app.extensions import db
-from app.utils.helpers import generate_unique_filename
+
+from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.file_service import FileService
 
 blueprint = Blueprint('files', __name__, url_prefix='/api/files')
-
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'}
-UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'storage/files')
-BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-
-def allowed_file(filename):
-    """Check if file extension is allowed"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def resolve_upload_dir():
-    """Resolve upload directory relative to backend root when configured as relative path."""
-    if os.path.isabs(UPLOAD_FOLDER):
-        return UPLOAD_FOLDER
-    return os.path.abspath(os.path.join(BACKEND_ROOT, UPLOAD_FOLDER))
-
-
-def resolve_file_path(file_path):
-    """Resolve legacy relative file paths to absolute paths across known roots."""
-    if not file_path:
-        return file_path
-    if os.path.isabs(file_path):
-        return file_path
-
-    backend_candidate = os.path.abspath(os.path.join(BACKEND_ROOT, file_path))
-    if os.path.exists(backend_candidate):
-        return backend_candidate
-
-    project_candidate = os.path.abspath(os.path.join(BACKEND_ROOT, '..', file_path))
-    if os.path.exists(project_candidate):
-        return project_candidate
-
-    return backend_candidate
 
 
 def serialize_file(file_record):
@@ -80,12 +41,7 @@ def serialize_file(file_record):
 def list_files():
     """List file metadata with optional patient filter."""
     patient_id = request.args.get('patient_id', type=int)
-
-    query = File.query
-    if patient_id:
-        query = query.join(MedicalRecord).filter(MedicalRecord.patient_id == patient_id)
-
-    files = query.order_by(File.created_at.desc()).all()
+    files = FileService.list_files(patient_id=patient_id)
     return jsonify([serialize_file(file_record) for file_record in files]), 200
 
 
@@ -141,71 +97,25 @@ def upload_file():
         description: No autenticado
     """
     current_user_id = int(get_jwt_identity())
-
-    # Check if file is in request
-    if 'file' not in request.files:
-        return jsonify({'msg': 'No file provided'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'msg': 'No file selected'}), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({'msg': 'File type not allowed'}), 400
-
-    # Get additional data
-    medical_record_id = request.form.get('medical_record_id', type=int)
-    # Accept frontend alias "category" as file_type.
+    file_obj = request.files.get('file')
     file_type = request.form.get('file_type') or request.form.get('category') or 'other'
     description = request.form.get('description', '')
-    patient_id = request.form.get('patient_id', type=int)
+    medical_record_id = request.form.get('medical_record_id')
+    patient_id = request.form.get('patient_id')
 
-    if not medical_record_id:
-        if patient_id:
-            latest_record = MedicalRecord.query.filter_by(
-                patient_id=patient_id
-            ).order_by(MedicalRecord.created_at.desc()).first()
-            if latest_record:
-                medical_record_id = latest_record.id
-        if not medical_record_id:
-            return jsonify({'msg': 'medical_record_id is required'}), 400
-
-    # Verify medical record exists
-    medical_record = MedicalRecord.query.get(medical_record_id)
-    if not medical_record:
-        return jsonify({'msg': 'Medical record not found'}), 404
-
-    # Generate unique filename
-    original_filename = secure_filename(file.filename)
-    unique_filename = generate_unique_filename(original_filename)
-
-    # Ensure upload directory exists and normalize to absolute path so
-    # downstream send_file/delete calls resolve consistently.
-    upload_dir = resolve_upload_dir()
-    os.makedirs(upload_dir, exist_ok=True)
-
-    # Save file
-    file_path = os.path.join(upload_dir, unique_filename)
-    file.save(file_path)
-
-    # Get file size
-    file_size = os.path.getsize(file_path)
-
-    # Create file record
-    file_record = File(
-        medical_record_id=medical_record_id,
-        filename=original_filename,
-        file_type=file_type,
-        mime_type=file.content_type,
-        file_size=file_size,
-        storage_type='local',
-        file_path=file_path,
-        description=description,
-        uploaded_by=current_user_id
-    )
-
-    db.session.add(file_record)
-    db.session.commit()
+    try:
+        file_record = FileService.create_file_record(
+            file=file_obj,
+            uploaded_by=current_user_id,
+            medical_record_id=medical_record_id,
+            patient_id=patient_id,
+            file_type=file_type,
+            description=description,
+        )
+    except ValidationError as exc:
+        return jsonify({'msg': exc.message}), 400
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
     return jsonify(serialize_file(file_record)), 201
 
@@ -246,12 +156,11 @@ def get_file(file_id):
       401:
         description: No autenticado
     """
-    file_record = File.query.get(file_id)
-
-    if not file_record:
-        return jsonify({'msg': 'File not found'}), 404
-
-    return jsonify(serialize_file(file_record)), 200
+    try:
+        file_record = FileService.get_file(file_id)
+        return jsonify(serialize_file(file_record)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('/<int:file_id>/download', methods=['GET'])
@@ -281,21 +190,16 @@ def download_file(file_id):
       401:
         description: No autenticado
     """
-    file_record = File.query.get(file_id)
-
-    if not file_record:
-        return jsonify({'msg': 'File not found'}), 404
-
-    resolved_path = resolve_file_path(file_record.file_path)
-    if not os.path.exists(resolved_path):
-        return jsonify({'msg': 'File not found on disk'}), 404
-
-    return send_file(
-        resolved_path,
-        as_attachment=True,
-        download_name=file_record.filename,
-        mimetype=file_record.mime_type
-    )
+    try:
+        file_record, resolved_path = FileService.download_file(file_id)
+        return send_file(
+            resolved_path,
+            as_attachment=True,
+            download_name=file_record.filename,
+            mimetype=file_record.mime_type,
+        )
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('/<int:file_id>', methods=['DELETE'])
@@ -321,18 +225,8 @@ def delete_file(file_id):
       401:
         description: No autenticado
     """
-    file_record = File.query.get(file_id)
-
-    if not file_record:
-        return jsonify({'msg': 'File not found'}), 404
-
-    # Delete physical file
-    resolved_path = resolve_file_path(file_record.file_path)
-    if os.path.exists(resolved_path):
-        os.remove(resolved_path)
-
-    # Delete database record
-    db.session.delete(file_record)
-    db.session.commit()
-
-    return jsonify({'msg': 'File deleted'}), 200
+    try:
+        FileService.delete_file(file_id)
+        return jsonify({'msg': 'File deleted'}), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404

@@ -5,11 +5,12 @@ Professional CRUD endpoints
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.professional import Professional
+
 from app.schemas.professional_schema import ProfessionalSchema
-from app.extensions import db, cache
+from app.extensions import cache
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
+from app.services.professional_service import ProfessionalService
 from app.utils.decorators import admin_required
-from app.utils.helpers import validate_required_fields, sanitize_search_input
 from app.utils.constants import CACHE_TTL_SHORT
 
 blueprint = Blueprint('professionals', __name__, url_prefix='/api/professionals')
@@ -28,19 +29,6 @@ def serialize_professional(professional):
     payload.setdefault('bio', None)
     payload.setdefault('is_active', True)
     return payload
-
-
-def _coerce_bool(value):
-    """Coerce input value to boolean."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {'true', '1', 'yes'}:
-            return True
-        if lowered in {'false', '0', 'no'}:
-            return False
-    return bool(value)
 
 
 @blueprint.route('', methods=['GET'])
@@ -69,15 +57,7 @@ def list_professionals():
         description: No autenticado
     """
     specialty = request.args.get('specialty')
-
-    query = Professional.query
-    if specialty:
-        # Sanitize search input to prevent SQL injection
-        sanitized_specialty = sanitize_search_input(specialty)
-        if sanitized_specialty:
-            query = query.filter(Professional.specialty.ilike(f'%{sanitized_specialty}%'))
-
-    professionals = query.all()
+    professionals = ProfessionalService.list_professionals(specialty=specialty)
     return jsonify([serialize_professional(professional) for professional in professionals]), 200
 
 
@@ -104,11 +84,11 @@ def get_professional(professional_id):
       401:
         description: No autenticado
     """
-    professional = Professional.query.get(professional_id)
-    if not professional:
-        return jsonify({'msg': 'Professional not found'}), 404
-
-    return jsonify(serialize_professional(professional)), 200
+    try:
+        professional = ProfessionalService.get_professional(professional_id)
+        return jsonify(serialize_professional(professional)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('', methods=['POST'])
@@ -160,40 +140,14 @@ def create_professional():
         description: Requiere rol de administrador
     """
     data = request.get_json() or {}
-
-    # Validate required fields using helper
-    required_fields = ['email', 'password', 'first_name', 'last_name', 'license_number']
-    is_valid, missing_fields = validate_required_fields(data, required_fields)
-    if not is_valid:
-        return jsonify({
-            'msg': 'Missing required fields',
-            'missing_fields': missing_fields
-        }), 400
-
-    # Check if email or license already exists
-    if Professional.query.filter_by(email=data['email']).first():
-        return jsonify({'msg': 'Email already registered'}), 400
-
-    if Professional.query.filter_by(license_number=data['license_number']).first():
-        return jsonify({'msg': 'License number already registered'}), 400
-
-    # Create professional
-    professional = Professional(
-        email=data['email'],
-        first_name=data['first_name'],
-        last_name=data['last_name'],
-        role='professional',
-        license_number=data['license_number'],
-        specialty=data.get('specialty'),
-        phone=data.get('phone'),
-        address=data.get('address') or data.get('office_address')
-    )
-    professional.set_password(data['password'])
-
-    db.session.add(professional)
-    db.session.commit()
-
-    return jsonify(serialize_professional(professional)), 201
+    try:
+        professional = ProfessionalService.create_professional(data)
+        cache.delete_memoized(list_professionals)
+        return jsonify(serialize_professional(professional)), 201
+    except ValidationError as exc:
+        payload = {'msg': exc.message}
+        payload.update(exc.details)
+        return jsonify(payload), 400
 
 
 @blueprint.route('/<int:professional_id>', methods=['PUT'])
@@ -236,50 +190,21 @@ def update_professional(professional_id):
         description: No autorizado
     """
     current_user_id = int(get_jwt_identity())
-    professional = Professional.query.get(professional_id)
-
-    if not professional:
-        return jsonify({'msg': 'Professional not found'}), 404
-
-    # Only allow updating own profile unless admin
-    # This is simplified - in production check role properly
-    if professional.id != current_user_id:
-        from app.models.user import User
-        current_user = User.query.get(current_user_id)
-        if not current_user or current_user.role != 'admin':
-            return jsonify({'msg': 'Unauthorized'}), 403
-
     data = request.get_json() or {}
-
-    # Update allowed fields
-    if 'first_name' in data:
-        professional.first_name = data['first_name']
-    if 'last_name' in data:
-        professional.last_name = data['last_name']
-    if 'specialty' in data:
-        professional.specialty = data['specialty']
-    if 'phone' in data:
-        professional.phone = data['phone']
-    if 'address' in data:
-        professional.address = data['address']
-    if 'office_address' in data:
-        professional.address = data['office_address']
-    if 'license_number' in data:
-        existing = Professional.query.filter(
-            Professional.license_number == data['license_number'],
-            Professional.id != professional.id
-        ).first()
-        if existing:
-            return jsonify({'msg': 'License number already registered'}), 400
-        professional.license_number = data['license_number']
-    if 'is_active' in data:
-        professional.is_active = _coerce_bool(data['is_active'])
-    if 'password' in data:
-        professional.set_password(data['password'])
-
-    db.session.commit()
-
-    return jsonify(serialize_professional(professional)), 200
+    try:
+        professional = ProfessionalService.update_professional(
+            professional_id=professional_id,
+            current_user_id=current_user_id,
+            data=data,
+        )
+        cache.delete_memoized(list_professionals)
+        return jsonify(serialize_professional(professional)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
+    except AccessDeniedError as exc:
+        return jsonify({'msg': exc.message}), 403
+    except ValidationError as exc:
+        return jsonify({'msg': exc.message}), 400
 
 
 @blueprint.route('/<int:professional_id>', methods=['DELETE'])
@@ -304,15 +229,12 @@ def delete_professional(professional_id):
       403:
         description: Requiere rol de administrador
     """
-    professional = Professional.query.get(professional_id)
-
-    if not professional:
-        return jsonify({'msg': 'Professional not found'}), 404
-
-    db.session.delete(professional)
-    db.session.commit()
-
-    return jsonify({'msg': 'Professional deleted'}), 200
+    try:
+        ProfessionalService.delete_professional(professional_id)
+        cache.delete_memoized(list_professionals)
+        return jsonify({'msg': 'Professional deleted'}), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('/<int:professional_id>/appointments', methods=['GET'])
@@ -339,13 +261,10 @@ def get_professional_appointments(professional_id):
       404:
         description: Profesional no encontrado
     """
-    professional = Professional.query.get(professional_id)
-
-    if not professional:
-        return jsonify({'msg': 'Professional not found'}), 404
-
     from app.schemas.appointment_schema import AppointmentSchema
     appointments_schema = AppointmentSchema(many=True)
-
-    appointments = professional.appointments.all()
-    return jsonify(appointments_schema.dump(appointments)), 200
+    try:
+        appointments = ProfessionalService.get_professional_appointments(professional_id)
+        return jsonify(appointments_schema.dump(appointments)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404

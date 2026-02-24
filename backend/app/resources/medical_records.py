@@ -5,9 +5,10 @@ Medical Record CRUD endpoints
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.medical_record import MedicalRecord
+
 from app.schemas.medical_record_schema import MedicalRecordSchema
-from app.extensions import db
+from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.medical_record_service import MedicalRecordService
 from app.utils.decorators import professional_required
 
 blueprint = Blueprint('medical_records', __name__, url_prefix='/api/medical-records')
@@ -62,18 +63,10 @@ def list_medical_records():
     """
     patient_id = request.args.get('patient_id', type=int)
     professional_id = request.args.get('professional_id', type=int)
-
-    query = MedicalRecord.query
-
-    if patient_id:
-        query = query.filter_by(patient_id=patient_id)
-    if professional_id:
-        query = query.filter_by(professional_id=professional_id)
-
-    # ⚡ Bolt: Optimize query by eager loading 'files' relationship
-    # This prevents N+1 query problem where accessing files for each record triggers a new query
-    records = query.options(db.subqueryload(MedicalRecord.files))\
-        .order_by(db.desc(MedicalRecord.record_date)).all()
+    records = MedicalRecordService.list_medical_records(
+        patient_id=patient_id,
+        professional_id=professional_id,
+    )
     return jsonify(medical_records_schema.dump(records)), 200
 
 
@@ -115,11 +108,11 @@ def get_medical_record(record_id):
       401:
         description: No autenticado
     """
-    record = MedicalRecord.query.get(record_id)
-    if not record:
-        return jsonify({'msg': 'Medical record not found'}), 404
-
-    return jsonify(medical_record_schema.dump(record)), 200
+    try:
+        record = MedicalRecordService.get_medical_record(record_id)
+        return jsonify(medical_record_schema.dump(record)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('', methods=['POST'])
@@ -179,34 +172,11 @@ def create_medical_record():
     """
     current_user_id = int(get_jwt_identity())
     data = request.get_json() or {}
-
-    # Validate required fields
-    required_fields = ['patient_id']
-    if not all(field in data for field in required_fields):
-        return jsonify({'msg': 'Missing required fields'}), 400
-
-    # Create medical record
-    record = MedicalRecord(
-        patient_id=data['patient_id'],
-        professional_id=current_user_id,
-        appointment_id=data.get('appointment_id'),
-        chief_complaint=data.get('chief_complaint'),
-        symptoms=data.get('symptoms'),
-        diagnosis=data.get('diagnosis'),
-        treatment=data.get('treatment'),
-        prescriptions=data.get('prescriptions'),
-        notes=data.get('notes'),
-        blood_pressure=data.get('blood_pressure'),
-        heart_rate=data.get('heart_rate'),
-        temperature=data.get('temperature'),
-        weight=data.get('weight'),
-        height=data.get('height')
-    )
-
-    db.session.add(record)
-    db.session.commit()
-
-    return jsonify(medical_record_schema.dump(record)), 201
+    try:
+        record = MedicalRecordService.create_medical_record(data, current_user_id)
+        return jsonify(medical_record_schema.dump(record)), 201
+    except ValidationError as exc:
+        return jsonify({'msg': exc.message}), 400
 
 
 @blueprint.route('/<int:record_id>', methods=['PUT'])
@@ -246,27 +216,12 @@ def update_medical_record(record_id):
       401:
         description: No autenticado
     """
-    record = MedicalRecord.query.get(record_id)
-
-    if not record:
-        return jsonify({'msg': 'Medical record not found'}), 404
-
     data = request.get_json() or {}
-
-    # Update allowed fields
-    updatable_fields = [
-        'chief_complaint', 'symptoms', 'diagnosis', 'treatment',
-        'prescriptions', 'notes', 'blood_pressure', 'heart_rate',
-        'temperature', 'weight', 'height'
-    ]
-
-    for field in updatable_fields:
-        if field in data:
-            setattr(record, field, data[field])
-
-    db.session.commit()
-
-    return jsonify(medical_record_schema.dump(record)), 200
+    try:
+        record = MedicalRecordService.update_medical_record(record_id, data)
+        return jsonify(medical_record_schema.dump(record)), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404
 
 
 @blueprint.route('/<int:record_id>', methods=['DELETE'])
@@ -292,12 +247,8 @@ def delete_medical_record(record_id):
       401:
         description: No autenticado (requiere rol professional)
     """
-    record = MedicalRecord.query.get(record_id)
-
-    if not record:
-        return jsonify({'msg': 'Medical record not found'}), 404
-
-    db.session.delete(record)
-    db.session.commit()
-
-    return jsonify({'msg': 'Medical record deleted'}), 200
+    try:
+        MedicalRecordService.delete_medical_record(record_id)
+        return jsonify({'msg': 'Medical record deleted'}), 200
+    except ResourceNotFoundError as exc:
+        return jsonify({'msg': exc.message}), 404

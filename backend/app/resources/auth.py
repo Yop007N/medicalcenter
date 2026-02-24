@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from flasgger import swag_from
 from app.services.auth_service import AuthService
+from app.services.exceptions import ConflictError, ValidationError
 from app.extensions import limiter
 from app.utils.security_logger import log_login_attempt, log_unauthorized_access
 
@@ -186,26 +187,32 @@ def register():
 	    description: Error en el registro
 	"""
 	# Allowed roles for public registration (admin can only be created by admin)
-	ALLOWED_ROLES = ['patient', 'professional']
-
 	data = request.get_json() or {}
 	email = data.get('email')
 	password = data.get('password')
 	first_name = data.get('first_name')
 	last_name = data.get('last_name')
 	role = data.get('role')
+	license_number = data.get('license_number')
+	specialty = data.get('specialty')
 
 	if not all([email, password, first_name, last_name, role]):
 		return jsonify({'msg': 'Missing required fields'}), 400
 
-	# Validate role
-	if role not in ALLOWED_ROLES:
-		return jsonify({'msg': f'Invalid role. Allowed roles: {", ".join(ALLOWED_ROLES)}'}), 400
-
 	try:
-		user = AuthService.register_user(email, password, first_name, last_name, role)
-	except ValueError as exc:
+		user = AuthService.register_user(
+			email=email,
+			password=password,
+			first_name=first_name,
+			last_name=last_name,
+			role=role,
+			license_number=license_number,
+			specialty=specialty,
+		)
+	except ValidationError as exc:
 		return jsonify({'msg': str(exc)}), 400
+	except ConflictError as exc:
+		return jsonify({'msg': str(exc)}), 409
 
 	if not user:
 		return jsonify({'msg': 'Registration failed'}), 500

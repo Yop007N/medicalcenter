@@ -20,6 +20,7 @@ from app.schemas.clinical_history_schema import (
     InformedConsentSchema, ClinicalHistoryEventSchema
 )
 from app.extensions import db
+from app.services.patient_access_service import PatientAccessService
 from app.utils.helpers import validate_required_fields
 
 # File upload configuration
@@ -58,15 +59,27 @@ event_schema = ClinicalHistoryEventSchema()
 events_schema = ClinicalHistoryEventSchema(many=True)
 
 
+def _has_patient_access(patient_id):
+    """Delegates access check to centralized policy service."""
+    return PatientAccessService.can_access_patient(get_jwt_identity(), patient_id)
+
+
 # ==================== EVOLUTIONS ====================
 
 @blueprint.route('/evolutions', methods=['GET'])
 @jwt_required()
 def list_evolutions():
     """List evolutions with optional filters"""
+    current_user_id = int(get_jwt_identity())
     patient_id = request.args.get('patient_id', type=int)
     status = request.args.get('status')
     include_annulled = request.args.get('include_annulled', 'false').lower() == 'true'
+
+    if patient_id and not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
+
+    if not patient_id and PatientAccessService.get_user_role(current_user_id) == 'patient':
+        patient_id = current_user_id
 
     query = Evolution.query
 
@@ -95,6 +108,8 @@ def create_evolution():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     evolution = Evolution(
         patient_id=data['patient_id'],
@@ -131,6 +146,8 @@ def get_evolution(evolution_id):
     evolution = Evolution.query.get(evolution_id)
     if not evolution:
         return jsonify({'msg': 'Evolution not found'}), 404
+    if not _has_patient_access(evolution.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
     return jsonify(evolution_schema.dump(evolution)), 200
 
 
@@ -141,6 +158,8 @@ def update_evolution(evolution_id):
     evolution = Evolution.query.get(evolution_id)
     if not evolution:
         return jsonify({'msg': 'Evolution not found'}), 404
+    if not _has_patient_access(evolution.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     if evolution.status == 'annulled':
         return jsonify({'msg': 'Cannot modify annulled evolution'}), 400
@@ -165,6 +184,8 @@ def sign_evolution(evolution_id):
     evolution = Evolution.query.get(evolution_id)
     if not evolution:
         return jsonify({'msg': 'Evolution not found'}), 404
+    if not _has_patient_access(evolution.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     data = request.get_json() or {}
     signer_type = data.get('signer_type')  # 'professional' or 'patient'
@@ -197,6 +218,8 @@ def annul_evolution(evolution_id):
     evolution = Evolution.query.get(evolution_id)
     if not evolution:
         return jsonify({'msg': 'Evolution not found'}), 404
+    if not _has_patient_access(evolution.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     evolution.status = 'annulled'
     db.session.commit()
@@ -209,6 +232,8 @@ def annul_evolution(evolution_id):
 @jwt_required()
 def get_patient_anamnesis(patient_id):
     """Get anamnesis for a patient"""
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
     anamnesis = Anamnesis.query.filter_by(patient_id=patient_id, is_active=True).first()
     if not anamnesis:
         return jsonify({'msg': 'Anamnesis not found'}), 404
@@ -227,6 +252,8 @@ def create_or_update_anamnesis():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     # Check if anamnesis exists
     anamnesis = Anamnesis.query.filter_by(patient_id=data['patient_id']).first()
@@ -277,6 +304,8 @@ def list_periodontal_records():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = PeriodontalRecord.query.filter_by(patient_id=patient_id)
 
@@ -301,6 +330,8 @@ def create_periodontal_record():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     measurement_date = data.get('measurement_date', datetime.utcnow().date())
 
@@ -364,6 +395,8 @@ def bulk_create_periodontal():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     measurement_date = data.get('measurement_date', datetime.utcnow().date())
     created_records = []
@@ -419,6 +452,8 @@ def list_documents():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = PatientDocument.query.filter_by(patient_id=patient_id)
 
@@ -445,6 +480,8 @@ def create_document():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     document = PatientDocument(
         patient_id=data['patient_id'],
@@ -482,6 +519,8 @@ def delete_document(document_id):
     document = PatientDocument.query.get(document_id)
     if not document:
         return jsonify({'msg': 'Document not found'}), 404
+    if not _has_patient_access(document.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     # Delete physical file if exists
     if document.file_path and os.path.exists(document.file_path):
@@ -535,6 +574,8 @@ def upload_document():
     patient = Patient.query.get(patient_id)
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     # Parse affected teeth if provided
     affected_teeth = None
@@ -603,6 +644,8 @@ def download_document(document_id):
 
     if not document:
         return jsonify({'msg': 'Document not found'}), 404
+    if not _has_patient_access(document.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     if not document.file_path or not os.path.exists(document.file_path):
         return jsonify({'msg': 'File not found on disk'}), 404
@@ -627,6 +670,8 @@ def list_prescriptions():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = Prescription.query.filter_by(patient_id=patient_id)
 
@@ -653,6 +698,8 @@ def create_prescription():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     prescription = Prescription(
         patient_id=data['patient_id'],
@@ -688,6 +735,8 @@ def annul_prescription(prescription_id):
     prescription = Prescription.query.get(prescription_id)
     if not prescription:
         return jsonify({'msg': 'Prescription not found'}), 404
+    if not _has_patient_access(prescription.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     prescription.status = 'annulled'
     db.session.commit()
@@ -706,6 +755,8 @@ def list_clinical_docs():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = ClinicalDocument.query.filter_by(patient_id=patient_id)
 
@@ -732,6 +783,8 @@ def create_clinical_doc():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     doc = ClinicalDocument(
         patient_id=data['patient_id'],
@@ -754,6 +807,8 @@ def delete_clinical_doc(doc_id):
     doc = ClinicalDocument.query.get(doc_id)
     if not doc:
         return jsonify({'msg': 'Document not found'}), 404
+    if not _has_patient_access(doc.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     doc.is_active = False
     db.session.commit()
@@ -771,6 +826,8 @@ def list_consents():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = InformedConsent.query.filter_by(patient_id=patient_id)
 
@@ -795,6 +852,8 @@ def create_consent():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     consent = InformedConsent(
         patient_id=data['patient_id'],
@@ -831,6 +890,8 @@ def sign_consent(consent_id):
     consent = InformedConsent.query.get(consent_id)
     if not consent:
         return jsonify({'msg': 'Consent not found'}), 404
+    if not _has_patient_access(consent.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     if consent.status != 'pending':
         return jsonify({'msg': 'Consent is not pending'}), 400
@@ -863,6 +924,8 @@ def reject_consent(consent_id):
     consent = InformedConsent.query.get(consent_id)
     if not consent:
         return jsonify({'msg': 'Consent not found'}), 404
+    if not _has_patient_access(consent.patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     if consent.status != 'pending':
         return jsonify({'msg': 'Consent is not pending'}), 400
@@ -888,6 +951,8 @@ def get_timeline():
 
     if not patient_id:
         return jsonify({'msg': 'patient_id is required'}), 400
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     query = ClinicalHistoryEvent.query.filter_by(patient_id=patient_id, is_active=True)
 
@@ -916,6 +981,8 @@ def create_timeline_event():
     patient = Patient.query.get(data['patient_id'])
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(data['patient_id']):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     event = ClinicalHistoryEvent(
         patient_id=data['patient_id'],
@@ -940,6 +1007,8 @@ def get_patient_summary(patient_id):
     patient = Patient.query.get(patient_id)
     if not patient:
         return jsonify({'msg': 'Patient not found'}), 404
+    if not _has_patient_access(patient_id):
+        return jsonify({'msg': 'Unauthorized'}), 403
 
     # Count records
     evolutions_count = Evolution.query.filter_by(patient_id=patient_id).filter(Evolution.status != 'annulled').count()
