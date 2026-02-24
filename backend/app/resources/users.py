@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import User
 from app.services.user_service import UserService
+from app.services.exceptions import ValidationError
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
 from app.utils.decorators import admin_required
@@ -182,7 +183,7 @@ def create_user():
     data = request.get_json() or {}
     try:
         user = UserService.create_user(data)
-    except ValueError as exc:
+    except (ValueError, ValidationError) as exc:
         return jsonify({'msg': str(exc)}), 400
 
     return jsonify(user_schema.dump(user)), 201
@@ -235,7 +236,7 @@ def update_user(user_id):
         if not user:
             return jsonify({'msg': 'User not found'}), 404
         return jsonify(user_schema.dump(user)), 200
-    except ValueError as e:
+    except (ValueError, ValidationError) as e:
         return jsonify({'msg': str(e)}), 400
 
 

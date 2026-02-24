@@ -123,6 +123,9 @@ class TestConfig(Config):
     # Disable rate limiting for tests
     RATELIMIT_ENABLED = False
 
+    # Disable caching for tests
+    CACHE_TYPE = 'NullCache'
+
 
 config_by_name = {
     'development': DevelopmentConfig,
