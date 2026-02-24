@@ -33,7 +33,7 @@ Un item se considera terminado solo cuando tiene al menos:
 | backend workflow integration tests | backend | DONE | `tests/integration/test_workflows.py` 2 passed | 2026-02-24 |
 | backend access/report suites | backend | DONE | 89 passed en suite focal | 2026-02-24 |
 | DB migration state (compose) | backend/db | DONE | `alembic_version=63f140c09d89` | 2026-02-24 |
-| backend `clinical_history` split services | backend | IN_PROGRESS | `evolutions`, `anamnesis`, `periodontal`, `prescriptions` extraidos + pruebas `test_clinical_history_*` | 2026-02-24 |
+| backend `clinical_history` split services | backend | DONE | `evolutions`, `anamnesis`, `periodontal`, `documents`, `clinical-docs`, `consents`, `timeline/summary` extraidos + pruebas `test_clinical_history_*` | 2026-02-24 |
 | backend `odontograms` split services | backend | DONE | `OdontogramService` + regresion `test_odontology.py` | 2026-02-24 |
 | backend `psychology` split services | backend | DONE | `PsychologyService` + regresion `test_psychology.py` | 2026-02-24 |
 | backend `sync_service` TODOs | backend | DONE | estados `pending/in_progress/completed/failed` + tests `test_sync_service.py` | 2026-02-24 |
@@ -55,3 +55,4 @@ Antes de empezar un item:
 - `docker compose exec -T backend pytest -q tests/test_clinical_history_evolutions.py tests/test_clinical_history_access.py tests/test_sync_service.py tests/test_notification_service.py` -> 18 passed.
 - `python3 scripts/e2e/solid_e2e_check.py --backend-url ... --skip-register` -> PASS.
 - `docker compose exec -T backend pytest -q tests/test_clinical_history_evolutions.py tests/test_clinical_history_access.py tests/test_clinical_history_subdomains.py tests/test_odontology.py tests/test_psychology.py` -> 51 passed.
+- `docker compose exec -T backend pytest -q tests/test_clinical_history_evolutions.py tests/test_clinical_history_subdomains.py tests/test_clinical_history_documents_timeline.py tests/test_clinical_history_access.py tests/test_odontology.py tests/test_psychology.py` -> 57 passed.
