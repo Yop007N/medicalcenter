@@ -20,7 +20,12 @@ from app.schemas.clinical_history_schema import (
     InformedConsentSchema, ClinicalHistoryEventSchema
 )
 from app.extensions import db
-from app.services.clinical_history_service import EvolutionService
+from app.services.clinical_history_service import (
+    AnamnesisService,
+    EvolutionService,
+    PeriodontalRecordService,
+    PrescriptionService,
+)
 from app.services.exceptions import (
     AccessDeniedError,
     ConflictError,
@@ -182,65 +187,28 @@ def annul_evolution(evolution_id):
 @jwt_required()
 def get_patient_anamnesis(patient_id):
     """Get anamnesis for a patient"""
-    if not _has_patient_access(patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-    anamnesis = Anamnesis.query.filter_by(patient_id=patient_id, is_active=True).first()
-    if not anamnesis:
-        return jsonify({'msg': 'Anamnesis not found'}), 404
-    return jsonify(anamnesis_schema.dump(anamnesis)), 200
+    try:
+        anamnesis = AnamnesisService.get_patient_anamnesis(
+            current_user_id=get_jwt_identity(),
+            patient_id=patient_id,
+        )
+        return jsonify(anamnesis_schema.dump(anamnesis)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/anamnesis', methods=['POST'])
 @jwt_required()
 def create_or_update_anamnesis():
     """Create or update patient anamnesis"""
-    data = request.get_json() or {}
-
-    if 'patient_id' not in data:
-        return jsonify({'msg': 'patient_id is required'}), 400
-
-    patient = Patient.query.get(data['patient_id'])
-    if not patient:
-        return jsonify({'msg': 'Patient not found'}), 404
-    if not _has_patient_access(data['patient_id']):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    # Check if anamnesis exists
-    anamnesis = Anamnesis.query.filter_by(patient_id=data['patient_id']).first()
-
-    if anamnesis:
-        # Update existing
-        anamnesis.consultation_reason = data.get('consultation_reason', anamnesis.consultation_reason)
-        anamnesis.medical_alerts = data.get('medical_alerts', anamnesis.medical_alerts)
-        anamnesis.current_medications = data.get('current_medications', anamnesis.current_medications)
-        anamnesis.habits = data.get('habits', anamnesis.habits)
-        anamnesis.allergies = data.get('allergies', anamnesis.allergies)
-        anamnesis.other_conditions = data.get('other_conditions', anamnesis.other_conditions)
-        anamnesis.is_pregnant = data.get('is_pregnant', anamnesis.is_pregnant)
-        anamnesis.pregnancy_weeks = data.get('pregnancy_weeks', anamnesis.pregnancy_weeks)
-        anamnesis.last_dental_visit = data.get('last_dental_visit', anamnesis.last_dental_visit)
-        anamnesis.notes = data.get('notes', anamnesis.notes)
-        anamnesis.professional_id = get_jwt_identity()
-    else:
-        # Create new
-        anamnesis = Anamnesis(
-            patient_id=data['patient_id'],
-            professional_id=get_jwt_identity(),
-            consultation_reason=data.get('consultation_reason'),
-            medical_alerts=data.get('medical_alerts'),
-            current_medications=data.get('current_medications'),
-            habits=data.get('habits'),
-            allergies=data.get('allergies'),
-            other_conditions=data.get('other_conditions'),
-            is_pregnant=data.get('is_pregnant', False),
-            pregnancy_weeks=data.get('pregnancy_weeks'),
-            last_dental_visit=data.get('last_dental_visit'),
-            notes=data.get('notes')
+    try:
+        anamnesis = AnamnesisService.create_or_update_anamnesis(
+            current_user_id=get_jwt_identity(),
+            data=request.get_json() or {},
         )
-        db.session.add(anamnesis)
-
-    db.session.commit()
-    return jsonify(anamnesis_schema.dump(anamnesis)), 200
+        return jsonify(anamnesis_schema.dump(anamnesis)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 # ==================== PERIODONTAL RECORDS ====================
@@ -249,145 +217,43 @@ def create_or_update_anamnesis():
 @jwt_required()
 def list_periodontal_records():
     """List periodontal records with optional filters"""
-    patient_id = request.args.get('patient_id', type=int)
-    measurement_date = request.args.get('measurement_date')
-
-    if not patient_id:
-        return jsonify({'msg': 'patient_id is required'}), 400
-    if not _has_patient_access(patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    query = PeriodontalRecord.query.filter_by(patient_id=patient_id)
-
-    if measurement_date:
-        query = query.filter_by(measurement_date=measurement_date)
-
-    records = query.order_by(PeriodontalRecord.tooth_number).all()
-    return jsonify(periodontal_records_schema.dump(records)), 200
+    try:
+        records = PeriodontalRecordService.list_records(
+            current_user_id=get_jwt_identity(),
+            patient_id=request.args.get('patient_id', type=int),
+            measurement_date=request.args.get('measurement_date'),
+        )
+        return jsonify(periodontal_records_schema.dump(records)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/periodontal', methods=['POST'])
 @jwt_required()
 def create_periodontal_record():
     """Create or update periodontal record for a tooth"""
-    data = request.get_json() or {}
-
-    required_fields = ['patient_id', 'tooth_number']
-    is_valid, missing_fields = validate_required_fields(data, required_fields)
-    if not is_valid:
-        return jsonify({'msg': 'Missing required fields', 'missing_fields': missing_fields}), 400
-
-    patient = Patient.query.get(data['patient_id'])
-    if not patient:
-        return jsonify({'msg': 'Patient not found'}), 404
-    if not _has_patient_access(data['patient_id']):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    measurement_date = data.get('measurement_date', datetime.utcnow().date())
-
-    # Check if record exists for this tooth and date
-    existing = PeriodontalRecord.query.filter_by(
-        patient_id=data['patient_id'],
-        tooth_number=data['tooth_number'],
-        measurement_date=measurement_date
-    ).first()
-
-    if existing:
-        record = existing
-        # Update all fields
-        for field in ['probing_depth_mb', 'probing_depth_b', 'probing_depth_db',
-                     'probing_depth_ml', 'probing_depth_l', 'probing_depth_dl',
-                     'margin_mb', 'margin_b', 'margin_db', 'margin_ml', 'margin_l', 'margin_dl',
-                     'furcation', 'mobility', 'bleeding', 'plaque', 'suppuration', 'notes']:
-            if field in data:
-                setattr(record, field, data[field])
-    else:
-        record = PeriodontalRecord(
-            patient_id=data['patient_id'],
-            professional_id=get_jwt_identity(),
-            odontogram_id=data.get('odontogram_id'),
-            measurement_date=measurement_date,
-            tooth_number=data['tooth_number'],
-            probing_depth_mb=data.get('probing_depth_mb'),
-            probing_depth_b=data.get('probing_depth_b'),
-            probing_depth_db=data.get('probing_depth_db'),
-            probing_depth_ml=data.get('probing_depth_ml'),
-            probing_depth_l=data.get('probing_depth_l'),
-            probing_depth_dl=data.get('probing_depth_dl'),
-            margin_mb=data.get('margin_mb'),
-            margin_b=data.get('margin_b'),
-            margin_db=data.get('margin_db'),
-            margin_ml=data.get('margin_ml'),
-            margin_l=data.get('margin_l'),
-            margin_dl=data.get('margin_dl'),
-            furcation=data.get('furcation'),
-            mobility=data.get('mobility'),
-            bleeding=data.get('bleeding', False),
-            plaque=data.get('plaque', False),
-            suppuration=data.get('suppuration', False),
-            notes=data.get('notes')
+    try:
+        record = PeriodontalRecordService.upsert_record(
+            current_user_id=get_jwt_identity(),
+            data=request.get_json() or {},
         )
-        db.session.add(record)
-
-    db.session.commit()
-    return jsonify(periodontal_schema.dump(record)), 201
+        return jsonify(periodontal_schema.dump(record)), 201
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/periodontal/bulk', methods=['POST'])
 @jwt_required()
 def bulk_create_periodontal():
     """Bulk create/update periodontal records"""
-    data = request.get_json() or {}
-
-    if 'patient_id' not in data or 'records' not in data:
-        return jsonify({'msg': 'patient_id and records are required'}), 400
-
-    patient = Patient.query.get(data['patient_id'])
-    if not patient:
-        return jsonify({'msg': 'Patient not found'}), 404
-    if not _has_patient_access(data['patient_id']):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    measurement_date = data.get('measurement_date', datetime.utcnow().date())
-    created_records = []
-
-    for record_data in data['records']:
-        if 'tooth_number' not in record_data:
-            continue
-
-        existing = PeriodontalRecord.query.filter_by(
-            patient_id=data['patient_id'],
-            tooth_number=record_data['tooth_number'],
-            measurement_date=measurement_date
-        ).first()
-
-        if existing:
-            record = existing
-            for field in ['probing_depth_mb', 'probing_depth_b', 'probing_depth_db',
-                         'probing_depth_ml', 'probing_depth_l', 'probing_depth_dl',
-                         'margin_mb', 'margin_b', 'margin_db', 'margin_ml', 'margin_l', 'margin_dl',
-                         'furcation', 'mobility', 'bleeding', 'plaque', 'suppuration', 'notes']:
-                if field in record_data:
-                    setattr(record, field, record_data[field])
-        else:
-            record = PeriodontalRecord(
-                patient_id=data['patient_id'],
-                professional_id=get_jwt_identity(),
-                measurement_date=measurement_date,
-                tooth_number=record_data['tooth_number']
-            )
-            for field in ['probing_depth_mb', 'probing_depth_b', 'probing_depth_db',
-                         'probing_depth_ml', 'probing_depth_l', 'probing_depth_dl',
-                         'margin_mb', 'margin_b', 'margin_db', 'margin_ml', 'margin_l', 'margin_dl',
-                         'furcation', 'mobility', 'bleeding', 'plaque', 'suppuration', 'notes']:
-                if field in record_data:
-                    setattr(record, field, record_data[field])
-            db.session.add(record)
-
-        created_records.append(record)
-
-    db.session.commit()
-    return jsonify(periodontal_records_schema.dump(created_records)), 201
+    try:
+        created_records = PeriodontalRecordService.bulk_upsert_records(
+            current_user_id=get_jwt_identity(),
+            data=request.get_json() or {},
+        )
+        return jsonify(periodontal_records_schema.dump(created_records)), 201
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 # ==================== PATIENT DOCUMENTS ====================
@@ -614,83 +480,44 @@ def download_document(document_id):
 @jwt_required()
 def list_prescriptions():
     """List prescriptions"""
-    patient_id = request.args.get('patient_id', type=int)
-    treatment_id = request.args.get('treatment_id', type=int)
-    include_annulled = request.args.get('include_annulled', 'false').lower() == 'true'
-
-    if not patient_id:
-        return jsonify({'msg': 'patient_id is required'}), 400
-    if not _has_patient_access(patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    query = Prescription.query.filter_by(patient_id=patient_id)
-
-    if treatment_id:
-        query = query.filter_by(treatment_id=treatment_id)
-    if not include_annulled:
-        query = query.filter(Prescription.status != 'annulled')
-
-    prescriptions = query.order_by(Prescription.prescription_date.desc()).all()
-    return jsonify(prescriptions_schema.dump(prescriptions)), 200
+    try:
+        prescriptions = PrescriptionService.list_prescriptions(
+            current_user_id=get_jwt_identity(),
+            patient_id=request.args.get('patient_id', type=int),
+            treatment_id=request.args.get('treatment_id', type=int),
+            include_annulled=request.args.get('include_annulled', 'false').lower() == 'true',
+        )
+        return jsonify(prescriptions_schema.dump(prescriptions)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/prescriptions', methods=['POST'])
 @jwt_required()
 def create_prescription():
     """Create prescription"""
-    data = request.get_json() or {}
-
-    required_fields = ['patient_id', 'content']
-    is_valid, missing_fields = validate_required_fields(data, required_fields)
-    if not is_valid:
-        return jsonify({'msg': 'Missing required fields', 'missing_fields': missing_fields}), 400
-
-    patient = Patient.query.get(data['patient_id'])
-    if not patient:
-        return jsonify({'msg': 'Patient not found'}), 404
-    if not _has_patient_access(data['patient_id']):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    prescription = Prescription(
-        patient_id=data['patient_id'],
-        professional_id=get_jwt_identity(),
-        treatment_id=data.get('treatment_id'),
-        content=data['content'],
-        notes=data.get('notes'),
-        professional_signature=data.get('professional_signature')
-    )
-    db.session.add(prescription)
-
-    # Create timeline event
-    event = ClinicalHistoryEvent(
-        patient_id=data['patient_id'],
-        professional_id=get_jwt_identity(),
-        event_type='prescription',
-        reference_type='prescription',
-        title='Nueva receta creada'
-    )
-    db.session.add(event)
-    db.session.commit()
-
-    event.reference_id = prescription.id
-    db.session.commit()
-
-    return jsonify(prescription_schema.dump(prescription)), 201
+    try:
+        prescription = PrescriptionService.create_prescription(
+            current_user_id=get_jwt_identity(),
+            data=request.get_json() or {},
+        )
+        return jsonify(prescription_schema.dump(prescription)), 201
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 @blueprint.route('/prescriptions/<int:prescription_id>/annul', methods=['POST'])
 @jwt_required()
 def annul_prescription(prescription_id):
     """Annul prescription"""
-    prescription = Prescription.query.get(prescription_id)
-    if not prescription:
-        return jsonify({'msg': 'Prescription not found'}), 404
-    if not _has_patient_access(prescription.patient_id):
-        return jsonify({'msg': 'Unauthorized'}), 403
-
-    prescription.status = 'annulled'
-    db.session.commit()
-    return jsonify(prescription_schema.dump(prescription)), 200
+    try:
+        prescription = PrescriptionService.annul_prescription(
+            current_user_id=get_jwt_identity(),
+            prescription_id=prescription_id,
+        )
+        return jsonify(prescription_schema.dump(prescription)), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
+        return _service_error_response(error)
 
 
 # ==================== CLINICAL DOCUMENTS ====================
