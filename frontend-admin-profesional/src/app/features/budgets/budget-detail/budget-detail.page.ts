@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -42,7 +41,7 @@ import {
 import * as BudgetsActions from '../../../store/budgets/budgets.actions';
 import { selectSelectedBudget, selectBudgetsLoading, selectBudgetsError } from '../../../store/budgets/budgets.selectors';
 import { BudgetStatus } from '../../../models/budget.model';
-import { environment } from '../../../../environments/environment';
+import { PaymentsApiService } from '../../../core/services';
 
 @Component({
   selector: 'app-budget-detail',
@@ -570,7 +569,7 @@ export class BudgetDetailPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
   private alertController = inject(AlertController);
-  private http = inject(HttpClient);
+  private paymentsApi = inject(PaymentsApiService);
 
   budget$ = this.store.select(selectSelectedBudget);
   loading$ = this.store.select(selectBudgetsLoading);
@@ -606,9 +605,9 @@ export class BudgetDetailPage implements OnInit {
 
   loadPayments(): void {
     if (!this.budgetId) return;
-    this.http.get<any[]>(`${environment.apiUrl}/payments?budget_id=${this.budgetId}`)
+    this.paymentsApi.list(this.budgetId)
       .subscribe({
-        next: (data) => this.payments = data,
+        next: (payments) => this.payments = payments,
         error: () => this.payments = []
       });
   }

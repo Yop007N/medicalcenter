@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { LoggerService } from '../services/logger.service';
 import { NotificationService } from '../services/notification.service';
 import { Router } from '@angular/router';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 const LOG_SOURCE = 'AuthInterceptor';
 
@@ -15,9 +16,9 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
   const notification = inject(NotificationService);
 
   // Skip auth header for login/register endpoints and logs endpoint
-  if (req.url.includes('/auth/login') ||
-      req.url.includes('/auth/register') ||
-      req.url.includes('/logs/frontend')) {
+  if (req.url.includes(API_ENDPOINTS.auth.login) ||
+      req.url.includes(API_ENDPOINTS.auth.register) ||
+      req.url.includes(API_ENDPOINTS.logs.frontend)) {
     // No loguear para evitar ruido
     return next(req);
   }
@@ -44,7 +45,7 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
             error: error.error
           });
 
-          if (error.status === 401 && !req.url.includes('/auth/refresh')) {
+          if (error.status === 401 && !req.url.includes(API_ENDPOINTS.auth.refresh)) {
             logger.info(LOG_SOURCE, 'Token expired, attempting refresh...');
             return authService.refreshToken().pipe(
               switchMap((newToken) => {

@@ -1,14 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 import { Professional } from '../../models';
-import { NotificationService } from '../../core/services';
+import { NotificationService, ProfessionalsApiService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
-import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as ProfessionalsActions from './professionals.actions';
 
 const normalizeProfessional = (professional: Partial<Professional> & { address?: string }): Professional => {
@@ -30,7 +27,7 @@ const normalizeProfessional = (professional: Partial<Professional> & { address?:
 @Injectable()
 export class ProfessionalsEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private professionalsApi = inject(ProfessionalsApiService);
   private router = inject(Router);
   private notification = inject(NotificationService);
 
@@ -38,13 +35,10 @@ export class ProfessionalsEffects {
     this.actions$.pipe(
       ofType(ProfessionalsActions.loadProfessionals),
       switchMap(() =>
-        this.http.get<CollectionResponse<Professional>>(`${environment.apiUrl}/professionals`).pipe(
-          map((response) => {
-            const professionals = toItemsArray(response);
-            return ProfessionalsActions.loadProfessionalsSuccess({
-              professionals: professionals.map((professional) => normalizeProfessional(professional))
-            });
-          }),
+        this.professionalsApi.list().pipe(
+          map((professionals) => ProfessionalsActions.loadProfessionalsSuccess({
+            professionals: professionals.map((professional) => normalizeProfessional(professional))
+          })),
           catchError(error => of(ProfessionalsActions.loadProfessionalsFailure({
             error: getApiErrorMessage(error, 'Error al cargar profesionales')
           })))
@@ -57,7 +51,7 @@ export class ProfessionalsEffects {
     this.actions$.pipe(
       ofType(ProfessionalsActions.loadProfessional),
       switchMap(({ id }) =>
-        this.http.get<Professional>(`${environment.apiUrl}/professionals/${id}`).pipe(
+        this.professionalsApi.getById(id).pipe(
           map(professional => ProfessionalsActions.loadProfessionalSuccess({
             professional: normalizeProfessional(professional)
           })),
@@ -73,7 +67,7 @@ export class ProfessionalsEffects {
     this.actions$.pipe(
       ofType(ProfessionalsActions.createProfessional),
       switchMap(({ professional }) =>
-        this.http.post<Professional>(`${environment.apiUrl}/professionals`, professional).pipe(
+        this.professionalsApi.create(professional).pipe(
           map(newProfessional => ProfessionalsActions.createProfessionalSuccess({
             professional: normalizeProfessional(newProfessional)
           })),
@@ -100,7 +94,7 @@ export class ProfessionalsEffects {
     this.actions$.pipe(
       ofType(ProfessionalsActions.updateProfessional),
       switchMap(({ id, professional }) =>
-        this.http.put<Professional>(`${environment.apiUrl}/professionals/${id}`, professional).pipe(
+        this.professionalsApi.update(id, professional).pipe(
           map(updatedProfessional => ProfessionalsActions.updateProfessionalSuccess({
             professional: normalizeProfessional(updatedProfessional)
           })),
@@ -127,7 +121,7 @@ export class ProfessionalsEffects {
     this.actions$.pipe(
       ofType(ProfessionalsActions.deleteProfessional),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/professionals/${id}`).pipe(
+        this.professionalsApi.delete(id).pipe(
           map(() => ProfessionalsActions.deleteProfessionalSuccess({ id })),
           catchError(error => of(ProfessionalsActions.deleteProfessionalFailure({
             error: getApiErrorMessage(error, 'Error al eliminar profesional')

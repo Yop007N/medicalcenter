@@ -1,36 +1,30 @@
-﻿import { Injectable, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
-import { PsychologicalEvaluation, TherapySession } from '../../models/psychology.model';
-import { NotificationService } from '../../core/services';
+import { NotificationService, PsychologyApiService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
 import * as PsychologyActions from './psychology.actions';
 
 @Injectable()
 export class PsychologyEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private psychologyApi = inject(PsychologyApiService);
   private router = inject(Router);
   private notification = inject(NotificationService);
 
   loadEvaluations$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PsychologyActions.loadEvaluations),
-      switchMap(({ patientId }) => {
-        let params = new HttpParams();
-        if (patientId) params = params.set('patient_id', patientId.toString());
-
-        return this.http.get<PsychologicalEvaluation[]>(`${environment.apiUrl}/psychology/evaluations`, { params }).pipe(
+      switchMap(({ patientId }) =>
+        this.psychologyApi.listEvaluations(patientId).pipe(
           map(evaluations => PsychologyActions.loadEvaluationsSuccess({ evaluations })),
           catchError(error => of(PsychologyActions.loadEvaluationsFailure({
             error: getApiErrorMessage(error, 'Error al cargar evaluaciones')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -38,7 +32,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.loadEvaluation),
       switchMap(({ id }) =>
-        this.http.get<PsychologicalEvaluation>(`${environment.apiUrl}/psychology/evaluations/${id}`).pipe(
+        this.psychologyApi.getEvaluation(id).pipe(
           map(evaluation => PsychologyActions.loadEvaluationSuccess({ evaluation })),
           catchError(error => of(PsychologyActions.loadEvaluationFailure({
             error: getApiErrorMessage(error, 'Error al cargar evaluacion')
@@ -52,7 +46,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.createEvaluation),
       switchMap(({ evaluation }) =>
-        this.http.post<PsychologicalEvaluation>(`${environment.apiUrl}/psychology/evaluations`, evaluation).pipe(
+        this.psychologyApi.createEvaluation(evaluation).pipe(
           map(newEvaluation => PsychologyActions.createEvaluationSuccess({ evaluation: newEvaluation })),
           catchError(error => of(PsychologyActions.createEvaluationFailure({
             error: getApiErrorMessage(error, 'Error al crear evaluacion')
@@ -77,7 +71,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.updateEvaluation),
       switchMap(({ id, evaluation }) =>
-        this.http.put<PsychologicalEvaluation>(`${environment.apiUrl}/psychology/evaluations/${id}`, evaluation).pipe(
+        this.psychologyApi.updateEvaluation(id, evaluation).pipe(
           map(updatedEvaluation => PsychologyActions.updateEvaluationSuccess({ evaluation: updatedEvaluation })),
           catchError(error => of(PsychologyActions.updateEvaluationFailure({
             error: getApiErrorMessage(error, 'Error al actualizar evaluacion')
@@ -101,7 +95,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.deleteEvaluation),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/psychology/evaluations/${id}`).pipe(
+        this.psychologyApi.deleteEvaluation(id).pipe(
           map(() => PsychologyActions.deleteEvaluationSuccess({ id })),
           catchError(error => of(PsychologyActions.deleteEvaluationFailure({
             error: getApiErrorMessage(error, 'Error al eliminar evaluacion')
@@ -126,7 +120,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.loadSessions),
       switchMap(({ evaluationId }) =>
-        this.http.get<TherapySession[]>(`${environment.apiUrl}/psychology/evaluations/${evaluationId}/sessions`).pipe(
+        this.psychologyApi.listSessions(evaluationId).pipe(
           map(sessions => PsychologyActions.loadSessionsSuccess({ sessions })),
           catchError(error => of(PsychologyActions.loadSessionsFailure({
             error: getApiErrorMessage(error, 'Error al cargar sesiones')
@@ -140,7 +134,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.loadSession),
       switchMap(({ id }) =>
-        this.http.get<TherapySession>(`${environment.apiUrl}/psychology/sessions/${id}`).pipe(
+        this.psychologyApi.getSession(id).pipe(
           map(session => PsychologyActions.loadSessionSuccess({ session })),
           catchError(error => of(PsychologyActions.loadSessionFailure({
             error: getApiErrorMessage(error, 'Error al cargar sesion')
@@ -154,7 +148,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.createSession),
       switchMap(({ session }) =>
-        this.http.post<TherapySession>(`${environment.apiUrl}/psychology/sessions`, session).pipe(
+        this.psychologyApi.createSession(session).pipe(
           map(newSession => PsychologyActions.createSessionSuccess({ session: newSession })),
           catchError(error => of(PsychologyActions.createSessionFailure({
             error: getApiErrorMessage(error, 'Error al crear sesion')
@@ -179,7 +173,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.updateSession),
       switchMap(({ id, session }) =>
-        this.http.put<TherapySession>(`${environment.apiUrl}/psychology/sessions/${id}`, session).pipe(
+        this.psychologyApi.updateSession(id, session).pipe(
           map(updatedSession => PsychologyActions.updateSessionSuccess({ session: updatedSession })),
           catchError(error => of(PsychologyActions.updateSessionFailure({
             error: getApiErrorMessage(error, 'Error al actualizar sesion')
@@ -203,7 +197,7 @@ export class PsychologyEffects {
     this.actions$.pipe(
       ofType(PsychologyActions.deleteSession),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/psychology/sessions/${id}`).pipe(
+        this.psychologyApi.deleteSession(id).pipe(
           map(() => PsychologyActions.deleteSessionSuccess({ id })),
           catchError(error => of(PsychologyActions.deleteSessionFailure({
             error: getApiErrorMessage(error, 'Error al eliminar sesion')
@@ -244,5 +238,4 @@ export class PsychologyEffects {
     { dispatch: false }
   );
 }
-
 

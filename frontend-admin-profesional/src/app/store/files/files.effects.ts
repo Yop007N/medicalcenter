@@ -1,34 +1,28 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
-import { MedicalFile } from '../../models/file.model';
-import { NotificationService } from '../../core/services';
+import { FilesApiService, NotificationService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
 import * as FilesActions from './files.actions';
 
 @Injectable()
 export class FilesEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private filesApi = inject(FilesApiService);
   private notification = inject(NotificationService);
 
   loadFiles$ = createEffect(() =>
     this.actions$.pipe(
       ofType(FilesActions.loadFiles),
-      switchMap(({ patientId }) => {
-        let params = new HttpParams();
-        if (patientId) params = params.set('patient_id', patientId.toString());
-
-        return this.http.get<MedicalFile[]>(`${environment.apiUrl}/files`, { params }).pipe(
+      switchMap(({ patientId }) =>
+        this.filesApi.list(patientId).pipe(
           map(files => FilesActions.loadFilesSuccess({ files })),
           catchError(error => of(FilesActions.loadFilesFailure({
             error: getApiErrorMessage(error, 'Error al cargar archivos')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -36,7 +30,7 @@ export class FilesEffects {
     this.actions$.pipe(
       ofType(FilesActions.loadFile),
       switchMap(({ id }) =>
-        this.http.get<MedicalFile>(`${environment.apiUrl}/files/${id}`).pipe(
+        this.filesApi.getById(id).pipe(
           map(file => FilesActions.loadFileSuccess({ file })),
           catchError(error => of(FilesActions.loadFileFailure({
             error: getApiErrorMessage(error, 'Error al cargar archivo')
@@ -49,23 +43,14 @@ export class FilesEffects {
   uploadFile$ = createEffect(() =>
     this.actions$.pipe(
       ofType(FilesActions.uploadFile),
-      switchMap(({ file, metadata }) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('patient_id', metadata.patient_id.toString());
-        formData.append('category', metadata.category);
-        if (metadata.description) formData.append('description', metadata.description);
-        if (metadata.is_private !== undefined) formData.append('is_private', metadata.is_private.toString());
-        if (metadata.medical_record_id) formData.append('medical_record_id', metadata.medical_record_id.toString());
-        if (metadata.appointment_id) formData.append('appointment_id', metadata.appointment_id.toString());
-
-        return this.http.post<MedicalFile>(`${environment.apiUrl}/files/upload`, formData).pipe(
+      switchMap(({ file, metadata }) =>
+        this.filesApi.upload(file, metadata).pipe(
           map(uploadedFile => FilesActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(FilesActions.uploadFileFailure({
             error: getApiErrorMessage(error, 'Error al subir archivo')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -83,7 +68,7 @@ export class FilesEffects {
     this.actions$.pipe(
       ofType(FilesActions.deleteFile),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/files/${id}`).pipe(
+        this.filesApi.delete(id).pipe(
           map(() => FilesActions.deleteFileSuccess({ id })),
           catchError(error => of(FilesActions.deleteFileFailure({
             error: getApiErrorMessage(error, 'Error al eliminar archivo')
@@ -107,7 +92,7 @@ export class FilesEffects {
     this.actions$.pipe(
       ofType(FilesActions.downloadFile),
       switchMap(({ id, filename }) =>
-        this.http.get(`${environment.apiUrl}/files/${id}/download`, { responseType: 'blob' }).pipe(
+        this.filesApi.download(id).pipe(
           tap(blob => {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');

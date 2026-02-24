@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Platform } from '@ionic/angular/standalone';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { ApiClientService } from '../api/api-client.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 export interface NotificationData {
   type: string;
@@ -19,7 +19,7 @@ export interface NotificationData {
 })
 export class PushNotificationsService {
   private platform = inject(Platform);
-  private http = inject(HttpClient);
+  private apiClient = inject(ApiClientService);
   private router = inject(Router);
 
   private tokenSubject = new BehaviorSubject<string | null>(null);
@@ -126,7 +126,7 @@ export class PushNotificationsService {
   private async registerTokenWithServer(token: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/notifications/register-device`, {
+        this.apiClient.post(API_ENDPOINTS.notifications.registerDevice, {
           token,
           platform: this.platform.is('ios') ? 'ios' : 'android'
         })

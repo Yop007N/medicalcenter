@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -23,7 +22,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { saveOutline } from 'ionicons/icons';
-import { environment } from '../../../../environments/environment';
+import { PatientsApiService, ProfessionalsApiService } from '../../../core/services';
 import * as AppointmentsActions from '../../../store/appointments/appointments.actions';
 import { selectSelectedAppointment, selectAppointmentsLoading, selectAppointmentsError } from '../../../store/appointments/appointments.selectors';
 import { Patient, Professional } from '../../../models';
@@ -342,7 +341,8 @@ export class AppointmentFormPage implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private route = inject(ActivatedRoute);
-  private http = inject(HttpClient);
+  private patientsApi = inject(PatientsApiService);
+  private professionalsApi = inject(ProfessionalsApiService);
 
   loading$ = this.store.select(selectAppointmentsLoading);
   error$ = this.store.select(selectAppointmentsError);
@@ -410,14 +410,14 @@ export class AppointmentFormPage implements OnInit {
   }
 
   loadPatients(): void {
-    this.http.get<Patient[]>(`${environment.apiUrl}/patients`).subscribe({
+    this.patientsApi.list().subscribe({
       next: (data) => this.patients = data,
       error: () => this.patients = []
     });
   }
 
   loadProfessionals(): void {
-    this.http.get<Professional[]>(`${environment.apiUrl}/professionals`).subscribe({
+    this.professionalsApi.list().subscribe({
       next: (data) => this.professionals = data.filter(p => p.is_active),
       error: () => this.professionals = []
     });

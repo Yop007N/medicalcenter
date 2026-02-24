@@ -1,10 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 import { OfflineStorageService, SyncQueueItem } from './offline-storage.service';
 import { ConnectivityService } from './connectivity.service';
 import { ToastController } from '@ionic/angular/standalone';
-import { environment } from '../../../environments/environment';
+import { ApiClientService } from '../api/api-client.service';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -17,7 +16,7 @@ export interface SyncStatus {
   providedIn: 'root'
 })
 export class SyncService {
-  private http = inject(HttpClient);
+  private apiClient = inject(ApiClientService);
   private offlineStorage = inject(OfflineStorageService);
   private connectivity = inject(ConnectivityService);
   private toastController = inject(ToastController);
@@ -127,22 +126,9 @@ export class SyncService {
 
   private async syncItem(item: SyncQueueItem): Promise<void> {
     try {
-      const url = `${environment.apiUrl}${item.endpoint}`;
-
-      switch (item.method) {
-        case 'POST':
-          await firstValueFrom(this.http.post(url, item.data));
-          break;
-        case 'PUT':
-          await firstValueFrom(this.http.put(url, item.data));
-          break;
-        case 'PATCH':
-          await firstValueFrom(this.http.patch(url, item.data));
-          break;
-        case 'DELETE':
-          await firstValueFrom(this.http.delete(url));
-          break;
-      }
+      await firstValueFrom(
+        this.apiClient.request(item.method, item.endpoint, item.data)
+      );
 
       // Success - remove from queue
       await this.offlineStorage.removeFromSyncQueue(item.id);

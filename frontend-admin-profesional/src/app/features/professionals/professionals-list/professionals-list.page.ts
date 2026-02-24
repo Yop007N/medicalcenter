@@ -1,7 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -24,12 +23,8 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { personCircleOutline, callOutline, mailOutline, addOutline, chevronForwardOutline } from 'ionicons/icons';
-import { environment } from '../../../../environments/environment';
+import { ProfessionalsApiService } from '../../../core/services';
 import { Professional } from '../../../models';
-
-interface PaginatedProfessionalsResponse {
-  items: Professional[];
-}
 
 @Component({
   selector: 'app-professionals-list',
@@ -194,7 +189,7 @@ interface PaginatedProfessionalsResponse {
   `]
 })
 export class ProfessionalsListPage implements OnInit {
-  private http = inject(HttpClient);
+  private professionalsApi = inject(ProfessionalsApiService);
 
   professionals: Professional[] = [];
   loading = true;
@@ -211,10 +206,9 @@ export class ProfessionalsListPage implements OnInit {
   loadProfessionals(): void {
     this.loading = true;
     this.errorMessage = null;
-    this.http.get<Professional[] | PaginatedProfessionalsResponse>(`${environment.apiUrl}/professionals`).subscribe({
-      next: (response) => {
-        const data = Array.isArray(response) ? response : (response.items || []);
-        this.professionals = data;
+    this.professionalsApi.list().subscribe({
+      next: (professionals) => {
+        this.professionals = professionals;
         this.loading = false;
       },
       error: (err) => {

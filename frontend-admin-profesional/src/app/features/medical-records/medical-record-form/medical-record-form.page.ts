@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -29,12 +28,8 @@ import {
   selectMedicalRecordsLoading,
   selectMedicalRecordsError
 } from '../../../store/medical-records/medical-records.selectors';
-import { environment } from '../../../../environments/environment';
+import { PatientsApiService } from '../../../core/services';
 import { Patient } from '../../../models/patient.model';
-
-interface PaginatedPatientsResponse {
-  items: Patient[];
-}
 
 @Component({
   selector: 'app-medical-record-form',
@@ -387,7 +382,7 @@ export class MedicalRecordFormPage implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private route = inject(ActivatedRoute);
-  private http = inject(HttpClient);
+  private patientsApi = inject(PatientsApiService);
 
   loading$ = this.store.select(selectMedicalRecordsLoading);
   error$ = this.store.select(selectMedicalRecordsError);
@@ -456,9 +451,9 @@ export class MedicalRecordFormPage implements OnInit {
   }
 
   loadPatients(): void {
-    this.http.get<Patient[] | PaginatedPatientsResponse>(`${environment.apiUrl}/patients`).subscribe({
-      next: (response) => {
-        this.patients = Array.isArray(response) ? response : (response.items || []);
+    this.patientsApi.list().subscribe({
+      next: (patients) => {
+        this.patients = patients;
       },
       error: (err) => console.error('Error loading patients:', err)
     });

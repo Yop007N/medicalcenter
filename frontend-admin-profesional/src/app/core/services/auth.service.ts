@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, from, of } from 'rxjs';
 import { map, tap, switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { API_ENDPOINTS } from '../api/api-endpoints';
+import { ApiClientService } from '../api/api-client.service';
 import { StorageService } from './storage.service';
 import { LoggerService } from './logger.service';
 import { User, LoginRequest, LoginResponse, RegisterRequest } from '../../models';
@@ -11,7 +12,7 @@ const LOG_SOURCE = 'AuthService';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private http = inject(HttpClient);
+  private apiClient = inject(ApiClientService);
   private storage = inject(StorageService);
   private logger = inject(LoggerService);
 
@@ -41,7 +42,7 @@ export class AuthService {
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
     this.logger.info(LOG_SOURCE, 'Login initiated', { email: credentials.email });
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, credentials).pipe(
+    return this.apiClient.post<LoginResponse>(API_ENDPOINTS.auth.login, credentials).pipe(
       tap((response) => this.logger.info(LOG_SOURCE, 'Server response received', {
         email: response.user?.email,
         hasAccessToken: !!response.access_token,
@@ -66,7 +67,7 @@ export class AuthService {
 
   register(data: RegisterRequest): Observable<{ msg: string; user: User }> {
     this.logger.info(LOG_SOURCE, 'Registration initiated', { email: data.email });
-    return this.http.post<{ msg: string; user: User }>(`${environment.apiUrl}/auth/register`, data).pipe(
+    return this.apiClient.post<{ msg: string; user: User }>(API_ENDPOINTS.auth.register, data).pipe(
       tap((response) => this.logger.info(LOG_SOURCE, 'Registration successful', { email: response.user?.email })),
       catchError((error) => {
         this.logger.error(LOG_SOURCE, 'Registration failed', error);
@@ -77,7 +78,7 @@ export class AuthService {
 
   logout(): Observable<void> {
     this.logger.info(LOG_SOURCE, 'Logout initiated');
-    return this.http.post<void>(`${environment.apiUrl}/auth/logout`, {}).pipe(
+    return this.apiClient.post<void>(API_ENDPOINTS.auth.logout, {}).pipe(
       catchError((error) => {
         this.logger.warn(LOG_SOURCE, 'Logout API call failed, clearing local auth anyway', error);
         return of(undefined);
@@ -108,9 +109,11 @@ export class AuthService {
           throw new Error('No refresh token available');
         }
         this.logger.debug(LOG_SOURCE, 'Calling refresh token API');
-        return this.http.post<{ access_token: string }>(`${environment.apiUrl}/auth/refresh`, {}, {
-          headers: { Authorization: `Bearer ${refreshToken}` }
-        });
+        return this.apiClient.post<{ access_token: string }>(
+          API_ENDPOINTS.auth.refresh,
+          {},
+          { headers: { Authorization: `Bearer ${refreshToken}` } }
+        );
       }),
       tap(async (response) => {
         this.logger.debug(LOG_SOURCE, 'Token refreshed, saving new access token');

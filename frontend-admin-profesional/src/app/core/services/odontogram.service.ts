@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
 import { ToothStatus } from '../../models/odontology.model';
+import { ApiClientService } from '../api/api-client.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 export interface Tooth {
   id?: number;
@@ -39,52 +39,45 @@ export interface Odontogram {
 
 @Injectable({ providedIn: 'root' })
 export class OdontogramService {
-  private http = inject(HttpClient);
-  private baseUrl = `${environment.apiUrl}/odontograms`;
+  private apiClient = inject(ApiClientService);
 
-  // Get all odontograms, optionally filtered by patient
   getOdontograms(patientId?: number): Observable<Odontogram[]> {
-    const url = patientId ? `${this.baseUrl}?patient_id=${patientId}` : this.baseUrl;
-    return this.http.get<Odontogram[]>(url);
+    return this.apiClient.get<Odontogram[]>(API_ENDPOINTS.odontology.odontogramsBase, {
+      patient_id: patientId
+    });
   }
 
-  // Get active odontogram for a patient
   getPatientOdontogram(patientId: number): Observable<Odontogram> {
-    return this.http.get<Odontogram>(`${this.baseUrl}/patient/${patientId}`);
+    return this.apiClient.get<Odontogram>(API_ENDPOINTS.odontology.patientOdontogram(patientId));
   }
 
-  // Get specific odontogram by ID
   getOdontogram(odontogramId: number): Observable<Odontogram> {
-    return this.http.get<Odontogram>(`${this.baseUrl}/${odontogramId}`);
+    return this.apiClient.get<Odontogram>(API_ENDPOINTS.odontology.odontogramById(odontogramId));
   }
 
-  // Create new odontogram
   createOdontogram(data: Partial<Odontogram>): Observable<Odontogram> {
-    return this.http.post<Odontogram>(this.baseUrl, data);
+    return this.apiClient.post<Odontogram>(API_ENDPOINTS.odontology.odontogramsBase, data);
   }
 
-  // Update odontogram
   updateOdontogram(odontogramId: number, data: Partial<Odontogram>): Observable<Odontogram> {
-    return this.http.put<Odontogram>(`${this.baseUrl}/${odontogramId}`, data);
+    return this.apiClient.put<Odontogram>(API_ENDPOINTS.odontology.odontogramById(odontogramId), data);
   }
 
-  // Get all teeth for an odontogram
   getTeeth(odontogramId: number): Observable<{ teeth: Tooth[] }> {
-    return this.http.get<{ teeth: Tooth[] }>(`${this.baseUrl}/${odontogramId}/teeth`);
+    return this.apiClient.get<{ teeth: Tooth[] }>(API_ENDPOINTS.odontology.teethByOdontogram(odontogramId));
   }
 
-  // Get specific tooth
   getTooth(odontogramId: number, toothNumber: number): Observable<Tooth> {
-    return this.http.get<Tooth>(`${this.baseUrl}/${odontogramId}/tooth/${toothNumber}`);
+    return this.apiClient.get<Tooth>(API_ENDPOINTS.odontology.toothByOdontogramAndNumber(odontogramId, toothNumber));
   }
 
-  // Add or update tooth
   saveTooth(odontogramId: number, toothData: Partial<Tooth>): Observable<Tooth> {
-    return this.http.post<Tooth>(`${this.baseUrl}/${odontogramId}/tooth`, toothData);
+    return this.apiClient.post<Tooth>(API_ENDPOINTS.odontology.toothBaseByOdontogram(odontogramId), toothData);
   }
 
-  // Delete tooth
   deleteTooth(odontogramId: number, toothNumber: number): Observable<{ msg: string }> {
-    return this.http.delete<{ msg: string }>(`${this.baseUrl}/${odontogramId}/tooth/${toothNumber}`);
+    return this.apiClient.delete<{ msg: string }>(
+      API_ENDPOINTS.odontology.toothByOdontogramAndNumber(odontogramId, toothNumber)
+    );
   }
 }

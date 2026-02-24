@@ -1,7 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
 import {
   Evolution,
   Anamnesis,
@@ -12,71 +10,74 @@ import {
   InformedConsent,
   ClinicalHistoryEvent
 } from '../../models/odontology.model';
+import { ApiClientService } from '../api/api-client.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 @Injectable({ providedIn: 'root' })
 export class ClinicalHistoryService {
-  private http = inject(HttpClient);
-  private baseUrl = `${environment.apiUrl}/clinical-history`;
+  private apiClient = inject(ApiClientService);
 
   // ==================== EVOLUTIONS ====================
 
   getEvolutions(patientId: number, includeAnnulled = false): Observable<Evolution[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (includeAnnulled) {
-      params = params.set('include_annulled', 'true');
-    }
-    return this.http.get<Evolution[]>(`${this.baseUrl}/evolutions`, { params });
+    return this.apiClient.get<Evolution[]>(API_ENDPOINTS.clinicalHistory.evolutions, {
+      patient_id: patientId,
+      include_annulled: includeAnnulled ? true : undefined
+    });
   }
 
   getEvolution(evolutionId: number): Observable<Evolution> {
-    return this.http.get<Evolution>(`${this.baseUrl}/evolutions/${evolutionId}`);
+    return this.apiClient.get<Evolution>(API_ENDPOINTS.clinicalHistory.evolutionById(evolutionId));
   }
 
   createEvolution(data: Partial<Evolution>): Observable<Evolution> {
-    return this.http.post<Evolution>(`${this.baseUrl}/evolutions`, data);
+    return this.apiClient.post<Evolution>(API_ENDPOINTS.clinicalHistory.evolutions, data);
   }
 
   updateEvolution(evolutionId: number, data: Partial<Evolution>): Observable<Evolution> {
-    return this.http.put<Evolution>(`${this.baseUrl}/evolutions/${evolutionId}`, data);
+    return this.apiClient.put<Evolution>(API_ENDPOINTS.clinicalHistory.evolutionById(evolutionId), data);
   }
 
   signEvolution(evolutionId: number, signerType: 'professional' | 'patient', signature: string): Observable<Evolution> {
-    return this.http.post<Evolution>(`${this.baseUrl}/evolutions/${evolutionId}/sign`, {
+    return this.apiClient.post<Evolution>(API_ENDPOINTS.clinicalHistory.evolutionSign(evolutionId), {
       signer_type: signerType,
       signature
     });
   }
 
   annulEvolution(evolutionId: number): Observable<Evolution> {
-    return this.http.post<Evolution>(`${this.baseUrl}/evolutions/${evolutionId}/annul`, {});
+    return this.apiClient.post<Evolution>(API_ENDPOINTS.clinicalHistory.evolutionAnnul(evolutionId), {});
   }
 
   // ==================== ANAMNESIS ====================
 
   getAnamnesis(patientId: number): Observable<Anamnesis> {
-    return this.http.get<Anamnesis>(`${this.baseUrl}/anamnesis/patient/${patientId}`);
+    return this.apiClient.get<Anamnesis>(API_ENDPOINTS.clinicalHistory.anamnesisByPatient(patientId));
   }
 
   saveAnamnesis(data: Partial<Anamnesis>): Observable<Anamnesis> {
-    return this.http.post<Anamnesis>(`${this.baseUrl}/anamnesis`, data);
+    return this.apiClient.post<Anamnesis>(API_ENDPOINTS.clinicalHistory.anamnesis, data);
   }
 
   // ==================== PERIODONTAL RECORDS ====================
 
   getPeriodontalRecords(patientId: number, measurementDate?: string): Observable<PeriodontalRecord[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (measurementDate) {
-      params = params.set('measurement_date', measurementDate);
-    }
-    return this.http.get<PeriodontalRecord[]>(`${this.baseUrl}/periodontal`, { params });
+    return this.apiClient.get<PeriodontalRecord[]>(API_ENDPOINTS.clinicalHistory.periodontal, {
+      patient_id: patientId,
+      measurement_date: measurementDate
+    });
   }
 
   savePeriodontalRecord(data: Partial<PeriodontalRecord>): Observable<PeriodontalRecord> {
-    return this.http.post<PeriodontalRecord>(`${this.baseUrl}/periodontal`, data);
+    return this.apiClient.post<PeriodontalRecord>(API_ENDPOINTS.clinicalHistory.periodontal, data);
   }
 
-  bulkSavePeriodontalRecords(patientId: number, records: Partial<PeriodontalRecord>[], measurementDate?: string): Observable<PeriodontalRecord[]> {
-    return this.http.post<PeriodontalRecord[]>(`${this.baseUrl}/periodontal/bulk`, {
+  bulkSavePeriodontalRecords(
+    patientId: number,
+    records: Partial<PeriodontalRecord>[],
+    measurementDate?: string
+  ): Observable<PeriodontalRecord[]> {
+    return this.apiClient.post<PeriodontalRecord[]>(API_ENDPOINTS.clinicalHistory.periodontalBulk, {
       patient_id: patientId,
       records,
       measurement_date: measurementDate
@@ -86,23 +87,17 @@ export class ClinicalHistoryService {
   // ==================== PATIENT DOCUMENTS ====================
 
   getDocuments(patientId: number, documentType?: string, includeInactive = false): Observable<PatientDocument[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (documentType) {
-      params = params.set('document_type', documentType);
-    }
-    if (includeInactive) {
-      params = params.set('include_inactive', 'true');
-    }
-    return this.http.get<PatientDocument[]>(`${this.baseUrl}/documents`, { params });
+    return this.apiClient.get<PatientDocument[]>(API_ENDPOINTS.clinicalHistory.documents, {
+      patient_id: patientId,
+      document_type: documentType,
+      include_inactive: includeInactive ? true : undefined
+    });
   }
 
   createDocument(data: Partial<PatientDocument>): Observable<PatientDocument> {
-    return this.http.post<PatientDocument>(`${this.baseUrl}/documents`, data);
+    return this.apiClient.post<PatientDocument>(API_ENDPOINTS.clinicalHistory.documents, data);
   }
 
-  /**
-   * Upload a document file using FormData
-   */
   uploadDocument(file: File, patientId: number, documentType: string, options?: {
     title?: string;
     description?: string;
@@ -123,76 +118,64 @@ export class ClinicalHistoryService {
       formData.append('affected_teeth', JSON.stringify(options.affectedTeeth));
     }
 
-    return this.http.post<PatientDocument>(`${this.baseUrl}/documents/upload`, formData);
+    return this.apiClient.post<PatientDocument>(API_ENDPOINTS.clinicalHistory.documentUpload, formData);
   }
 
-  /**
-   * Download a document file
-   */
   downloadDocument(documentId: number): Observable<Blob> {
-    return this.http.get(`${this.baseUrl}/documents/${documentId}/download`, {
-      responseType: 'blob'
-    });
+    return this.apiClient.getBlob(API_ENDPOINTS.clinicalHistory.documentDownload(documentId));
   }
 
   deleteDocument(documentId: number): Observable<{ msg: string }> {
-    return this.http.delete<{ msg: string }>(`${this.baseUrl}/documents/${documentId}`);
+    return this.apiClient.delete<{ msg: string }>(API_ENDPOINTS.clinicalHistory.documentById(documentId));
   }
 
   // ==================== PRESCRIPTIONS ====================
 
   getPrescriptions(patientId: number, treatmentId?: number, includeAnnulled = false): Observable<Prescription[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (treatmentId) {
-      params = params.set('treatment_id', treatmentId.toString());
-    }
-    if (includeAnnulled) {
-      params = params.set('include_annulled', 'true');
-    }
-    return this.http.get<Prescription[]>(`${this.baseUrl}/prescriptions`, { params });
+    return this.apiClient.get<Prescription[]>(API_ENDPOINTS.clinicalHistory.prescriptions, {
+      patient_id: patientId,
+      treatment_id: treatmentId,
+      include_annulled: includeAnnulled ? true : undefined
+    });
   }
 
   createPrescription(data: Partial<Prescription>): Observable<Prescription> {
-    return this.http.post<Prescription>(`${this.baseUrl}/prescriptions`, data);
+    return this.apiClient.post<Prescription>(API_ENDPOINTS.clinicalHistory.prescriptions, data);
   }
 
   annulPrescription(prescriptionId: number): Observable<Prescription> {
-    return this.http.post<Prescription>(`${this.baseUrl}/prescriptions/${prescriptionId}/annul`, {});
+    return this.apiClient.post<Prescription>(API_ENDPOINTS.clinicalHistory.prescriptionAnnul(prescriptionId), {});
   }
 
   // ==================== CLINICAL DOCUMENTS ====================
 
   getClinicalDocuments(patientId: number, documentType?: string, includeInactive = false): Observable<ClinicalDocument[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (documentType) {
-      params = params.set('document_type', documentType);
-    }
-    if (includeInactive) {
-      params = params.set('include_inactive', 'true');
-    }
-    return this.http.get<ClinicalDocument[]>(`${this.baseUrl}/clinical-docs`, { params });
+    return this.apiClient.get<ClinicalDocument[]>(API_ENDPOINTS.clinicalHistory.clinicalDocuments, {
+      patient_id: patientId,
+      document_type: documentType,
+      include_inactive: includeInactive ? true : undefined
+    });
   }
 
   createClinicalDocument(data: Partial<ClinicalDocument>): Observable<ClinicalDocument> {
-    return this.http.post<ClinicalDocument>(`${this.baseUrl}/clinical-docs`, data);
+    return this.apiClient.post<ClinicalDocument>(API_ENDPOINTS.clinicalHistory.clinicalDocuments, data);
   }
 
   deleteClinicalDocument(documentId: number): Observable<{ msg: string }> {
-    return this.http.delete<{ msg: string }>(`${this.baseUrl}/clinical-docs/${documentId}`);
+    return this.apiClient.delete<{ msg: string }>(API_ENDPOINTS.clinicalHistory.clinicalDocumentById(documentId));
   }
 
   // ==================== INFORMED CONSENTS ====================
 
   getConsents(patientId: number, status?: string): Observable<InformedConsent[]> {
-    let params = new HttpParams().set('patient_id', patientId.toString());
-    if (status) {
-      params = params.set('status', status);
-    }
-    return this.http.get<InformedConsent[]>(`${this.baseUrl}/consents`, { params });
+    return this.apiClient.get<InformedConsent[]>(API_ENDPOINTS.clinicalHistory.consents, {
+      patient_id: patientId,
+      status
+    });
   }
 
   createConsent(data: Partial<InformedConsent>): Observable<InformedConsent> {
-    return this.http.post<InformedConsent>(`${this.baseUrl}/consents`, data);
+    return this.apiClient.post<InformedConsent>(API_ENDPOINTS.clinicalHistory.consents, data);
   }
 
   signConsent(consentId: number, patientSignature: string, guardianData?: {
@@ -200,26 +183,26 @@ export class ClinicalHistoryService {
     guardian_relationship?: string;
     guardian_signature?: string;
   }): Observable<InformedConsent> {
-    return this.http.post<InformedConsent>(`${this.baseUrl}/consents/${consentId}/sign`, {
+    return this.apiClient.post<InformedConsent>(API_ENDPOINTS.clinicalHistory.consentSign(consentId), {
       patient_signature: patientSignature,
       ...guardianData
     });
   }
 
   rejectConsent(consentId: number, reason?: string): Observable<InformedConsent> {
-    return this.http.post<InformedConsent>(`${this.baseUrl}/consents/${consentId}/reject`, { reason });
+    return this.apiClient.post<InformedConsent>(API_ENDPOINTS.clinicalHistory.consentReject(consentId), {
+      reason
+    });
   }
 
   // ==================== TIMELINE ====================
 
   getTimeline(patientId: number, eventType?: string, limit = 50): Observable<ClinicalHistoryEvent[]> {
-    let params = new HttpParams()
-      .set('patient_id', patientId.toString())
-      .set('limit', limit.toString());
-    if (eventType) {
-      params = params.set('event_type', eventType);
-    }
-    return this.http.get<ClinicalHistoryEvent[]>(`${this.baseUrl}/timeline`, { params });
+    return this.apiClient.get<ClinicalHistoryEvent[]>(API_ENDPOINTS.clinicalHistory.timeline, {
+      patient_id: patientId,
+      event_type: eventType,
+      limit
+    });
   }
 
   createTimelineEvent(data: {
@@ -229,7 +212,7 @@ export class ClinicalHistoryService {
     description?: string;
     is_important?: boolean;
   }): Observable<ClinicalHistoryEvent> {
-    return this.http.post<ClinicalHistoryEvent>(`${this.baseUrl}/timeline`, data);
+    return this.apiClient.post<ClinicalHistoryEvent>(API_ENDPOINTS.clinicalHistory.timeline, data);
   }
 
   // ==================== SUMMARY ====================
@@ -248,6 +231,6 @@ export class ClinicalHistoryService {
     };
     recent_events: ClinicalHistoryEvent[];
   }> {
-    return this.http.get<any>(`${this.baseUrl}/summary/${patientId}`);
+    return this.apiClient.get(API_ENDPOINTS.clinicalHistory.summary(patientId));
   }
 }

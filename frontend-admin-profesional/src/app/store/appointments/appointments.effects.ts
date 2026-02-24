@@ -1,20 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
-import { Appointment } from '../../models';
-import { NotificationService } from '../../core/services';
+import { AppointmentsApiService, NotificationService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
-import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as AppointmentsActions from './appointments.actions';
 
 @Injectable()
 export class AppointmentsEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private appointmentsApi = inject(AppointmentsApiService);
   private router = inject(Router);
   private notification = inject(NotificationService);
 
@@ -22,11 +18,8 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.loadAppointments),
       switchMap(() =>
-        this.http.get<CollectionResponse<Appointment>>(`${environment.apiUrl}/appointments`).pipe(
-          map((response) => {
-            const appointments = toItemsArray(response);
-            return AppointmentsActions.loadAppointmentsSuccess({ appointments });
-          }),
+        this.appointmentsApi.list().pipe(
+          map((appointments) => AppointmentsActions.loadAppointmentsSuccess({ appointments })),
           catchError(error => of(AppointmentsActions.loadAppointmentsFailure({
             error: getApiErrorMessage(error, 'Error al cargar citas')
           })))
@@ -39,7 +32,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.loadAppointment),
       switchMap(({ id }) =>
-        this.http.get<Appointment>(`${environment.apiUrl}/appointments/${id}`).pipe(
+        this.appointmentsApi.getById(id).pipe(
           map(appointment => AppointmentsActions.loadAppointmentSuccess({ appointment })),
           catchError(error => of(AppointmentsActions.loadAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al cargar cita')
@@ -53,7 +46,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.createAppointment),
       switchMap(({ appointment }) =>
-        this.http.post<Appointment>(`${environment.apiUrl}/appointments`, appointment).pipe(
+        this.appointmentsApi.create(appointment).pipe(
           map(newAppointment => AppointmentsActions.createAppointmentSuccess({ appointment: newAppointment })),
           catchError(error => of(AppointmentsActions.createAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al crear cita')
@@ -78,7 +71,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.updateAppointment),
       switchMap(({ id, appointment }) =>
-        this.http.put<Appointment>(`${environment.apiUrl}/appointments/${id}`, appointment).pipe(
+        this.appointmentsApi.update(id, appointment).pipe(
           map(updatedAppointment => AppointmentsActions.updateAppointmentSuccess({ appointment: updatedAppointment })),
           catchError(error => of(AppointmentsActions.updateAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al actualizar cita')
@@ -103,7 +96,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.deleteAppointment),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/appointments/${id}`).pipe(
+        this.appointmentsApi.delete(id).pipe(
           map(() => AppointmentsActions.deleteAppointmentSuccess({ id })),
           catchError(error => of(AppointmentsActions.deleteAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al eliminar cita')
@@ -128,7 +121,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.confirmAppointment),
       switchMap(({ id }) =>
-        this.http.post<Appointment>(`${environment.apiUrl}/appointments/${id}/confirm`, {}).pipe(
+        this.appointmentsApi.confirm(id).pipe(
           map(appointment => AppointmentsActions.confirmAppointmentSuccess({ appointment })),
           catchError(error => of(AppointmentsActions.confirmAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al confirmar cita')
@@ -152,10 +145,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.cancelAppointment),
       switchMap(({ id, reason }) =>
-        this.http.put<Appointment>(`${environment.apiUrl}/appointments/${id}`, {
-          status: 'cancelled',
-          notes: reason
-        }).pipe(
+        this.appointmentsApi.cancel(id, reason).pipe(
           map(appointment => AppointmentsActions.cancelAppointmentSuccess({ appointment })),
           catchError(error => of(AppointmentsActions.cancelAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al cancelar cita')
@@ -179,9 +169,7 @@ export class AppointmentsEffects {
     this.actions$.pipe(
       ofType(AppointmentsActions.completeAppointment),
       switchMap(({ id }) =>
-        this.http.put<Appointment>(`${environment.apiUrl}/appointments/${id}`, {
-          status: 'completed'
-        }).pipe(
+        this.appointmentsApi.complete(id).pipe(
           map(appointment => AppointmentsActions.completeAppointmentSuccess({ appointment })),
           catchError(error => of(AppointmentsActions.completeAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al completar cita')

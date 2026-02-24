@@ -51,6 +51,8 @@ export interface Odontogram {
 
 export interface OdontogramCreate {
   patient_id: number;
+  professional_id?: number;
+  is_active?: boolean;
   notes?: string;
 }
 

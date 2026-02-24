@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -39,7 +38,7 @@ import {
   ribbonOutline,
   timeOutline
 } from 'ionicons/icons';
-import { environment } from '../../../../environments/environment';
+import { ProfessionalsApiService } from '../../../core/services';
 import * as ProfessionalsActions from '../../../store/professionals/professionals.actions';
 import { selectSelectedProfessional, selectProfessionalsLoading } from '../../../store/professionals/professionals.selectors';
 
@@ -358,7 +357,7 @@ export class ProfessionalDetailPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
   private alertController = inject(AlertController);
-  private http = inject(HttpClient);
+  private professionalsApi = inject(ProfessionalsApiService);
 
   professional$ = this.store.select(selectSelectedProfessional);
   loading$ = this.store.select(selectProfessionalsLoading);
@@ -398,7 +397,12 @@ export class ProfessionalDetailPage implements OnInit {
   }
 
   loadAppointments(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/professionals/${this.professionalId}/appointments`)
+    if (!this.professionalId) {
+      this.appointments = [];
+      return;
+    }
+
+    this.professionalsApi.listAppointments(this.professionalId)
       .subscribe({
         next: (data) => this.appointments = data.slice(0, 5),
         error: () => this.appointments = []

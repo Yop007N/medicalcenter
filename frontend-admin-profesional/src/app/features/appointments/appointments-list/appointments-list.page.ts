@@ -1,6 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import {
@@ -37,12 +36,8 @@ import {
   hourglassOutline,
   medkitOutline
 } from 'ionicons/icons';
-import { environment } from '../../../../environments/environment';
+import { AppointmentsApiService } from '../../../core/services';
 import { Appointment } from '../../../models';
-
-interface PaginatedAppointmentsResponse {
-  items: Appointment[];
-}
 
 @Component({
   selector: 'app-appointments-list',
@@ -621,7 +616,7 @@ interface PaginatedAppointmentsResponse {
   `]
 })
 export class AppointmentsListPage implements OnInit {
-  private http = inject(HttpClient);
+  private appointmentsApi = inject(AppointmentsApiService);
 
   appointments: Appointment[] = [];
   filteredAppointments: Appointment[] = [];
@@ -652,9 +647,9 @@ export class AppointmentsListPage implements OnInit {
   loadAppointments(): void {
     this.loading = true;
     this.errorMessage = null;
-    this.http.get<Appointment[] | PaginatedAppointmentsResponse>(`${environment.apiUrl}/appointments`).subscribe({
-      next: (response) => {
-        this.appointments = Array.isArray(response) ? response : (response.items || []);
+    this.appointmentsApi.list().subscribe({
+      next: (appointments) => {
+        this.appointments = appointments;
         this.filterAppointments();
         this.loading = false;
       },

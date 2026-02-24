@@ -46,7 +46,7 @@ import {
   selectMedicalRecordsError,
   selectMedicalRecordsUploading
 } from '../../../store/medical-records/medical-records.selectors';
-import { environment } from '../../../../environments/environment';
+import { FilesApiService } from '../../../core/services';
 
 @Component({
   selector: 'app-medical-record-detail',
@@ -505,6 +505,7 @@ export class MedicalRecordDetailPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
   private alertController = inject(AlertController);
+  private filesApi = inject(FilesApiService);
 
   record$ = this.store.select(selectSelectedMedicalRecord);
   loading$ = this.store.select(selectMedicalRecordsLoading);
@@ -588,7 +589,16 @@ export class MedicalRecordDetailPage implements OnInit {
   }
 
   downloadFile(fileId: number, filename: string): void {
-    window.open(`${environment.apiUrl}/files/${fileId}/download`, '_blank');
+    this.filesApi.download(fileId).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      }
+    });
   }
 
   async confirmDeleteFile(fileId: number, filename: string): Promise<void> {

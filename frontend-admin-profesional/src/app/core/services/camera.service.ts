@@ -2,9 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { Platform, ActionSheetController } from '@ionic/angular/standalone';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { HttpClient } from '@angular/common/http';
 import { Observable, from, switchMap } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { ApiClientService } from '../api/api-client.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 export interface CapturedPhoto {
   filepath: string;
@@ -19,27 +19,22 @@ export interface CapturedPhoto {
 export class CameraService {
   private platform = inject(Platform);
   private actionSheetController = inject(ActionSheetController);
-  private http = inject(HttpClient);
+  private apiClient = inject(ApiClientService);
 
   // Take a photo using camera or gallery
   async capturePhoto(): Promise<CapturedPhoto | null> {
-    // Show action sheet to choose source
     const actionSheet = await this.actionSheetController.create({
       header: 'Seleccionar Imagen',
       buttons: [
         {
           text: 'Cámara',
           icon: 'camera-outline',
-          handler: () => {
-            this.takePhoto(CameraSource.Camera);
-          }
+          data: { source: CameraSource.Camera }
         },
         {
           text: 'Galería',
           icon: 'image-outline',
-          handler: () => {
-            this.takePhoto(CameraSource.Photos);
-          }
+          data: { source: CameraSource.Photos }
         },
         {
           text: 'Cancelar',
@@ -50,15 +45,14 @@ export class CameraService {
     });
 
     await actionSheet.present();
+    const result = await actionSheet.onDidDismiss<{ source?: CameraSource }>();
+    const source = result.data?.source;
 
-    // Return promise that resolves when photo is taken
-    return new Promise((resolve) => {
-      actionSheet.onDidDismiss().then(async (result) => {
-        if (result.role === 'cancel') {
-          resolve(null);
-        }
-      });
-    });
+    if (result.role === 'cancel' || !source) {
+      return null;
+    }
+
+    return this.takePhoto(source);
   }
 
   // Direct method to take photo from camera
@@ -168,7 +162,7 @@ export class CameraService {
   uploadPhoto(photo: CapturedPhoto, entityType: string, entityId: number): Observable<any> {
     return from(this.prepareFormData(photo, entityType, entityId)).pipe(
       switchMap(formData =>
-        this.http.post(`${environment.apiUrl}/files/upload`, formData)
+        this.apiClient.post(API_ENDPOINTS.files.upload, formData)
       )
     );
   }

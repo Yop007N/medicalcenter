@@ -1,6 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -35,27 +34,7 @@ import {
   trendingUpOutline,
   timeOutline
 } from 'ionicons/icons';
-import { environment } from '../../../environments/environment';
-
-interface DashboardOverview {
-  totals: {
-    patients: number;
-    professionals: number;
-    appointments: number;
-    medical_records: number;
-    budgets: number;
-    payments: number;
-  };
-  recent_activity: {
-    new_patients_30d: number;
-    appointments_30d: number;
-  };
-  appointment_status: Record<string, number>;
-  revenue: {
-    total: number;
-    currency: string;
-  };
-}
+import { DashboardApiService, DashboardOverview } from '../../core/services';
 
 @Component({
   selector: 'app-dashboard',
@@ -307,7 +286,7 @@ interface DashboardOverview {
   `]
 })
 export class DashboardPage implements OnInit {
-  private http = inject(HttpClient);
+  private dashboardApi = inject(DashboardApiService);
 
   overview: DashboardOverview | null = null;
   loading = true;
@@ -339,7 +318,7 @@ export class DashboardPage implements OnInit {
 
   loadDashboard(): void {
     this.loading = true;
-    this.http.get<DashboardOverview>(`${environment.apiUrl}/dashboard/overview`)
+    this.dashboardApi.getOverview()
       .subscribe({
         next: (data) => {
           this.overview = data;

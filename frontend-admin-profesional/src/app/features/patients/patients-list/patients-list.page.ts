@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import {
   IonHeader,
   IonToolbar,
@@ -28,13 +27,8 @@ import {
   peopleOutline,
   chevronForwardOutline
 } from 'ionicons/icons';
-import { environment } from '../../../../environments/environment';
 import { Patient } from '../../../models';
-import { NotificationService } from '../../../core/services';
-
-interface PaginatedPatientsResponse {
-  items: Patient[];
-}
+import { NotificationService, PatientsApiService } from '../../../core/services';
 
 interface PatientListItem extends Patient {
   initials: string;
@@ -538,7 +532,7 @@ interface PatientListItem extends Patient {
   `]
 })
 export class PatientsListPage implements OnInit {
-  private readonly http = inject(HttpClient);
+  private readonly patientsApi = inject(PatientsApiService);
   private readonly notification = inject(NotificationService);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -571,10 +565,9 @@ export class PatientsListPage implements OnInit {
     this.errorMessage = null;
     this.cdr.markForCheck();
 
-    this.http.get<Patient[] | PaginatedPatientsResponse>(`${environment.apiUrl}/patients`).subscribe({
-      next: (response) => {
-        const data = Array.isArray(response) ? response : response.items ?? [];
-        this.setPatients(data);
+    this.patientsApi.list().subscribe({
+      next: (patients) => {
+        this.setPatients(patients);
         this.loading = false;
         onComplete?.();
         this.cdr.markForCheck();
@@ -644,7 +637,7 @@ export class PatientsListPage implements OnInit {
     );
 
     if (confirmed) {
-      this.http.delete(`${environment.apiUrl}/patients/${patient.id}`).subscribe({
+      this.patientsApi.delete(patient.id).subscribe({
         next: () => {
           this.notification.showSuccess('Paciente eliminado');
           this.loadPatients();

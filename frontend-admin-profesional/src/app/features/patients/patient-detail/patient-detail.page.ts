@@ -50,8 +50,7 @@ import {
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading } from '../../../store/patients/patients.selectors';
 import { selectUser } from '../../../store/auth/auth.selectors';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
+import { OdontologyApiService, PatientsApiService } from '../../../core/services';
 import { User } from '../../../models';
 
 interface AppointmentSummary {
@@ -678,7 +677,8 @@ export class PatientDetailPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
   private alertController = inject(AlertController);
-  private http = inject(HttpClient);
+  private patientsApi = inject(PatientsApiService);
+  private odontologyApi = inject(OdontologyApiService);
 
   patient$ = this.store.select(selectSelectedPatient);
   loading$ = this.store.select(selectPatientsLoading);
@@ -747,7 +747,12 @@ export class PatientDetailPage implements OnInit {
   }
 
   loadAppointments(): void {
-    this.http.get<unknown>(`${environment.apiUrl}/patients/${this.patientId}/appointments`)
+    if (!this.patientId) {
+      this.appointments = [];
+      return;
+    }
+
+    this.patientsApi.listAppointments(this.patientId)
       .subscribe({
         next: (data) => this.appointments = this.normalizeAppointments(data),
         error: () => this.appointments = []
@@ -755,7 +760,12 @@ export class PatientDetailPage implements OnInit {
   }
 
   loadMedicalRecords(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/patients/${this.patientId}/medical-records`)
+    if (!this.patientId) {
+      this.medicalRecords = [];
+      return;
+    }
+
+    this.patientsApi.listMedicalRecords(this.patientId)
       .subscribe({
         next: (data) => this.medicalRecords = data,
         error: () => this.medicalRecords = []
@@ -763,7 +773,12 @@ export class PatientDetailPage implements OnInit {
   }
 
   loadBudgets(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/patients/${this.patientId}/budgets`)
+    if (!this.patientId) {
+      this.budgets = [];
+      return;
+    }
+
+    this.patientsApi.listBudgets(this.patientId)
       .subscribe({
         next: (data) => this.budgets = data,
         error: () => this.budgets = []
@@ -771,12 +786,16 @@ export class PatientDetailPage implements OnInit {
   }
 
   loadOdontologyData(): void {
+    if (!this.patientId) {
+      this.odontogram = null;
+      this.dentalTreatments = [];
+      return;
+    }
+
     this.loadingOdontology = true;
 
     // Load odontograms for this patient
-    this.http.get<any[]>(`${environment.apiUrl}/odontograms`, {
-      params: { patient_id: this.patientId!.toString() }
-    }).subscribe({
+    this.odontologyApi.listOdontograms(this.patientId).subscribe({
       next: (odontograms) => {
         // Get active odontogram or the first one
         this.odontogram = odontograms.find(o => o.is_active) || odontograms[0] || null;
@@ -789,11 +808,9 @@ export class PatientDetailPage implements OnInit {
     });
 
     // Load dental treatments for this patient
-    this.http.get<any>(`${environment.apiUrl}/dental-treatments`, {
-      params: { patient_id: this.patientId!.toString() }
-    }).subscribe({
-      next: (response) => {
-        this.dentalTreatments = response?.items || response || [];
+    this.odontologyApi.listDentalTreatments(this.patientId).subscribe({
+      next: (treatments) => {
+        this.dentalTreatments = treatments;
       },
       error: () => {
         this.dentalTreatments = [];
@@ -819,7 +836,7 @@ export class PatientDetailPage implements OnInit {
       professional_id: professionalId,
       is_active: true
     };
-    this.http.post<any>(`${environment.apiUrl}/odontograms`, odontogramData)
+    this.odontologyApi.createOdontogram(odontogramData)
       .subscribe({
         next: (odontogram) => {
           this.odontogram = odontogram;

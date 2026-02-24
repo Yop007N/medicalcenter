@@ -1,14 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 import { Payment } from '../../models/budget.model';
-import { NotificationService } from '../../core/services';
+import { NotificationService, PaymentsApiService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
-import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as PaymentsActions from './payments.actions';
 
 const normalizePayment = (payment: Partial<Payment>): Payment => ({
@@ -27,29 +24,23 @@ const normalizePayment = (payment: Partial<Payment>): Payment => ({
 @Injectable()
 export class PaymentsEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private paymentsApi = inject(PaymentsApiService);
   private router = inject(Router);
   private notification = inject(NotificationService);
 
   loadPayments$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.loadPayments),
-      switchMap(({ budgetId }) => {
-        let params = new HttpParams();
-        if (budgetId) params = params.set('budget_id', budgetId.toString());
-
-        return this.http.get<CollectionResponse<Payment>>(`${environment.apiUrl}/payments`, { params }).pipe(
-          map((response) => {
-            const payments = toItemsArray(response);
-            return PaymentsActions.loadPaymentsSuccess({
-              payments: payments.map((payment) => normalizePayment(payment))
-            });
-          }),
+      switchMap(({ budgetId }) =>
+        this.paymentsApi.list(budgetId).pipe(
+          map((payments) => PaymentsActions.loadPaymentsSuccess({
+            payments: payments.map((payment) => normalizePayment(payment))
+          })),
           catchError(error => of(PaymentsActions.loadPaymentsFailure({
             error: getApiErrorMessage(error, 'Error al cargar pagos')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -57,7 +48,7 @@ export class PaymentsEffects {
     this.actions$.pipe(
       ofType(PaymentsActions.loadPayment),
       switchMap(({ id }) =>
-        this.http.get<Payment>(`${environment.apiUrl}/payments/${id}`).pipe(
+        this.paymentsApi.getById(id).pipe(
           map(payment => PaymentsActions.loadPaymentSuccess({ payment: normalizePayment(payment) })),
           catchError(error => of(PaymentsActions.loadPaymentFailure({
             error: getApiErrorMessage(error, 'Error al cargar pago')
@@ -71,7 +62,7 @@ export class PaymentsEffects {
     this.actions$.pipe(
       ofType(PaymentsActions.createPayment),
       switchMap(({ payment }) =>
-        this.http.post<Payment>(`${environment.apiUrl}/payments`, payment).pipe(
+        this.paymentsApi.create(payment).pipe(
           map(newPayment => PaymentsActions.createPaymentSuccess({ payment: normalizePayment(newPayment) })),
           catchError(error => of(PaymentsActions.createPaymentFailure({
             error: getApiErrorMessage(error, 'Error al registrar pago')
@@ -96,7 +87,7 @@ export class PaymentsEffects {
     this.actions$.pipe(
       ofType(PaymentsActions.updatePayment),
       switchMap(({ id, payment }) =>
-        this.http.put<Payment>(`${environment.apiUrl}/payments/${id}`, payment).pipe(
+        this.paymentsApi.update(id, payment).pipe(
           map(updatedPayment => PaymentsActions.updatePaymentSuccess({ payment: normalizePayment(updatedPayment) })),
           catchError(error => of(PaymentsActions.updatePaymentFailure({
             error: getApiErrorMessage(error, 'Error al actualizar pago')
@@ -120,7 +111,7 @@ export class PaymentsEffects {
     this.actions$.pipe(
       ofType(PaymentsActions.deletePayment),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/payments/${id}`).pipe(
+        this.paymentsApi.delete(id).pipe(
           map(() => PaymentsActions.deletePaymentSuccess({ id })),
           catchError(error => of(PaymentsActions.deletePaymentFailure({
             error: getApiErrorMessage(error, 'Error al eliminar pago')
@@ -145,7 +136,7 @@ export class PaymentsEffects {
     this.actions$.pipe(
       ofType(PaymentsActions.processPayment),
       switchMap(({ id }) =>
-        this.http.post<Payment>(`${environment.apiUrl}/payments/${id}/process`, {}).pipe(
+        this.paymentsApi.process(id).pipe(
           map(payment => PaymentsActions.processPaymentSuccess({ payment: normalizePayment(payment) })),
           catchError(error => of(PaymentsActions.processPaymentFailure({
             error: getApiErrorMessage(error, 'Error al procesar pago')

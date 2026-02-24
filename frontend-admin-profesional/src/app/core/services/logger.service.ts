@@ -1,6 +1,6 @@
 import { Injectable, inject, Injector } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { ApiClientService } from '../api/api-client.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
@@ -21,7 +21,7 @@ export interface LogEntry {
 @Injectable({ providedIn: 'root' })
 export class LoggerService {
   private injector = inject(Injector);
-  private http: HttpClient | null = null;
+  private apiClient: ApiClientService | null = null;
   private logBuffer: LogEntry[] = [];
   private flushInterval: ReturnType<typeof setInterval> | null = null;
   private readonly MAX_BUFFER_SIZE = 100;
@@ -41,16 +41,16 @@ export class LoggerService {
     }
   }
 
-  private getHttp(): HttpClient | null {
-    // Lazy load HttpClient para evitar dependencia circular
-    if (!this.http) {
+  private getApiClient(): ApiClientService | null {
+    // Lazy load ApiClientService para evitar dependencia circular
+    if (!this.apiClient) {
       try {
-        this.http = this.injector.get(HttpClient);
+        this.apiClient = this.injector.get(ApiClientService);
       } catch {
-        // HttpClient no disponible aún
+        // ApiClientService no disponible aún
       }
     }
-    return this.http;
+    return this.apiClient;
   }
 
   private startPeriodicFlush(): void {
@@ -139,9 +139,9 @@ export class LoggerService {
       return;
     }
 
-    const http = this.getHttp();
-    if (!http) {
-      // Si no hay HttpClient, guardar en localStorage
+    const apiClient = this.getApiClient();
+    if (!apiClient) {
+      // Si no hay ApiClientService, guardar en localStorage
       this.saveToLocalStorage(importantLogs);
       this.isFlushing = false;
       return;
@@ -149,9 +149,7 @@ export class LoggerService {
 
     try {
       // Enviar logs al backend (no espera respuesta para no bloquear)
-      http.post(`${environment.apiUrl}/logs/frontend`, {
-        logs: importantLogs
-      }).subscribe({
+      apiClient.post(API_ENDPOINTS.logs.frontend, { logs: importantLogs }).subscribe({
         next: () => {
           this.isFlushing = false;
         },

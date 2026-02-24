@@ -1,14 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
-import { MedicalRecord, MedicalFile } from '../../models/medical-record.model';
-import { NotificationService } from '../../core/services';
+import { MedicalRecord } from '../../models/medical-record.model';
+import { MedicalRecordsApiService, NotificationService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
-import { CollectionResponse, toItemsArray } from '../pagination.adapter';
 import * as MedicalRecordsActions from './medical-records.actions';
 
 const normalizeMedicalRecord = (record: Partial<MedicalRecord>): MedicalRecord => ({
@@ -24,30 +21,23 @@ const normalizeMedicalRecord = (record: Partial<MedicalRecord>): MedicalRecord =
 @Injectable()
 export class MedicalRecordsEffects {
   private actions$ = inject(Actions);
-  private http = inject(HttpClient);
+  private medicalRecordsApi = inject(MedicalRecordsApiService);
   private router = inject(Router);
   private notification = inject(NotificationService);
 
   loadMedicalRecords$ = createEffect(() =>
     this.actions$.pipe(
       ofType(MedicalRecordsActions.loadMedicalRecords),
-      switchMap(({ patientId, professionalId }) => {
-        let params = new HttpParams();
-        if (patientId) params = params.set('patient_id', patientId.toString());
-        if (professionalId) params = params.set('professional_id', professionalId.toString());
-
-        return this.http.get<CollectionResponse<MedicalRecord>>(`${environment.apiUrl}/medical-records`, { params }).pipe(
-          map((response) => {
-            const medicalRecords = toItemsArray(response);
-            return MedicalRecordsActions.loadMedicalRecordsSuccess({
-              medicalRecords: medicalRecords.map((record) => normalizeMedicalRecord(record))
-            });
-          }),
+      switchMap(({ patientId, professionalId }) =>
+        this.medicalRecordsApi.list(patientId, professionalId).pipe(
+          map((medicalRecords) => MedicalRecordsActions.loadMedicalRecordsSuccess({
+            medicalRecords: medicalRecords.map((record) => normalizeMedicalRecord(record))
+          })),
           catchError(error => of(MedicalRecordsActions.loadMedicalRecordsFailure({
             error: getApiErrorMessage(error, 'Error al cargar historiales medicos')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -55,7 +45,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.loadMedicalRecord),
       switchMap(({ id }) =>
-        this.http.get<MedicalRecord>(`${environment.apiUrl}/medical-records/${id}`).pipe(
+        this.medicalRecordsApi.getById(id).pipe(
           map(medicalRecord => MedicalRecordsActions.loadMedicalRecordSuccess({
             medicalRecord: normalizeMedicalRecord(medicalRecord)
           })),
@@ -71,7 +61,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.createMedicalRecord),
       switchMap(({ medicalRecord }) =>
-        this.http.post<MedicalRecord>(`${environment.apiUrl}/medical-records`, medicalRecord).pipe(
+        this.medicalRecordsApi.create(medicalRecord).pipe(
           map(newRecord => MedicalRecordsActions.createMedicalRecordSuccess({
             medicalRecord: normalizeMedicalRecord(newRecord)
           })),
@@ -98,7 +88,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.updateMedicalRecord),
       switchMap(({ id, medicalRecord }) =>
-        this.http.put<MedicalRecord>(`${environment.apiUrl}/medical-records/${id}`, medicalRecord).pipe(
+        this.medicalRecordsApi.update(id, medicalRecord).pipe(
           map(updatedRecord => MedicalRecordsActions.updateMedicalRecordSuccess({
             medicalRecord: normalizeMedicalRecord(updatedRecord)
           })),
@@ -124,7 +114,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.deleteMedicalRecord),
       switchMap(({ id }) =>
-        this.http.delete(`${environment.apiUrl}/medical-records/${id}`).pipe(
+        this.medicalRecordsApi.delete(id).pipe(
           map(() => MedicalRecordsActions.deleteMedicalRecordSuccess({ id })),
           catchError(error => of(MedicalRecordsActions.deleteMedicalRecordFailure({
             error: getApiErrorMessage(error, 'Error al eliminar historial medico')
@@ -149,20 +139,14 @@ export class MedicalRecordsEffects {
   uploadFile$ = createEffect(() =>
     this.actions$.pipe(
       ofType(MedicalRecordsActions.uploadFile),
-      switchMap(({ medicalRecordId, file, fileType, description }) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('medical_record_id', medicalRecordId.toString());
-        if (fileType) formData.append('file_type', fileType);
-        if (description) formData.append('description', description);
-
-        return this.http.post<MedicalFile>(`${environment.apiUrl}/files/upload`, formData).pipe(
+      switchMap(({ medicalRecordId, file, fileType, description }) =>
+        this.medicalRecordsApi.uploadFile(medicalRecordId, file, fileType, description).pipe(
           map(uploadedFile => MedicalRecordsActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(MedicalRecordsActions.uploadFileFailure({
             error: getApiErrorMessage(error, 'Error al subir archivo')
           })))
-        );
-      })
+        )
+      )
     )
   );
 
@@ -181,7 +165,7 @@ export class MedicalRecordsEffects {
     this.actions$.pipe(
       ofType(MedicalRecordsActions.deleteFile),
       switchMap(({ fileId }) =>
-        this.http.delete(`${environment.apiUrl}/files/${fileId}`).pipe(
+        this.medicalRecordsApi.deleteFile(fileId).pipe(
           map(() => MedicalRecordsActions.deleteFileSuccess({ fileId })),
           catchError(error => of(MedicalRecordsActions.deleteFileFailure({
             error: getApiErrorMessage(error, 'Error al eliminar archivo')
