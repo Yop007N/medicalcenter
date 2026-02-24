@@ -13,6 +13,10 @@
 - Backend: `sync_service` sin TODOs, con transiciones persistidas en `SyncLog` y pruebas nuevas.
 - Backend: `notification_service` con proveedores configurables para SMS/Push (`log`, `disabled`) y pruebas nuevas.
 - Backend: `clinical_history` en progreso SOLID, con `evolutions` movido a `backend/app/services/clinical_history_service.py`.
+- Backend: `clinical_history` extendido a servicio para `anamnesis`, `periodontal` y `prescriptions`.
+- Backend: `odontograms` migrado a `backend/app/services/odontogram_service.py`.
+- Backend: `psychology` migrado a `backend/app/services/psychology_service.py`.
+- QA backend: regresion focal en verde (`51 passed`) para clinical history + odontology + psychology.
 
 ## Pendientes por frontend (actor profesional web)
 - Validar E2E funcional especifico de vistas (interaccion UI) para:
@@ -22,8 +26,7 @@
   - `frontend-profesional/src/app/pages/medical-records.page.ts`
 
 ## Pendientes backend (migracion SOLID)
-- Alta prioridad: continuar extraccion por subdominio en `backend/app/resources/clinical_history.py` (resta anamnesis, periodontal, documentos, prescripciones, consentimientos, timeline/summary).
-- Alta prioridad: terminar separacion Resource -> Service en `backend/app/resources/odontograms.py` y `backend/app/resources/psychology.py`.
+- Alta prioridad: continuar extraccion por subdominio en `backend/app/resources/clinical_history.py` (resta documentos, clinical-docs, consentimientos, timeline/summary).
 - Media prioridad: consolidar errores de dominio unificados en todos los resources (`ValidationError`, `ResourceNotFoundError`, `AccessDeniedError`).
 
 ## Estado migraciones de BD
@@ -32,7 +35,7 @@
 - Comando operativo: `npm run db:reconcile-alembic`.
 
 ## Cola paralela recomendada (siguiente ola)
-1. Backend: partir `clinical_history` en servicios por subdominio (anamnesis, evolutions, prescriptions, consents, documents).
-2. Backend: profundizar separacion Resource -> Service en `odontograms` y `psychology`.
+1. Backend: cerrar extraccion restante en `clinical_history` (documents, clinical-docs, consents, timeline/summary).
+2. Backend: unificar mapeo de errores de dominio en resources legacy.
 3. QA: agregar pruebas de integracion UI para nuevas pantallas funcionales en `frontend-profesional`.
 4. Operacion DB: ejecutar `db:reconcile-alembic` al inicio de cada despliegue de entorno nuevo.
