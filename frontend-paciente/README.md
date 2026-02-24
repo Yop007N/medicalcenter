@@ -2,7 +2,7 @@
 
 Actualizado: 2026-02-23
 
-Cliente PWA de base para canal paciente.
+Cliente PWA para canal Paciente con autenticacion real e integracion contra backend.
 
 ## Stack real
 - Angular 17
@@ -22,20 +22,25 @@ npm run ionic:build
 ```
 
 ## Estado actual
-- Proyecto en estado base/shell.
-- `RouterModule.forRoot([])` sin rutas funcionales cargadas aun.
-- Servicios core disponibles para evolucion:
-  - `auth.service.ts`
-  - `offline.service.ts`
-  - `sync.service.ts`
+- Flujo funcional inicial para actor Paciente implementado:
+  - Login por JWT (`/auth/login`)
+  - Dashboard paciente (`/dashboard`)
+  - Mis turnos (`/my-appointments`)
+  - Mis presupuestos (`/my-budgets`)
+  - Mi historia clinica (`/my-history`)
+  - Mi perfil (`/my-profile`)
+- Menu lateral con sesion activa y cierre de sesion.
+- Interceptor de auth + guard de rutas protegidas.
+- Sincronizacion base (`sync/push`, `sync/pull`, `sync/status`) con cola local.
 
 ## Estructura principal
-- `src/app/core`: servicios base de auth/offline/sync.
-- `src/app/shared`: componentes compartidos.
-- `src/app/pages`: reservado para paginas funcionales.
+- `src/app/core`: auth, sync, offline, guard e interceptor.
+- `src/app/pages`: paginas funcionales del paciente.
+- `src/app/app.routes.ts`: rutas del canal paciente.
 
 ## Configuracion API
-Actualizar `src/environments/environment.ts` con endpoint backend.
+`environment.prod.ts` usa `apiUrl: '/api'` para despliegue con Nginx reverse-proxy.
+Para desarrollo local sin proxy, ajustar `environment.ts` segun tu backend.
 
 ## Nota operativa
-El frontend principal productivo hoy es `frontend-admin-profesional/`; este cliente PWA requiere desarrollo adicional para paridad funcional completa.
+La paridad funcional total de Paciente aun requiere modulos adicionales (historia clinica, documentos y consentimientos), pero el canal ya no esta en estado shell.

@@ -7,8 +7,8 @@
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
-    "ionic:build": "ionic build",
-    "ionic:serve": "ionic serve"
+    "ionic:build": "ng build",
+    "ionic:serve": "ng serve"
   },
   "private": true,
   "dependencies": {
