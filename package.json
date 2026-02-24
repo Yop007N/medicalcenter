@@ -24,6 +24,8 @@
     "frontend-pwa:install": "npm run frontend-paciente:install",
     "frontend-pwa:start": "npm run frontend-paciente:start",
     "frontend-pwa:build": "npm run frontend-paciente:build",
+    "e2e:solid": "python3 scripts/e2e/solid_e2e_check.py",
+    "db:reconcile-alembic": "bash scripts/db/reconcile_alembic_state.sh",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build",

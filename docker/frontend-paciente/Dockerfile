@@ -19,7 +19,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy nginx configuration
-COPY frontend-paciente/nginx.conf /etc/nginx/nginx.conf
+COPY docker/frontend-paciente/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application (Angular output is nested under browser/)
 COPY --from=builder /app/www/browser/ /usr/share/nginx/html

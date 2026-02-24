@@ -72,6 +72,7 @@ build/
 .angular/
 www/
 frontend-paciente/www/
+frontend-admin-profesional/demo-gifs/DEMO-COMPLETO-MEDICAL-SERVICES.gif
 coverage/
 *.tsbuildinfo
 

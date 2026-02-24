@@ -85,6 +85,19 @@ services:
     networks:
       - medical-services-network
 
+  # Frontend Admin Profesional
+  frontend-admin:
+    build:
+      context: .
+      dockerfile: docker/frontend-admin-profesional/Dockerfile
+    container_name: medical-services-frontend-admin
+    ports:
+      - "${FRONTEND_ADMIN_PORT:-4200}:80"
+    depends_on:
+      - backend
+    networks:
+      - medical-services-network
+
   # Frontend PWA
   frontend-pwa:
     build:
