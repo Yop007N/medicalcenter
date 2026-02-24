@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 """Service layer for clinical history subdomains."""
 
+import json
+import os
 from datetime import date, datetime
+from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models.clinical_history import (
     Anamnesis,
+    ClinicalDocument,
     ClinicalHistoryEvent,
     Evolution,
+    InformedConsent,
+    PatientDocument,
     PeriodontalRecord,
     Prescription,
 )
@@ -494,3 +500,453 @@ class PrescriptionService(_ClinicalHistoryBaseService):
         db.session.add(prescription)
         db.session.commit()
         return prescription
+
+
+class PatientDocumentService(_ClinicalHistoryBaseService):
+    """Business logic for patient documents."""
+
+    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'dcm', 'doc', 'docx'}
+
+    @classmethod
+    def list_documents(cls, current_user_id, patient_id, document_type=None, include_inactive=False):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        if not patient_id:
+            raise ValidationError('patient_id is required')
+
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        query = PatientDocument.query.filter_by(patient_id=patient_id)
+        if document_type:
+            query = query.filter_by(document_type=document_type)
+        if not include_inactive:
+            query = query.filter_by(is_active=True)
+
+        return query.order_by(PatientDocument.created_at.desc()).all()
+
+    @classmethod
+    def create_document(cls, current_user_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+
+        required_fields = ['patient_id', 'document_type']
+        is_valid, missing_fields = validate_required_fields(data, required_fields)
+        if not is_valid:
+            raise ValidationError(
+                'Missing required fields',
+                details={'missing_fields': missing_fields},
+            )
+
+        patient_id = data['patient_id']
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        document = PatientDocument(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            file_id=data.get('file_id'),
+            document_type=data['document_type'],
+            title=data.get('title'),
+            description=data.get('description'),
+            file_name=data.get('file_name'),
+            file_path=data.get('file_path'),
+            mime_type=data.get('mime_type'),
+            file_size=data.get('file_size'),
+            affected_teeth=data.get('affected_teeth'),
+            document_date=cls._parse_optional_date(data.get('document_date'), 'document_date')
+            if 'document_date' in data else datetime.utcnow().date(),
+            is_active=data.get('is_active', True),
+        )
+        db.session.add(document)
+        db.session.flush()
+
+        event = ClinicalHistoryEvent(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            event_type='document',
+            reference_type='patient_document',
+            reference_id=document.id,
+            title=f'Documento agregado: {data.get("title", data["document_type"])}',
+        )
+        db.session.add(event)
+        db.session.commit()
+        return document
+
+    @classmethod
+    def delete_document(cls, current_user_id, document_id):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        document = PatientDocument.query.get(document_id)
+        if not document:
+            raise ResourceNotFoundError('Document not found')
+
+        cls._ensure_patient_access(current_user_id, document.patient_id)
+
+        if document.file_path and os.path.exists(document.file_path):
+            try:
+                os.remove(document.file_path)
+            except OSError:
+                pass
+
+        document.is_active = False
+        db.session.add(document)
+        db.session.commit()
+        return document
+
+    @classmethod
+    def upload_document(cls, current_user_id, file_obj, form_data, upload_folder):
+        current_user_id = cls._normalize_user_id(current_user_id)
+
+        if file_obj is None:
+            raise ValidationError('No file provided')
+        if not getattr(file_obj, 'filename', None):
+            raise ValidationError('No file selected')
+        if not cls._allowed_file(file_obj.filename):
+            raise ValidationError(
+                'File type not allowed. Allowed types: pdf, png, jpg, jpeg, gif, dcm, doc, docx'
+            )
+
+        patient_id = cls._to_int(form_data.get('patient_id'))
+        if not patient_id:
+            raise ValidationError('patient_id is required')
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        document_type = form_data.get('document_type', 'other')
+        title = form_data.get('title', '')
+        description = form_data.get('description', '')
+        affected_teeth = cls._parse_affected_teeth(form_data.get('affected_teeth'))
+
+        original_filename = secure_filename(file_obj.filename)
+        unique_filename = cls._generate_unique_filename(original_filename)
+        upload_root = upload_folder if os.path.isabs(upload_folder) else os.path.abspath(upload_folder)
+        patient_folder = os.path.join(upload_root, f'patient_{patient_id}')
+        os.makedirs(patient_folder, exist_ok=True)
+        file_path = os.path.join(patient_folder, unique_filename)
+
+        file_obj.save(file_path)
+        file_size = os.path.getsize(file_path)
+
+        document = PatientDocument(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            document_type=document_type,
+            title=title or original_filename,
+            description=description,
+            file_name=original_filename,
+            file_path=file_path,
+            mime_type=getattr(file_obj, 'content_type', None),
+            file_size=file_size,
+            affected_teeth=affected_teeth,
+            document_date=datetime.utcnow().date(),
+        )
+        db.session.add(document)
+        db.session.flush()
+
+        event = ClinicalHistoryEvent(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            event_type='document',
+            reference_type='patient_document',
+            reference_id=document.id,
+            title=f'Documento subido: {title or original_filename}',
+        )
+        db.session.add(event)
+        db.session.commit()
+        return document
+
+    @classmethod
+    def get_download_payload(cls, current_user_id, document_id):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        document = PatientDocument.query.get(document_id)
+        if not document:
+            raise ResourceNotFoundError('Document not found')
+
+        cls._ensure_patient_access(current_user_id, document.patient_id)
+
+        resolved_file_path = (
+            document.file_path
+            if (document.file_path and os.path.isabs(document.file_path))
+            else os.path.abspath(document.file_path or '')
+        )
+
+        if not document.file_path or not os.path.exists(resolved_file_path):
+            raise ResourceNotFoundError('File not found on disk')
+
+        return {
+            'file_path': resolved_file_path,
+            'download_name': document.file_name or 'document',
+            'mimetype': document.mime_type or 'application/octet-stream',
+        }
+
+    @classmethod
+    def _allowed_file(cls, filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in cls.ALLOWED_EXTENSIONS
+
+    @staticmethod
+    def _generate_unique_filename(original_filename):
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')
+        name, ext = os.path.splitext(secure_filename(original_filename))
+        return f'{name}_{timestamp}{ext}'
+
+    @staticmethod
+    def _parse_affected_teeth(raw_value):
+        if not raw_value:
+            return None
+        if isinstance(raw_value, (list, dict)):
+            return raw_value
+        try:
+            return json.loads(raw_value)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return None
+
+    @staticmethod
+    def _to_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+
+class ClinicalDocumentService(_ClinicalHistoryBaseService):
+    """Business logic for generated clinical documents."""
+
+    @classmethod
+    def list_documents(cls, current_user_id, patient_id, document_type=None, include_inactive=False):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        if not patient_id:
+            raise ValidationError('patient_id is required')
+
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        query = ClinicalDocument.query.filter_by(patient_id=patient_id)
+        if document_type:
+            query = query.filter_by(document_type=document_type)
+        if not include_inactive:
+            query = query.filter_by(is_active=True)
+
+        return query.order_by(ClinicalDocument.created_at.desc()).all()
+
+    @classmethod
+    def create_document(cls, current_user_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        required_fields = ['patient_id', 'document_type', 'title']
+        is_valid, missing_fields = validate_required_fields(data, required_fields)
+        if not is_valid:
+            raise ValidationError(
+                'Missing required fields',
+                details={'missing_fields': missing_fields},
+            )
+
+        patient_id = data['patient_id']
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        document = ClinicalDocument(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            document_type=data['document_type'],
+            title=data['title'],
+            content=data.get('content'),
+            template_id=data.get('template_id'),
+        )
+        db.session.add(document)
+        db.session.commit()
+        return document
+
+    @classmethod
+    def delete_document(cls, current_user_id, doc_id):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        document = ClinicalDocument.query.get(doc_id)
+        if not document:
+            raise ResourceNotFoundError('Document not found')
+
+        cls._ensure_patient_access(current_user_id, document.patient_id)
+        document.is_active = False
+        db.session.add(document)
+        db.session.commit()
+        return document
+
+
+class ConsentService(_ClinicalHistoryBaseService):
+    """Business logic for informed consents."""
+
+    @classmethod
+    def list_consents(cls, current_user_id, patient_id, status=None):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        if not patient_id:
+            raise ValidationError('patient_id is required')
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        query = InformedConsent.query.filter_by(patient_id=patient_id)
+        if status:
+            query = query.filter_by(status=status)
+
+        return query.order_by(InformedConsent.created_at.desc()).all()
+
+    @classmethod
+    def create_consent(cls, current_user_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        required_fields = ['patient_id', 'consent_type', 'title']
+        is_valid, missing_fields = validate_required_fields(data, required_fields)
+        if not is_valid:
+            raise ValidationError(
+                'Missing required fields',
+                details={'missing_fields': missing_fields},
+            )
+
+        patient_id = data['patient_id']
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        consent = InformedConsent(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            treatment_id=data.get('treatment_id'),
+            consent_type=data['consent_type'],
+            title=data['title'],
+            content=data.get('content'),
+            status='pending',
+        )
+        db.session.add(consent)
+        db.session.flush()
+
+        event = ClinicalHistoryEvent(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            event_type='consent',
+            reference_type='informed_consent',
+            reference_id=consent.id,
+            title=f'Consentimiento creado: {data["title"]}',
+        )
+        db.session.add(event)
+        db.session.commit()
+        return consent
+
+    @classmethod
+    def sign_consent(cls, current_user_id, consent_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        consent = InformedConsent.query.get(consent_id)
+        if not consent:
+            raise ResourceNotFoundError('Consent not found')
+
+        cls._ensure_patient_access(current_user_id, consent.patient_id)
+
+        if consent.status != 'pending':
+            raise ValidationError('Consent is not pending')
+        if 'patient_signature' not in data:
+            raise ValidationError('patient_signature is required')
+
+        consent.patient_signature = data['patient_signature']
+        consent.patient_signed_at = datetime.utcnow()
+
+        if data.get('guardian_signature'):
+            consent.guardian_name = data.get('guardian_name')
+            consent.guardian_relationship = data.get('guardian_relationship')
+            consent.guardian_signature = data['guardian_signature']
+            consent.guardian_signed_at = datetime.utcnow()
+
+        consent.status = 'signed'
+        db.session.add(consent)
+        db.session.commit()
+        return consent
+
+    @classmethod
+    def reject_consent(cls, current_user_id, consent_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        consent = InformedConsent.query.get(consent_id)
+        if not consent:
+            raise ResourceNotFoundError('Consent not found')
+
+        cls._ensure_patient_access(current_user_id, consent.patient_id)
+
+        if consent.status != 'pending':
+            raise ValidationError('Consent is not pending')
+
+        consent.status = 'rejected'
+        consent.rejected_reason = data.get('reason')
+        db.session.add(consent)
+        db.session.commit()
+        return consent
+
+
+class TimelineService(_ClinicalHistoryBaseService):
+    """Business logic for timeline events and patient summary."""
+
+    @classmethod
+    def list_events(cls, current_user_id, patient_id, event_type=None, limit=50):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        if not patient_id:
+            raise ValidationError('patient_id is required')
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        query = ClinicalHistoryEvent.query.filter_by(patient_id=patient_id, is_active=True)
+        if event_type:
+            query = query.filter_by(event_type=event_type)
+
+        return query.order_by(ClinicalHistoryEvent.event_date.desc()).limit(limit).all()
+
+    @classmethod
+    def create_manual_event(cls, current_user_id, data):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        required_fields = ['patient_id', 'event_type', 'title']
+        is_valid, missing_fields = validate_required_fields(data, required_fields)
+        if not is_valid:
+            raise ValidationError(
+                'Missing required fields',
+                details={'missing_fields': missing_fields},
+            )
+
+        if data['event_type'] not in ['note', 'alert']:
+            raise ValidationError('event_type must be note or alert for manual events')
+
+        patient_id = data['patient_id']
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        event = ClinicalHistoryEvent(
+            patient_id=patient_id,
+            professional_id=current_user_id,
+            event_type=data['event_type'],
+            title=data['title'],
+            description=data.get('description'),
+            is_important=data.get('is_important', data['event_type'] == 'alert'),
+        )
+        db.session.add(event)
+        db.session.commit()
+        return event
+
+    @classmethod
+    def get_summary(cls, current_user_id, patient_id):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        cls._get_patient_or_404(patient_id)
+        cls._ensure_patient_access(current_user_id, patient_id)
+
+        evolutions_count = Evolution.query.filter_by(patient_id=patient_id).filter(
+            Evolution.status != 'annulled'
+        ).count()
+        prescriptions_count = Prescription.query.filter_by(patient_id=patient_id).filter(
+            Prescription.status != 'annulled'
+        ).count()
+        documents_count = PatientDocument.query.filter_by(patient_id=patient_id, is_active=True).count()
+        clinical_docs_count = ClinicalDocument.query.filter_by(patient_id=patient_id, is_active=True).count()
+        consents_pending = InformedConsent.query.filter_by(patient_id=patient_id, status='pending').count()
+        consents_signed = InformedConsent.query.filter_by(patient_id=patient_id, status='signed').count()
+
+        anamnesis = Anamnesis.query.filter_by(patient_id=patient_id, is_active=True).first()
+        recent_events = ClinicalHistoryEvent.query.filter_by(
+            patient_id=patient_id,
+            is_active=True,
+        ).order_by(ClinicalHistoryEvent.event_date.desc()).limit(5).all()
+
+        return {
+            'patient_id': patient_id,
+            'has_anamnesis': anamnesis is not None,
+            'medical_alerts': anamnesis.medical_alerts if anamnesis else [],
+            'counts': {
+                'evolutions': evolutions_count,
+                'prescriptions': prescriptions_count,
+                'documents': documents_count,
+                'clinical_documents': clinical_docs_count,
+                'consents_pending': consents_pending,
+                'consents_signed': consents_signed,
+            },
+            'recent_events': recent_events,
+        }
