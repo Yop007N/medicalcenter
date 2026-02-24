@@ -50,6 +50,9 @@ class ProfessionalService:
         if not is_valid:
             raise ValidationError('Missing required fields', {'missing_fields': missing_fields})
 
+        from app.services.auth_service import AuthService
+        AuthService.validate_password(data['password'])
+
         if Professional.query.filter_by(email=data['email']).first():
             raise ValidationError('Email already registered')
 
@@ -107,6 +110,8 @@ class ProfessionalService:
         if 'is_active' in data:
             professional.is_active = ProfessionalService._coerce_bool(data['is_active'])
         if 'password' in data:
+            from app.services.auth_service import AuthService
+            AuthService.validate_password(data['password'])
             professional.set_password(data['password'])
 
         db.session.commit()

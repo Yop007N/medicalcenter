@@ -135,6 +135,7 @@ class PatientService:
             patient.date_of_birth = PatientService._parse_date(data['date_of_birth'])
 
         if 'password' in data:
+            AuthService.validate_password(data['password'])
             patient.set_password(data['password'])
 
         db.session.commit()
