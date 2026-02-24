@@ -50,6 +50,12 @@ npm install
 npm run start
 ```
 
+## URLs del despliegue docker-compose (actor)
+- Profesional (web): `http://<IP_SERVIDOR>` (puerto `FRONTEND_WEB_PORT`, default `80`)
+- Administrador/Profesional (app principal): `http://<IP_SERVIDOR>:4200` (puerto `FRONTEND_ADMIN_PORT`)
+- Paciente (PWA): `http://<IP_SERVIDOR>:8100` (puerto `FRONTEND_PWA_PORT`)
+- Backend API: `http://<IP_SERVIDOR>:5000` (`/health`)
+
 ## Documentacion clave
 - `docs/README.md`: indice de documentacion
 - `docs/ALCANCE_SISTEMA_GENERAL.md`: alcance funcional y tecnico

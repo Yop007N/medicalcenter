@@ -96,7 +96,7 @@ flowchart LR
 ## Despliegue
 
 ### Desarrollo
-- `docker-compose.yml`: postgres, redis, backend, celery, frontend-web, frontend-pwa.
+- `docker-compose.yml`: postgres, redis, backend, celery, frontend-admin, frontend-web, frontend-pwa.
 - `docker-compose.db.yml`: postgres + pgAdmin para entorno de datos.
 
 ### Produccion base

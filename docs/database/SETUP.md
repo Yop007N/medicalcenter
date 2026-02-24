@@ -53,3 +53,15 @@ Referencia: `docs/database/schema.md`
 - Puerto ocupado: revisar si existe otra instancia PostgreSQL en 5433/5432.
 - Error de conexion: confirmar `DATABASE_URL` y estado del contenedor `medical-services-postgres`.
 - Diferencias de esquema: ejecutar migraciones pendientes.
+
+## Reconciliacion Alembic (entornos con schema previo)
+Si la base tiene tablas pero no tiene `alembic_version`, ejecutar:
+```bash
+cd /home/cfernanv/workspace/pro/empresas/medical-services
+npm run db:reconcile-alembic
+```
+
+Este comando:
+- usa `upgrade head` en esquema vacio;
+- usa `stamp head` en esquema existente sin versionado;
+- deja `alembic_version` consistente para despliegues futuros.

@@ -46,6 +46,7 @@ Incluye:
 - backend
 - redis
 - celery
+- frontend-admin (cliente `frontend-admin-profesional/`)
 - frontend-web (cliente `frontend-profesional/`)
 - frontend-pwa (cliente `frontend-paciente/`)
 
