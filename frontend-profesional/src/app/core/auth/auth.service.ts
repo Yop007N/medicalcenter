@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
+import { ApiService } from '../api/api.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
+import { SessionStoreService, SessionUser } from './session-store.service';
 
 export interface LoginResponse {
   access_token: string;
@@ -20,46 +21,44 @@ export interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = environment.apiUrl;
-  private currentUserSubject = new BehaviorSubject<any>(null);
+  private currentUserSubject = new BehaviorSubject<SessionUser | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
-    // Load user from localStorage on init
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      this.currentUserSubject.next(JSON.parse(storedUser));
-    }
+  constructor(
+    private api: ApiService,
+    private sessionStore: SessionStoreService
+  ) {
+    this.currentUserSubject.next(this.sessionStore.getCurrentUser());
   }
 
   login(email: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.API_URL}/auth/login`, { email, password })
+    return this.api.post<LoginResponse>(API_ENDPOINTS.auth.login, { email, password })
       .pipe(
         tap(response => {
-          localStorage.setItem('access_token', response.access_token);
-          localStorage.setItem('refresh_token', response.refresh_token);
-          localStorage.setItem('currentUser', JSON.stringify(response.user));
+          this.sessionStore.storeSession({
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token,
+            user: response.user
+          });
           this.currentUserSubject.next(response.user);
         })
       );
   }
 
   logout(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('currentUser');
+    this.sessionStore.clear();
     this.currentUserSubject.next(null);
   }
 
   getToken(): string | null {
-    return localStorage.getItem('access_token');
+    return this.sessionStore.getAccessToken();
   }
 
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
 
-  get currentUserValue() {
+  get currentUserValue(): SessionUser | null {
     return this.currentUserSubject.value;
   }
 }

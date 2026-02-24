@@ -25,7 +25,9 @@ export class AppComponent {
     { path: '/patients', label: 'Pacientes' },
     { path: '/appointments', label: 'Citas' },
     { path: '/medical-records', label: 'Registros' },
-    { path: '/budgets', label: 'Presupuestos' }
+    { path: '/budgets', label: 'Presupuestos' },
+    { path: '/payments', label: 'Pagos' },
+    { path: '/reports', label: 'Reportes' }
   ];
 
   logout(): void {

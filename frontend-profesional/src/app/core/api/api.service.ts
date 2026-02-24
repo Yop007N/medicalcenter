@@ -11,14 +11,43 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  get<T>(path: string, params?: any): Observable<T> {
+  private buildParams(params?: Record<string, unknown>): HttpParams {
     let httpParams = new HttpParams();
-    if (params) {
-      Object.keys(params).forEach(key => {
-        httpParams = httpParams.append(key, params[key]);
-      });
+    if (!params) {
+      return httpParams;
     }
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === null || value === undefined) {
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (item !== null && item !== undefined) {
+            httpParams = httpParams.append(key, String(item));
+          }
+        });
+        return;
+      }
+
+      httpParams = httpParams.append(key, String(value));
+    });
+
+    return httpParams;
+  }
+
+  get<T>(path: string, params?: Record<string, unknown>): Observable<T> {
+    const httpParams = this.buildParams(params);
     return this.http.get<T>(`${this.API_URL}/${path}`, { params: httpParams });
+  }
+
+  getBlob(path: string, params?: Record<string, unknown>): Observable<Blob> {
+    const httpParams = this.buildParams(params);
+    return this.http.get(`${this.API_URL}/${path}`, {
+      params: httpParams,
+      responseType: 'blob'
+    });
   }
 
   post<T>(path: string, body: any): Observable<T> {

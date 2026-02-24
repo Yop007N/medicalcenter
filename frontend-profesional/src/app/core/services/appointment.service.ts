@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../api/api.service';
 import { Appointment } from '../../shared/models/appointment.model';
+import { API_ENDPOINTS } from '../api/api-endpoints';
+import { CollectionResponse, mapCollectionItems } from '../api/collection-response.util';
 
 @Injectable({
   providedIn: 'root'
@@ -10,26 +12,28 @@ export class AppointmentService {
   constructor(private api: ApiService) {}
 
   getAppointments(filters?: any): Observable<Appointment[]> {
-    return this.api.get<Appointment[]>('appointments', filters);
+    return this.api
+      .get<CollectionResponse<Appointment>>(API_ENDPOINTS.appointments.base, filters)
+      .pipe(mapCollectionItems<Appointment>());
   }
 
   getAppointmentById(id: number): Observable<Appointment> {
-    return this.api.get<Appointment>(`appointments/${id}`);
+    return this.api.get<Appointment>(API_ENDPOINTS.appointments.byId(id));
   }
 
   createAppointment(appointment: Partial<Appointment>): Observable<Appointment> {
-    return this.api.post<Appointment>('appointments', appointment);
+    return this.api.post<Appointment>(API_ENDPOINTS.appointments.base, appointment);
   }
 
   updateAppointment(id: number, appointment: Partial<Appointment>): Observable<Appointment> {
-    return this.api.put<Appointment>(`appointments/${id}`, appointment);
+    return this.api.put<Appointment>(API_ENDPOINTS.appointments.byId(id), appointment);
   }
 
   cancelAppointment(id: number): Observable<void> {
-    return this.api.delete<void>(`appointments/${id}`);
+    return this.api.delete<void>(API_ENDPOINTS.appointments.byId(id));
   }
 
   confirmAppointment(id: number): Observable<Appointment> {
-    return this.api.post<Appointment>(`appointments/${id}/confirm`, {});
+    return this.api.post<Appointment>(API_ENDPOINTS.appointments.confirm(id), {});
   }
 }

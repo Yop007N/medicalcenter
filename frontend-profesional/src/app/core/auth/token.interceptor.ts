@@ -1,7 +1,10 @@
 import { HttpInterceptorFn } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { SessionStoreService } from './session-store.service';
 
 export const tokenInterceptor: HttpInterceptorFn = (req, next) => {
-  const token = localStorage.getItem('access_token');
+  const sessionStore = inject(SessionStoreService);
+  const token = sessionStore.getAccessToken();
   const isAuthRequest = req.url.includes('/auth/login') || req.url.includes('/auth/refresh');
 
   if (token && !isAuthRequest) {

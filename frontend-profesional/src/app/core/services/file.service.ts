@@ -1,15 +1,13 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { ApiService } from '../api/api.service';
+import { API_ENDPOINTS } from '../api/api-endpoints';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FileService {
-  private readonly API_URL = environment.apiUrl;
-
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiService) {}
 
   uploadFile(file: File, medicalRecordId: number, fileType: string): Observable<any> {
     const formData = new FormData();
@@ -17,16 +15,14 @@ export class FileService {
     formData.append('medical_record_id', medicalRecordId.toString());
     formData.append('file_type', fileType);
 
-    return this.http.post(`${this.API_URL}/files/upload`, formData);
+    return this.api.post(API_ENDPOINTS.files.upload, formData);
   }
 
   downloadFile(fileId: number): Observable<Blob> {
-    return this.http.get(`${this.API_URL}/files/${fileId}/download`, {
-      responseType: 'blob'
-    });
+    return this.api.getBlob(API_ENDPOINTS.files.download(fileId));
   }
 
   deleteFile(fileId: number): Observable<void> {
-    return this.http.delete<void>(`${this.API_URL}/files/${fileId}`);
+    return this.api.delete<void>(API_ENDPOINTS.files.byId(fileId));
   }
 }

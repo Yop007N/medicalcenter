@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../api/api.service';
 import { Budget } from '../../shared/models/budget.model';
+import { API_ENDPOINTS } from '../api/api-endpoints';
+import { CollectionResponse, mapCollectionItems } from '../api/collection-response.util';
 
 @Injectable({
   providedIn: 'root'
@@ -10,30 +12,32 @@ export class BudgetService {
   constructor(private api: ApiService) {}
 
   getBudgets(filters?: any): Observable<Budget[]> {
-    return this.api.get<Budget[]>('budgets', filters);
+    return this.api
+      .get<CollectionResponse<Budget>>(API_ENDPOINTS.budgets.base, filters)
+      .pipe(mapCollectionItems<Budget>());
   }
 
   getBudgetById(id: number): Observable<Budget> {
-    return this.api.get<Budget>(`budgets/${id}`);
+    return this.api.get<Budget>(API_ENDPOINTS.budgets.byId(id));
   }
 
   createBudget(budget: Partial<Budget>): Observable<Budget> {
-    return this.api.post<Budget>('budgets', budget);
+    return this.api.post<Budget>(API_ENDPOINTS.budgets.base, budget);
   }
 
   updateBudget(id: number, budget: Partial<Budget>): Observable<Budget> {
-    return this.api.put<Budget>(`budgets/${id}`, budget);
+    return this.api.put<Budget>(API_ENDPOINTS.budgets.byId(id), budget);
   }
 
   deleteBudget(id: number): Observable<void> {
-    return this.api.delete<void>(`budgets/${id}`);
+    return this.api.delete<void>(API_ENDPOINTS.budgets.byId(id));
   }
 
   sendBudget(id: number): Observable<Budget> {
-    return this.api.post<Budget>(`budgets/${id}/send`, {});
+    return this.api.post<Budget>(API_ENDPOINTS.budgets.send(id), {});
   }
 
   acceptBudget(id: number): Observable<Budget> {
-    return this.api.post<Budget>(`budgets/${id}/accept`, {});
+    return this.api.post<Budget>(API_ENDPOINTS.budgets.accept(id), {});
   }
 }

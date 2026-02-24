@@ -1,8 +1,7 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { finalize } from 'rxjs/operators';
-import { BudgetService } from '../core/services/budget.service';
-import { Budget } from '../shared/models/budget.model';
+import { Payment, PaymentService } from '../core/services/payment.service';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -14,16 +13,16 @@ type ApiErrorShape = {
 };
 
 @Component({
-  selector: 'app-budgets-page',
+  selector: 'app-payments-page',
   standalone: true,
   imports: [CommonModule, CurrencyPipe, DatePipe],
   template: `
     <section class="page">
-      <h1>Presupuestos</h1>
-      <p>Creacion, seguimiento y estados de presupuestos clinicos.</p>
+      <h1>Pagos</h1>
+      <p>Seguimiento de cobranzas y estado de transacciones registradas.</p>
 
       <div class="toolbar">
-        <button type="button" class="refresh-button" (click)="loadBudgets()" [disabled]="loading">
+        <button type="button" class="refresh-button" (click)="loadPayments()" [disabled]="loading">
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
@@ -32,53 +31,34 @@ type ApiErrorShape = {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
       }
 
-      @if (!loading && budgets.length === 0 && !errorMessage) {
+      @if (!loading && payments.length === 0 && !errorMessage) {
         <article class="card empty">
-          <h2 class="card-title">Sin presupuestos registrados</h2>
-          <p class="card-text">Todavia no hay presupuestos para mostrar.</p>
+          <h2 class="card-title">Sin pagos registrados</h2>
+          <p class="card-text">Todavía no hay transacciones para mostrar.</p>
         </article>
       }
 
-      @if (budgets.length > 0) {
+      @if (payments.length > 0) {
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Titulo</th>
-                <th>Paciente</th>
+                <th>Fecha</th>
                 <th>Monto</th>
+                <th>Método</th>
                 <th>Estado</th>
-                <th>Creado</th>
-                <th>Valido hasta</th>
-                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              @for (budget of budgets; track budget.id) {
+              @for (payment of payments; track payment.id) {
                 <tr>
-                  <td>#{{ budget.id }}</td>
-                  <td>{{ budget.title }}</td>
-                  <td>{{ budget.patient_id }}</td>
-                  <td>{{ budget.total_amount | currency:(budget.currency || 'ARS'):'symbol':'1.2-2' }}</td>
+                  <td>#{{ payment.id }}</td>
+                  <td>{{ payment.payment_date || payment.created_at | date:'short' }}</td>
+                  <td>{{ payment.amount | currency:(payment.currency || 'ARS'):'symbol':'1.2-2' }}</td>
+                  <td>{{ payment.payment_method }}</td>
                   <td>
-                    <span class="badge" [class]="'status-' + budget.status">{{ budget.status }}</span>
-                  </td>
-                  <td>{{ budget.created_at | date:'short' }}</td>
-                  <td>{{ budget.valid_until | date:'shortDate' }}</td>
-                  <td>
-                    @if (canSendBudget(budget)) {
-                      <button
-                        type="button"
-                        class="action-button"
-                        (click)="sendBudget(budget.id)"
-                        [disabled]="sendingIds.has(budget.id)"
-                      >
-                        @if (sendingIds.has(budget.id)) { Enviando... } @else { Enviar }
-                      </button>
-                    } @else {
-                      <span class="muted">-</span>
-                    }
+                    <span class="badge" [class]="'status-' + payment.payment_status">{{ payment.payment_status }}</span>
                   </td>
                 </tr>
               }
@@ -119,7 +99,7 @@ type ApiErrorShape = {
 
       .table {
         border-collapse: collapse;
-        min-width: 900px;
+        min-width: 680px;
         width: 100%;
       }
 
@@ -146,42 +126,24 @@ type ApiErrorShape = {
         text-transform: capitalize;
       }
 
-      .status-draft {
-        background: #eff8ff;
-        color: #175cd3;
-      }
-
-      .status-pending,
-      .status-sent {
+      .status-pending {
         background: #fffaeb;
         color: #b54708;
       }
 
-      .status-accepted {
+      .status-completed {
         background: #ecfdf3;
         color: #067647;
       }
 
-      .status-rejected,
-      .status-expired {
+      .status-failed {
         background: #fef3f2;
         color: #b42318;
       }
 
-      .action-button {
-        background: #1d4ed8;
-        border: 0;
-        border-radius: 8px;
-        color: #ffffff;
-        cursor: pointer;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.3rem 0.55rem;
-      }
-
-      .action-button:disabled {
-        background: #93c5fd;
-        cursor: not-allowed;
+      .status-refunded {
+        background: #f5f3ff;
+        color: #5925dc;
       }
 
       .error-box {
@@ -194,65 +156,38 @@ type ApiErrorShape = {
         padding: 0.55rem 0.7rem;
       }
 
-      .muted {
-        color: #98a2b3;
-      }
-
       .empty {
         margin-top: 0.75rem;
       }
     `
   ]
 })
-export class BudgetsPage implements OnInit {
-  private readonly budgetService = inject(BudgetService);
+export class PaymentsPage implements OnInit {
+  private readonly paymentService = inject(PaymentService);
 
-  budgets: Budget[] = [];
+  payments: Payment[] = [];
   loading = false;
   errorMessage: string | null = null;
-  sendingIds = new Set<number>();
 
   ngOnInit(): void {
-    this.loadBudgets();
+    this.loadPayments();
   }
 
-  loadBudgets(): void {
+  loadPayments(): void {
     this.loading = true;
     this.errorMessage = null;
 
-    this.budgetService
-      .getBudgets()
+    this.paymentService
+      .getPayments()
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: (budgets) => {
-          this.budgets = budgets;
+        next: (payments) => {
+          this.payments = payments;
         },
         error: (error: unknown) => {
           this.errorMessage = this.resolveErrorMessage(error);
         }
       });
-  }
-
-  canSendBudget(budget: Budget): boolean {
-    return budget.status === 'draft';
-  }
-
-  sendBudget(budgetId: number): void {
-    this.sendingIds.add(budgetId);
-    this.errorMessage = null;
-
-    this.budgetService.sendBudget(budgetId).subscribe({
-      next: (updatedBudget) => {
-        this.budgets = this.budgets.map((budget) =>
-          budget.id === budgetId ? { ...budget, ...updatedBudget } : budget
-        );
-        this.sendingIds.delete(budgetId);
-      },
-      error: (error: unknown) => {
-        this.errorMessage = this.resolveErrorMessage(error);
-        this.sendingIds.delete(budgetId);
-      }
-    });
   }
 
   private resolveErrorMessage(error: unknown): string {
@@ -262,7 +197,7 @@ export class BudgetsPage implements OnInit {
         return msg;
       }
     }
-    return 'No se pudieron cargar o actualizar los presupuestos.';
+    return 'No se pudieron cargar los pagos.';
   }
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {

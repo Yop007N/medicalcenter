@@ -18,6 +18,17 @@ export interface MedicalRecord {
   created_at: string;
   updated_at: string;
   files?: MedicalFile[];
+  patient?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+  };
+  professional?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    specialty?: string;
+  };
 }
 
 export interface MedicalFile {
