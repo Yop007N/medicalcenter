@@ -1,6 +1,6 @@
 # SOLID Activity Tracker
 
-Updated: 2026-02-24
+Updated: 2026-02-25
 
 ## Objetivo
 Evitar trabajo duplicado y medir avance real por modulo con evidencia ejecutable.
@@ -86,3 +86,17 @@ Antes de empezar un item:
 - `npm run frontend-profesional:build` (post ajuste `optimization.fonts=false` para build offline) -> OK.
 - `npm run frontend-admin-profesional:build` (post modulo `files` + build offline sin inlining de Google Fonts) -> OK.
 - `npm run frontend-paciente:build` (post solicitud de turnos por paciente) -> OK.
+
+## Evidencia ejecutada (2026-02-25)
+- `hostname -I` -> IP activa validada: `10.4.33.184`.
+- `curl -sS -i http://10.4.33.184:5000/health` -> 200 (`database=healthy`, `redis=healthy`).
+- `curl -sS -i http://10.4.33.184:4200/auth/login` -> 200.
+- `curl -sS -i http://10.4.33.184/auth/login` -> 200.
+- `curl -sS -i http://10.4.33.184:8100/auth/login` -> 200.
+- `curl -sS -i -X POST http://10.4.33.184:4200/api/auth/login ...` -> 200 (`admin`).
+- `curl -sS -i -X POST http://10.4.33.184/api/auth/login ...` -> 200 (`professional`).
+- `curl -sS -i -X POST http://10.4.33.184:8100/api/auth/login ...` -> 200 (`patient`).
+- `python3 scripts/e2e/solid_e2e_check.py --backend-url http://10.4.33.184:5000 --frontend-admin-url http://10.4.33.184:4200 --frontend-profesional-url http://10.4.33.184 --frontend-paciente-url http://10.4.33.184:8100 --skip-register` -> `E2E summary: PASS`.
+- `docker run --rm --network host ... node /work/scripts/professional_ui_smoke.mjs` (BASE_URL `http://10.4.33.184`) -> `PASS` en `/dashboard,/professionals,/patients,/appointments,/medical-records,/budgets,/payments,/reports`.
+- `cd frontend-admin-profesional && BASE_URL=http://10.4.33.184:4200 ... npx playwright test --config=e2e/playwright.config.ts --project=chromium --no-deps e2e/tests/critical-smoke.spec.ts` -> `5 passed`.
+- `docker run --rm --network host ... node patient_ui_smoke.mjs` (BASE_URL `http://10.4.33.184:8100`) -> `PASS` en `/dashboard,/my-appointments,/my-budgets,/my-history,/my-profile`.
