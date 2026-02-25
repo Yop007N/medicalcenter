@@ -19,6 +19,7 @@
     "build:ios": "npm run build:prod && npx cap sync ios",
     "analyze": "ng build --stats-json && npx webpack-bundle-analyzer www/stats.json",
     "e2e": "playwright test --config=e2e/playwright.config.ts",
+    "e2e:critical": "playwright test --config=e2e/playwright.config.ts --project=chromium --no-deps e2e/tests/critical-smoke.spec.ts",
     "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
     "e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
     "e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug",

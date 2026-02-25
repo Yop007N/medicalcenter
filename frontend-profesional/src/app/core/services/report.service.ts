@@ -26,6 +26,33 @@ export interface AppointmentSummary {
   };
 }
 
+export interface MedicalSummaryReport {
+  total_records: number;
+  by_specialty: Array<{
+    specialty: string;
+    count: number;
+  }>;
+  period: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface FinancialSummaryReport {
+  total_revenue: number;
+  total_pending: number;
+  currency: string;
+  by_payment_method: Array<{
+    method: string;
+    amount: number;
+    count: number;
+  }>;
+  period: {
+    start: string;
+    end: string;
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -38,6 +65,31 @@ export class ReportService {
 
   getAppointmentsSummary(startDate: string, endDate: string): Observable<AppointmentSummary> {
     return this.api.get<AppointmentSummary>(API_ENDPOINTS.reports.appointments, {
+      start_date: startDate,
+      end_date: endDate
+    });
+  }
+
+  getMedicalSummary(startDate: string, endDate: string): Observable<MedicalSummaryReport> {
+    return this.api.get<MedicalSummaryReport>(API_ENDPOINTS.reports.medical, {
+      start_date: startDate,
+      end_date: endDate
+    });
+  }
+
+  getFinancialSummary(startDate: string, endDate: string): Observable<FinancialSummaryReport> {
+    return this.api.get<FinancialSummaryReport>(API_ENDPOINTS.reports.financial, {
+      start_date: startDate,
+      end_date: endDate
+    });
+  }
+
+  exportReport(
+    reportType: 'appointments' | 'financial' | 'medical',
+    startDate: string,
+    endDate: string
+  ): Observable<Blob> {
+    return this.api.getBlob(API_ENDPOINTS.reports.export(reportType), {
       start_date: startDate,
       end_date: endDate
     });

@@ -13,23 +13,23 @@ export const PSYCHOLOGY_ROUTES: Routes = [
       },
       {
         path: 'evaluations',
-        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage) // Placeholder
+        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage)
       },
       {
         path: 'evaluations/new',
-        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage) // Placeholder
+        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage)
       },
       {
         path: 'evaluations/:id',
-        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage) // Placeholder
+        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage)
       },
       {
         path: 'sessions',
-        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage) // Placeholder
+        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage)
       },
       {
         path: 'sessions/:id',
-        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage) // Placeholder
+        loadComponent: () => import('./psychology-home/psychology-home.page').then(m => m.PsychologyHomePage)
       }
     ]
   }

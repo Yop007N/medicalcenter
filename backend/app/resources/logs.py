@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""
-Frontend Logs endpoints - Receives and stores frontend debug logs
-"""
+"""Frontend logs endpoints."""
+
+import os
 
 from flask import Blueprint, jsonify, request, current_app
-from datetime import datetime
-import os
-import json
+
 from app.extensions import limiter
+from app.resources.domain_errors import domain_error_response, message_response
+from app.services.exceptions import ValidationError
+from app.services.logs_service import LogsService
 
 
 blueprint = Blueprint('logs', __name__, url_prefix='/api/logs')
@@ -17,6 +18,10 @@ LOG_FILE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     'doc.log'
 )
+
+
+def _logs_service() -> LogsService:
+    return LogsService(log_file_path=LOG_FILE_PATH, os_module=os)
 
 
 @blueprint.route('/frontend', methods=['POST'])
@@ -58,34 +63,13 @@ def receive_frontend_logs():
         description: Error storing logs
     """
     try:
-        data = request.get_json()
-        logs = data.get('logs', [])
-
-        if not logs:
-            return jsonify({'msg': 'No logs provided'}), 400
-
-        # Append logs to file
-        with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
-            for log in logs:
-                timestamp = log.get('timestamp', datetime.now().isoformat())
-                level = log.get('level', 'INFO')
-                source = log.get('source', 'UNKNOWN')
-                message = log.get('message', '')
-                data_str = ''
-                if log.get('data'):
-                    try:
-                        data_str = f" | DATA: {json.dumps(log['data'], default=str)}"
-                    except:
-                        data_str = f" | DATA: {str(log['data'])}"
-
-                log_line = f"[{timestamp}] [{level}] [{source}] {message}{data_str}\n"
-                f.write(log_line)
-
-        return jsonify({'msg': f'{len(logs)} logs stored successfully'}), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Error storing frontend logs: {str(e)}")
-        return jsonify({'msg': f'Error storing logs: {str(e)}'}), 500
+        stored_count = _logs_service().store_frontend_logs(request.get_json(silent=True))
+        return message_response(f'{stored_count} logs stored successfully', 200)
+    except ValidationError as exc:
+        return domain_error_response(exc)
+    except Exception as exc:
+        current_app.logger.error("Error storing frontend logs: %s", exc)
+        return message_response('Error storing logs', 500)
 
 
 @blueprint.route('/frontend', methods=['GET'])
@@ -110,22 +94,10 @@ def get_frontend_logs():
     """
     try:
         lines = request.args.get('lines', 100, type=int)
-
-        if not os.path.exists(LOG_FILE_PATH):
-            return jsonify({'logs': [], 'msg': 'No logs yet'}), 200
-
-        with open(LOG_FILE_PATH, 'r', encoding='utf-8') as f:
-            all_lines = f.readlines()
-            last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-
-        return jsonify({
-            'logs': [line.strip() for line in last_lines],
-            'total_lines': len(all_lines),
-            'returned_lines': len(last_lines)
-        }), 200
-
-    except Exception as e:
-        return jsonify({'msg': f'Error reading logs: {str(e)}'}), 500
+        payload = _logs_service().get_frontend_logs(lines=lines or 100)
+        return jsonify(payload), 200
+    except Exception:
+        return message_response('Error reading logs', 500)
 
 
 @blueprint.route('/frontend', methods=['DELETE'])
@@ -143,8 +115,7 @@ def clear_frontend_logs():
         description: Error clearing logs
     """
     try:
-        if os.path.exists(LOG_FILE_PATH):
-            os.remove(LOG_FILE_PATH)
-        return jsonify({'msg': 'Logs cleared successfully'}), 200
-    except Exception as e:
-        return jsonify({'msg': f'Error clearing logs: {str(e)}'}), 500
+        _logs_service().clear_frontend_logs()
+        return message_response('Logs cleared successfully', 200)
+    except Exception:
+        return message_response('Error clearing logs', 500)

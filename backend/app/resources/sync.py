@@ -9,15 +9,25 @@ import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta, date, timezone
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.sqltypes import Date as SQLDate, DateTime, Integer, Float, Numeric, Boolean, JSON
 from app.models.sync_log import SyncLog
 from app.extensions import db
+from app.resources.domain_errors import message_response
 from app.utils.decorators import admin_required
 
 blueprint = Blueprint('sync', __name__, url_prefix='/api/sync')
 
 MAX_SYNC_CHANGES = 500
 MAX_SYNC_LOGS_LIMIT = 500
+
+ENTITY_CONFLICT_POLICIES = {
+    'appointment': {'strategy': 'version_then_timestamp', 'resolution': 'server_wins'},
+    'medical_record': {'strategy': 'version_then_timestamp', 'resolution': 'server_wins'},
+    'budget': {'strategy': 'version_then_timestamp', 'resolution': 'server_wins'},
+    'payment': {'strategy': 'version_then_timestamp', 'resolution': 'server_wins'},
+    'file': {'strategy': 'version_only', 'resolution': 'server_wins'},
+}
 
 
 class SyncConflictError(Exception):
@@ -36,15 +46,15 @@ def push_to_cloud():
     _ = int(get_jwt_identity())
     data = request.get_json(silent=True)
     if data is None:
-        return jsonify({'msg': 'Invalid JSON body'}), 400
+        return message_response('Invalid JSON body', 400)
     if not isinstance(data, dict):
-        return jsonify({'msg': 'Request body must be an object'}), 400
+        return message_response('Request body must be an object', 400)
 
     changes = data.get('changes', [])
     if not isinstance(changes, list):
-        return jsonify({'msg': 'changes must be an array'}), 400
+        return message_response('changes must be an array', 400)
     if len(changes) > MAX_SYNC_CHANGES:
-        return jsonify({'msg': f'changes exceeds limit ({MAX_SYNC_CHANGES})'}), 400
+        return message_response(f'changes exceeds limit ({MAX_SYNC_CHANGES})', 400)
 
     synced = []
     conflicts = []
@@ -58,23 +68,22 @@ def push_to_cloud():
             })
             continue
 
-        entity_type = change.get('entity_type')
+        entity_type = _canonical_entity_type(change.get('entity_type'))
         entity_id = change.get('entity_id')
         operation = (change.get('operation') or '').lower()
         entity_data = change.get('data', {})
-        idempotency_key = _build_idempotency_key(change)
+        idempotency_key = _build_idempotency_key(change, entity_type)
 
         previous = SyncLog.query.filter_by(
             idempotency_key=idempotency_key,
-            direction='local_to_cloud',
-            status='completed'
+            direction='local_to_cloud'
         ).order_by(db.desc(SyncLog.id)).first()
         if previous:
-            synced.append({
-                'local_id': entity_id,
-                'server_id': previous.result_entity_id or previous.entity_id,
-                'idempotent': True
-            })
+            replay = _build_idempotent_replay_response(previous, entity_id)
+            if replay['synced']:
+                synced.append(replay['synced'])
+            else:
+                conflicts.append(replay['conflict'])
             continue
 
         # Create sync log
@@ -87,30 +96,69 @@ def push_to_cloud():
             idempotency_key=idempotency_key,
             external_entity_ref=str(entity_id) if entity_id is not None else None
         )
+        db.session.add(sync_log)
 
         try:
-            server_id = process_sync_change(entity_type, operation, entity_id, entity_data)
+            # Reserve idempotency key before processing to make retries safe across nodes.
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existing = SyncLog.query.filter_by(
+                idempotency_key=idempotency_key,
+                direction='local_to_cloud'
+            ).order_by(db.desc(SyncLog.id)).first()
+            if existing:
+                replay = _build_idempotent_replay_response(existing, entity_id)
+                if replay['synced']:
+                    synced.append(replay['synced'])
+                else:
+                    conflicts.append(replay['conflict'])
+            else:
+                conflicts.append({
+                    'local_id': entity_id,
+                    'error': 'Unable to reserve idempotency key'
+                })
+            continue
+
+        sync_log.status = 'in_progress'
+        db.session.add(sync_log)
+        db.session.commit()
+
+        try:
+            result = process_sync_change(entity_type, operation, entity_id, entity_data)
 
             sync_log.status = 'completed'
             sync_log.completed_at = datetime.utcnow()
-            sync_log.result_entity_id = server_id
+            sync_log.result_entity_id = result['id']
+            sync_log.result_entity_version = result['sync_version']
+            sync_log.error_message = None
+            sync_log.conflict_payload = None
             db.session.add(sync_log)
             db.session.commit()
 
-            synced.append({
+            synced_payload = {
                 'local_id': entity_id,
-                'server_id': server_id
-            })
+                'server_id': result['id']
+            }
+            if result['sync_version'] is not None:
+                synced_payload['sync_version'] = result['sync_version']
+            synced.append(synced_payload)
 
         except SyncConflictError as e:
             db.session.rollback()
+            policy = _get_conflict_policy(entity_type)
+            client_payload = e.client_version if isinstance(e.client_version, dict) else {}
             sync_log.status = 'failed'
             sync_log.error_message = str(e)
             sync_log.conflict_payload = {
                 'conflict': True,
                 'server_version': e.server_version,
                 'client_version': e.client_version,
-                'resolution': 'server_wins'
+                'entity_type': entity_type,
+                'strategy': policy['strategy'],
+                'resolution': policy['resolution'],
+                'server_sync_version': e.server_version.get('sync_version') if isinstance(e.server_version, dict) else None,
+                'client_sync_version': client_payload.get('sync_version')
             }
             db.session.add(sync_log)
             db.session.commit()
@@ -150,7 +198,7 @@ def pull_from_cloud():
         try:
             since_date = _parse_iso_datetime(since)
         except ValueError:
-            return jsonify({'msg': 'Invalid date format'}), 400
+            return message_response('Invalid date format', 400)
     else:
         # Default to last 24 hours
         since_date = datetime.utcnow() - timedelta(days=1)
@@ -217,9 +265,9 @@ def get_sync_logs():
         try:
             limit = int(limit_raw)
         except (TypeError, ValueError):
-            return jsonify({'msg': 'limit must be an integer'}), 400
+            return message_response('limit must be an integer', 400)
     if limit < 1 or limit > MAX_SYNC_LOGS_LIMIT:
-        return jsonify({'msg': f'limit must be between 1 and {MAX_SYNC_LOGS_LIMIT}'}), 400
+        return message_response(f'limit must be between 1 and {MAX_SYNC_LOGS_LIMIT}', 400)
 
     logs = SyncLog.query.order_by(
         db.desc(SyncLog.created_at)
@@ -231,6 +279,7 @@ def get_sync_logs():
         'entity_id': log.entity_id,
         'external_entity_ref': log.external_entity_ref,
         'result_entity_id': log.result_entity_id,
+        'result_entity_version': log.result_entity_version,
         'operation': log.operation,
         'direction': log.direction,
         'status': log.status,
@@ -248,22 +297,26 @@ def process_sync_change(entity_type, operation, entity_id, data):
     if operation not in {'create', 'update', 'delete'}:
         raise ValueError(f'Unsupported operation: {operation}')
 
-    model = _get_model_for_entity(entity_type)
+    canonical_entity_type = _canonical_entity_type(entity_type)
+    model = _get_model_for_entity(canonical_entity_type)
 
     if operation == 'create':
         create_id = _resolve_entity_id(entity_id, data)
         if create_id:
             existing = model.query.get(create_id)
             if existing:
+                _validate_update_conflict(canonical_entity_type, existing, data or {})
                 _apply_model_data(existing, data or {})
+                _bump_entity_sync_version(existing)
                 db.session.flush()
-                return existing.id
+                return _build_sync_result(existing.id, existing)
 
         entity = model()
         _apply_model_data(entity, data or {})
+        _seed_entity_sync_version(entity, data or {})
         db.session.add(entity)
         db.session.flush()
-        return entity.id
+        return _build_sync_result(entity.id, entity)
 
     resolved_id = _resolve_entity_id(entity_id, data)
     if not resolved_id:
@@ -272,18 +325,20 @@ def process_sync_change(entity_type, operation, entity_id, data):
     entity = model.query.get(resolved_id)
     if not entity and operation == 'delete':
         # Idempotent delete: already absent is treated as success.
-        return resolved_id
+        return {'id': resolved_id, 'sync_version': None}
     if not entity:
         raise ValueError(f'{model.__name__} with id {resolved_id} not found')
 
     if operation == 'delete':
+        result_version = _extract_sync_version(entity)
         db.session.delete(entity)
-        return resolved_id
+        return {'id': resolved_id, 'sync_version': result_version}
 
-    _validate_update_conflict(entity, data or {})
+    _validate_update_conflict(canonical_entity_type, entity, data or {})
     _apply_model_data(entity, data or {})
+    _bump_entity_sync_version(entity)
     db.session.flush()
-    return entity.id
+    return _build_sync_result(entity.id, entity)
 
 
 def _validate_push_change(change):
@@ -314,15 +369,10 @@ def _get_supported_models():
 
     return {
         'appointment': Appointment,
-        'appointments': Appointment,
         'medical_record': MedicalRecord,
-        'medical_records': MedicalRecord,
         'budget': Budget,
-        'budgets': Budget,
         'payment': Payment,
-        'payments': Payment,
         'file': File,
-        'files': File,
     }
 
 
@@ -330,9 +380,9 @@ def _get_model_for_entity(entity_type):
     if not entity_type:
         raise ValueError('entity_type is required')
 
-    model = _get_supported_models().get(entity_type.lower())
+    model = _get_supported_models().get(_canonical_entity_type(entity_type))
     if not model:
-        supported = ', '.join(sorted({k for k in _get_supported_models().keys() if not k.endswith('s')}))
+        supported = ', '.join(sorted(_get_supported_models().keys()))
         raise ValueError(f'Unsupported entity_type: {entity_type}. Supported: {supported}')
     return model
 
@@ -363,13 +413,13 @@ def _normalize_log_entity_id(entity_id):
         return 0
 
 
-def _build_idempotency_key(change):
+def _build_idempotency_key(change, canonical_entity_type):
     provided = change.get('idempotency_key')
     if provided:
         return str(provided)
 
     payload = {
-        'entity_type': change.get('entity_type'),
+        'entity_type': canonical_entity_type,
         'entity_id': change.get('entity_id'),
         'operation': (change.get('operation') or '').lower(),
         'data': change.get('data', {})
@@ -385,14 +435,29 @@ def _public_sync_error_message(exc):
     return 'Internal sync processing error'
 
 
-def _validate_update_conflict(entity, incoming_data):
+def _validate_update_conflict(entity_type, entity, incoming_data):
     if not isinstance(incoming_data, dict):
+        return
+
+    policy = _get_conflict_policy(entity_type)
+    strategy = policy['strategy']
+    client_version = _extract_sync_version(incoming_data)
+    server_version = _extract_sync_version(entity)
+
+    if strategy in {'version_only', 'version_then_timestamp'}:
+        if server_version is not None and client_version is not None and server_version > client_version:
+            raise SyncConflictError(
+                'Conflict detected: server has a newer sync_version',
+                server_version=_serialize_model_instance(entity),
+                client_version=incoming_data
+            )
+
+    if strategy == 'version_only':
         return
 
     client_updated_raw = incoming_data.get('updated_at')
     if not client_updated_raw:
         return
-
     server_updated = getattr(entity, 'updated_at', None) or getattr(entity, 'created_at', None)
     if server_updated is None:
         return
@@ -410,7 +475,7 @@ def _apply_model_data(entity, data):
     if not isinstance(data, dict):
         raise ValueError('data must be an object')
 
-    protected_fields = {'id', 'created_at', 'updated_at'}
+    protected_fields = {'id', 'created_at', 'updated_at', 'sync_version'}
     columns = {column.name: column for column in entity.__table__.columns}
 
     for key, value in data.items():
@@ -495,3 +560,114 @@ def _serialize_model_instance(entity):
     for column in entity.__table__.columns:
         payload[column.name] = _serialize_value(getattr(entity, column.name))
     return payload
+
+
+def _canonical_entity_type(entity_type):
+    if not entity_type:
+        return ''
+
+    normalized = str(entity_type).strip().lower()
+    aliases = {
+        'appointments': 'appointment',
+        'medical_records': 'medical_record',
+        'budgets': 'budget',
+        'payments': 'payment',
+        'files': 'file',
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _get_conflict_policy(entity_type):
+    canonical = _canonical_entity_type(entity_type)
+    return ENTITY_CONFLICT_POLICIES.get(
+        canonical,
+        {'strategy': 'version_then_timestamp', 'resolution': 'server_wins'}
+    )
+
+
+def _extract_sync_version(source):
+    if source is None:
+        return None
+
+    raw_value = source.get('sync_version') if isinstance(source, dict) else getattr(source, 'sync_version', None)
+    if raw_value in (None, ''):
+        return None
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        raise ValueError('sync_version must be an integer')
+
+
+def _seed_entity_sync_version(entity, incoming_data):
+    if not hasattr(entity, 'sync_version'):
+        return
+
+    incoming_version = _extract_sync_version(incoming_data)
+    entity.sync_version = max(1, incoming_version) if incoming_version is not None else 1
+
+
+def _bump_entity_sync_version(entity):
+    if not hasattr(entity, 'sync_version'):
+        return
+
+    current = _extract_sync_version(entity)
+    entity.sync_version = (current or 1) + 1
+
+
+def _build_sync_result(entity_id, entity):
+    return {
+        'id': entity_id,
+        'sync_version': _extract_sync_version(entity)
+    }
+
+
+def _build_idempotent_replay_response(previous_log, local_id):
+    if previous_log.status == 'completed':
+        payload = {
+            'local_id': local_id,
+            'server_id': previous_log.result_entity_id or previous_log.entity_id,
+            'idempotent': True
+        }
+        if previous_log.result_entity_version is not None:
+            payload['sync_version'] = previous_log.result_entity_version
+        return {'synced': payload, 'conflict': None}
+
+    if previous_log.status in {'pending', 'in_progress'}:
+        return {
+            'synced': None,
+            'conflict': {
+                'local_id': local_id,
+                'error': 'Sync operation already in progress for idempotency_key',
+                'idempotent': True
+            }
+        }
+
+    return {
+        'synced': None,
+        'conflict': {
+            'local_id': local_id,
+            'error': _safe_replay_error_message(previous_log.error_message, previous_log.conflict_payload),
+            'conflict': previous_log.conflict_payload,
+            'idempotent': True
+        }
+    }
+
+
+def _safe_replay_error_message(error_message, conflict_payload):
+    if conflict_payload:
+        return error_message or 'Conflict detected'
+
+    if not error_message:
+        return 'Internal sync processing error'
+
+    safe_prefixes = (
+        'Unsupported entity_type',
+        'Invalid entity_id',
+        'entity_id is required',
+        'operation must be one of',
+        'sync_version must be an integer',
+    )
+    if error_message.startswith(safe_prefixes):
+        return error_message
+
+    return 'Internal sync processing error'

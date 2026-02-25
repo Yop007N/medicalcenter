@@ -9,6 +9,7 @@ from app.models.budget import Budget
 from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
 from app.models.user import User
+from app.services.access_scope_service import AccessScopeService
 from app.services.auth_service import AuthService
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.patient_access_service import PatientAccessService
@@ -52,6 +53,11 @@ class PatientService:
             raise AccessDeniedError('Unauthorized')
 
         query = Patient.query
+        if current_user.role == 'professional':
+            scoped_patient_ids = list(AccessScopeService.get_professional_patient_ids(current_user.id))
+            if not scoped_patient_ids:
+                return []
+            query = query.filter(Patient.id.in_(scoped_patient_ids))
         if search:
             sanitized_search = sanitize_search_input(search)
             if sanitized_search:

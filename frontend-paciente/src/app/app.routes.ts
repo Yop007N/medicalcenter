@@ -14,26 +14,31 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     canActivate: [authGuard],
+    data: { roles: ['patient'] },
     loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage)
   },
   {
     path: 'my-appointments',
     canActivate: [authGuard],
+    data: { roles: ['patient'] },
     loadComponent: () => import('./pages/my-appointments.page').then((m) => m.MyAppointmentsPage)
   },
   {
     path: 'my-budgets',
     canActivate: [authGuard],
+    data: { roles: ['patient'] },
     loadComponent: () => import('./pages/my-budgets.page').then((m) => m.MyBudgetsPage)
   },
   {
     path: 'my-history',
     canActivate: [authGuard],
+    data: { roles: ['patient'] },
     loadComponent: () => import('./pages/my-history.page').then((m) => m.MyHistoryPage)
   },
   {
     path: 'my-profile',
     canActivate: [authGuard],
+    data: { roles: ['patient'] },
     loadComponent: () => import('./pages/my-profile.page').then((m) => m.MyProfilePage)
   },
   {

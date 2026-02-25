@@ -5,6 +5,7 @@ Appointment Model - Medical appointments/consultations
 
 from datetime import datetime
 from app.extensions import db
+from app.models.sync_versioning import register_sync_version_listener
 
 
 class Appointment(db.Model):
@@ -41,9 +42,13 @@ class Appointment(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sync_version = db.Column(db.Integer, default=1, nullable=False)
 
     # Relationships
     medical_record = db.relationship('MedicalRecord', backref='appointment', uselist=False)
 
     def __repr__(self):
         return f'<Appointment {self.id} - {self.appointment_date}>'
+
+
+register_sync_version_listener(Appointment)

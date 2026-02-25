@@ -5,6 +5,7 @@ Reports Resource - Endpoints para generación de reportes
 
 from flask import Blueprint, jsonify, request, send_file
 from flask_jwt_extended import jwt_required
+from app.resources.domain_errors import message_response
 from app.services.report_service import ReportService
 from app.utils.decorators import admin_required, professional_required
 from app.extensions import db
@@ -264,7 +265,7 @@ def get_patient_history_report(patient_id):
     )
 
     if not report:
-        return jsonify({'error': 'Paciente no encontrado'}), 404
+        return message_response('Paciente no encontrado', 404)
 
     # Exportar según formato
     if format_type == 'csv':
@@ -317,7 +318,7 @@ def get_professional_activity_report(professional_id):
     end_date = request.args.get('end_date')
 
     if not start_date or not end_date:
-        return jsonify({'error': 'start_date y end_date son requeridos'}), 400
+        return message_response('start_date y end_date son requeridos', 400)
 
     # Convertir fechas
     start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -331,7 +332,7 @@ def get_professional_activity_report(professional_id):
     )
 
     if not report:
-        return jsonify({'error': 'Profesional no encontrado'}), 404
+        return message_response('Profesional no encontrado', 404)
 
     return jsonify(report), 200
 
@@ -400,7 +401,7 @@ def get_revenue_report():
     format_type = request.args.get('format', 'json')
 
     if not start_date or not end_date:
-        return jsonify({'error': 'start_date y end_date son requeridos'}), 400
+        return message_response('start_date y end_date son requeridos', 400)
 
     # Convertir fechas
     start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -463,7 +464,7 @@ def get_budget_report():
     status = request.args.get('status')
 
     if not start_date or not end_date:
-        return jsonify({'error': 'start_date y end_date son requeridos'}), 400
+        return message_response('start_date y end_date son requeridos', 400)
 
     # Convertir fechas
     start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -528,7 +529,7 @@ def get_appointment_report():
     format_type = request.args.get('format', 'json')
 
     if not start_date or not end_date:
-        return jsonify({'error': 'start_date y end_date son requeridos'}), 400
+        return message_response('start_date y end_date son requeridos', 400)
 
     # Convertir fechas
     start_date = datetime.strptime(start_date, '%Y-%m-%d')

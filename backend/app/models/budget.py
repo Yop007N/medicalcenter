@@ -5,6 +5,7 @@ Budget Model - Treatment budgets and cost estimates
 
 from datetime import datetime
 from app.extensions import db
+from app.models.sync_versioning import register_sync_version_listener
 
 
 class Budget(db.Model):
@@ -35,9 +36,13 @@ class Budget(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sync_version = db.Column(db.Integer, default=1, nullable=False)
 
     # Relationships
     payments = db.relationship('Payment', backref='budget', lazy='dynamic')
 
     def __repr__(self):
         return f'<Budget {self.id} - {self.title}>'
+
+
+register_sync_version_listener(Budget)

@@ -22,6 +22,7 @@ class SyncLog(db.Model):
     idempotency_key = db.Column(db.String(128), index=True)
     external_entity_ref = db.Column(db.String(128))  # e.g. local-123 from client
     result_entity_id = db.Column(db.Integer)  # ID generated/affected on server side
+    result_entity_version = db.Column(db.Integer)
 
     # Status
     status = db.Column(

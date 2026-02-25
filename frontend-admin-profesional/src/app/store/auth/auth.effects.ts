@@ -48,13 +48,29 @@ export class AuthEffects {
             email: response.user?.email,
             role: response.user?.role
           })),
-          map((response) =>
-            AuthActions.loginSuccess({
-              user: response.user,
-              accessToken: response.access_token,
-              refreshToken: response.refresh_token
-            })
-          ),
+          switchMap((response) => {
+            if (response.user?.role !== 'admin') {
+              this.logger.warn(LOG_SOURCE, 'Blocked login for non-admin actor in admin frontend', {
+                email: response.user?.email,
+                role: response.user?.role
+              });
+              return from(this.authService.clearAuth()).pipe(
+                map(() =>
+                  AuthActions.loginFailure({
+                    error: 'Este frontend es exclusivo para administradores.'
+                  })
+                )
+              );
+            }
+
+            return of(
+              AuthActions.loginSuccess({
+                user: response.user,
+                accessToken: response.access_token,
+                refreshToken: response.refresh_token
+              })
+            );
+          }),
           catchError((error) => {
             this.logger.error(LOG_SOURCE, 'Login failed', {
               status: error.status,

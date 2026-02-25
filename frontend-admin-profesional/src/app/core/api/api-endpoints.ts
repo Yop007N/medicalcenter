@@ -49,16 +49,24 @@ export const API_ENDPOINTS = {
   psychology: {
     evaluationsBase: 'psychology/evaluations',
     evaluationById: (id: number) => `psychology/evaluations/${id}`,
+    evaluationsByPatient: (patientId: number) => `psychology/evaluations/patient/${patientId}`,
+    evaluationsByProfessional: (professionalId: number) =>
+      `psychology/evaluations/professional/${professionalId}`,
     evaluationSessions: (evaluationId: number) => `psychology/evaluations/${evaluationId}/sessions`,
     sessionsBase: 'psychology/sessions',
-    sessionById: (id: number) => `psychology/sessions/${id}`
+    sessionById: (id: number) => `psychology/sessions/${id}`,
+    sessionsByPatientHistory: (patientId: number) => `psychology/sessions/patient/${patientId}/history`
   },
   psychopedagogy: {
     evaluationsBase: 'psychopedagogy/evaluations',
     evaluationById: (id: number) => `psychopedagogy/evaluations/${id}`,
+    evaluationsByPatient: (patientId: number) => `psychopedagogy/evaluations/patient/${patientId}`,
+    evaluationsByProfessional: (professionalId: number) =>
+      `psychopedagogy/evaluations/professional/${professionalId}`,
     evaluationSessions: (evaluationId: number) => `psychopedagogy/evaluations/${evaluationId}/sessions`,
     sessionsBase: 'psychopedagogy/sessions',
-    sessionById: (id: number) => `psychopedagogy/sessions/${id}`
+    sessionById: (id: number) => `psychopedagogy/sessions/${id}`,
+    sessionsByPatientHistory: (patientId: number) => `psychopedagogy/sessions/patient/${patientId}/history`
   },
   audit: {
     logs: 'audit/logs',

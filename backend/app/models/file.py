@@ -5,6 +5,7 @@ File Model - Medical files and documents (lab results, images, etc.)
 
 from datetime import datetime
 from app.extensions import db
+from app.models.sync_versioning import register_sync_version_listener
 
 
 class File(db.Model):
@@ -30,6 +31,10 @@ class File(db.Model):
     description = db.Column(db.Text)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    sync_version = db.Column(db.Integer, default=1, nullable=False)
 
     def __repr__(self):
         return f'<File {self.filename}>'
+
+
+register_sync_version_listener(File)

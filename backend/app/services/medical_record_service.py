@@ -5,7 +5,8 @@ Medical Record Service - Business logic for medical records
 
 from app.models.medical_record import MedicalRecord
 from app.extensions import db
-from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.access_scope_service import AccessScopeService
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 
 
 class MedicalRecordService:
@@ -19,12 +20,25 @@ class MedicalRecordService:
         ).all()
 
     @staticmethod
-    def list_medical_records(patient_id=None, professional_id=None):
+    def list_medical_records(current_user_id, patient_id=None, professional_id=None):
         """List medical records with optional filters."""
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
         query = MedicalRecord.query
+
+        if current_user.role == 'patient':
+            query = query.filter_by(patient_id=current_user.id)
+        elif current_user.role == 'professional':
+            scoped_patient_ids = list(AccessScopeService.get_professional_patient_ids(current_user.id))
+            if not scoped_patient_ids:
+                return []
+            query = query.filter(MedicalRecord.patient_id.in_(scoped_patient_ids))
+        elif current_user.role != 'admin':
+            raise AccessDeniedError('Unauthorized')
+
         if patient_id:
+            AccessScopeService.ensure_patient_access_scope(current_user.id, patient_id)
             query = query.filter_by(patient_id=patient_id)
-        if professional_id:
+        if professional_id and current_user.role == 'admin':
             query = query.filter_by(professional_id=professional_id)
 
         return (
@@ -34,11 +48,26 @@ class MedicalRecordService:
         )
 
     @staticmethod
-    def get_medical_record(record_id):
+    def get_medical_record(record_id, current_user_id):
         """Get medical record by ID."""
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
         record = MedicalRecord.query.get(record_id)
         if not record:
             raise ResourceNotFoundError('Medical record not found')
+
+        if current_user.role == 'admin':
+            return record
+
+        if current_user.role == 'patient':
+            if record.patient_id != current_user.id:
+                raise AccessDeniedError('Unauthorized')
+            return record
+
+        if current_user.role == 'professional':
+            AccessScopeService.ensure_patient_access_scope(current_user.id, record.patient_id)
+            return record
+
+        raise AccessDeniedError('Unauthorized')
         return record
 
     @staticmethod
@@ -68,11 +97,15 @@ class MedicalRecordService:
         return record
 
     @staticmethod
-    def update_medical_record(record_id, data):
+    def update_medical_record(record_id, data, current_user_id):
         """Update medical record."""
-        record = MedicalRecord.query.get(record_id)
-        if not record:
-            raise ResourceNotFoundError('Medical record not found')
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        record = MedicalRecordService.get_medical_record(record_id, current_user_id)
+
+        if current_user.role == 'professional' and record.professional_id != current_user.id:
+            raise AccessDeniedError('Only the owner professional can update this record')
+        if current_user.role == 'patient':
+            raise AccessDeniedError('Patients cannot update medical records')
 
         updatable_fields = [
             'chief_complaint',
@@ -95,11 +128,15 @@ class MedicalRecordService:
         return record
 
     @staticmethod
-    def delete_medical_record(record_id):
+    def delete_medical_record(record_id, current_user_id):
         """Delete medical record."""
-        record = MedicalRecord.query.get(record_id)
-        if not record:
-            raise ResourceNotFoundError('Medical record not found')
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        record = MedicalRecordService.get_medical_record(record_id, current_user_id)
+
+        if current_user.role == 'professional' and record.professional_id != current_user.id:
+            raise AccessDeniedError('Only the owner professional can delete this record')
+        if current_user.role == 'patient':
+            raise AccessDeniedError('Patients cannot delete medical records')
 
         db.session.delete(record)
         db.session.commit()

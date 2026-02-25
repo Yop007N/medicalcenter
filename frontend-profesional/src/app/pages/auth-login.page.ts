@@ -194,7 +194,12 @@ export class AuthLoginPage implements OnInit {
       .login(email, password)
       .pipe(finalize(() => (this.isSubmitting = false)))
       .subscribe({
-        next: () => {
+        next: (response) => {
+          if (response.user.role !== 'professional') {
+            this.authService.logout();
+            this.errorMessage = 'Este acceso es solo para profesionales de salud.';
+            return;
+          }
           void this.router.navigateByUrl(this.returnUrl);
         },
         error: (error: unknown) => {

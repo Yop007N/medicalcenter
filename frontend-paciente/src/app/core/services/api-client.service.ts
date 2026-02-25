@@ -25,8 +25,10 @@ export class ApiClientService {
     return this.http.put<T>(this.url(path), body);
   }
 
-  delete<T>(path: string): Observable<T> {
-    return this.http.delete<T>(this.url(path));
+  delete<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Observable<T> {
+    return this.http.delete<T>(this.url(path), {
+      params: this.toHttpParams(params)
+    });
   }
 
   download(path: string): Observable<Blob> {

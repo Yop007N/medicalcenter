@@ -2,6 +2,11 @@
 """Professional service layer."""
 
 from app.extensions import db
+from app.models.appointment import Appointment
+from app.models.medical_record import MedicalRecord
+from app.models.odontogram import DentalTreatment
+from app.models.psychology import PsychologicalEvaluation
+from app.models.psychopedagogy import PsychopedagogicalEvaluation
 from app.models.professional import Professional
 from app.models.user import User
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
@@ -25,9 +30,49 @@ class ProfessionalService:
         return bool(value)
 
     @staticmethod
-    def list_professionals(specialty=None):
+    def list_professionals(specialty=None, current_user_id=None):
         """List professionals with optional specialty filter."""
         query = Professional.query
+
+        if current_user_id is not None:
+            current_user = User.query.get(current_user_id)
+            if current_user and current_user.role == 'patient':
+                patient_id = current_user.id
+                query = query.filter(
+                    db.or_(
+                        db.exists().where(
+                            db.and_(
+                                Appointment.professional_id == Professional.id,
+                                Appointment.patient_id == patient_id,
+                            )
+                        ),
+                        db.exists().where(
+                            db.and_(
+                                MedicalRecord.professional_id == Professional.id,
+                                MedicalRecord.patient_id == patient_id,
+                            )
+                        ),
+                        db.exists().where(
+                            db.and_(
+                                DentalTreatment.professional_id == Professional.id,
+                                DentalTreatment.patient_id == patient_id,
+                            )
+                        ),
+                        db.exists().where(
+                            db.and_(
+                                PsychologicalEvaluation.professional_id == Professional.id,
+                                PsychologicalEvaluation.patient_id == patient_id,
+                            )
+                        ),
+                        db.exists().where(
+                            db.and_(
+                                PsychopedagogicalEvaluation.professional_id == Professional.id,
+                                PsychopedagogicalEvaluation.patient_id == patient_id,
+                            )
+                        ),
+                    )
+                )
+
         if specialty:
             sanitized_specialty = sanitize_search_input(specialty)
             if sanitized_specialty:

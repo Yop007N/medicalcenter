@@ -14,6 +14,7 @@ from app.schemas.psychology_schema import (
 )
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.services.psychology_service import PsychologyService
+from app.utils.decorators import module_access_required
 from app.utils.helpers import get_pagination_params
 
 blueprint = Blueprint('psychology', __name__, url_prefix='/api/psychology')
@@ -29,6 +30,12 @@ def _service_error_response(error):
     if getattr(error, 'details', None):
         payload.update(error.details)
     return jsonify(payload), status
+
+
+@blueprint.before_request
+@module_access_required('psychology')
+def _enforce_module_scope():
+    return None
 
 
 # ==================== Psychological Evaluations ====================

@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.schemas.professional_schema import ProfessionalSchema
 from app.extensions import cache
+from app.resources.domain_errors import domain_error_response
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.professional_service import ProfessionalService
 from app.utils.decorators import admin_required
@@ -57,7 +58,11 @@ def list_professionals():
         description: No autenticado
     """
     specialty = request.args.get('specialty')
-    professionals = ProfessionalService.list_professionals(specialty=specialty)
+    current_user_id = int(get_jwt_identity())
+    professionals = ProfessionalService.list_professionals(
+        specialty=specialty,
+        current_user_id=current_user_id,
+    )
     return jsonify([serialize_professional(professional) for professional in professionals]), 200
 
 
@@ -88,7 +93,7 @@ def get_professional(professional_id):
         professional = ProfessionalService.get_professional(professional_id)
         return jsonify(serialize_professional(professional)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -145,9 +150,7 @@ def create_professional():
         cache.delete_memoized(list_professionals)
         return jsonify(serialize_professional(professional)), 201
     except ValidationError as exc:
-        payload = {'msg': exc.message}
-        payload.update(exc.details)
-        return jsonify(payload), 400
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:professional_id>', methods=['PUT'])
@@ -199,12 +202,8 @@ def update_professional(professional_id):
         )
         cache.delete_memoized(list_professionals)
         return jsonify(serialize_professional(professional)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:professional_id>', methods=['DELETE'])
@@ -234,7 +233,7 @@ def delete_professional(professional_id):
         cache.delete_memoized(list_professionals)
         return jsonify({'msg': 'Professional deleted'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:professional_id>/appointments', methods=['GET'])
@@ -267,4 +266,4 @@ def get_professional_appointments(professional_id):
         appointments = ProfessionalService.get_professional_appointments(professional_id)
         return jsonify(appointments_schema.dump(appointments)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)

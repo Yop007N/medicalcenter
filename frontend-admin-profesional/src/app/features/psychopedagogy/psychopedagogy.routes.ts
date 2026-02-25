@@ -13,23 +13,23 @@ export const PSYCHOPEDAGOGY_ROUTES: Routes = [
       },
       {
         path: 'evaluations',
-        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage) // Placeholder
+        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage)
       },
       {
         path: 'evaluations/new',
-        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage) // Placeholder
+        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage)
       },
       {
         path: 'evaluations/:id',
-        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage) // Placeholder
+        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage)
       },
       {
         path: 'sessions',
-        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage) // Placeholder
+        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage)
       },
       {
         path: 'sessions/:id',
-        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage) // Placeholder
+        loadComponent: () => import('./psychopedagogy-home/psychopedagogy-home.page').then(m => m.PsychopedagogyHomePage)
       }
     ]
   }

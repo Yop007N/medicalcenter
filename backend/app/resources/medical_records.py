@@ -6,8 +6,9 @@ Medical Record CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.resources.domain_errors import domain_error_response
 from app.schemas.medical_record_schema import MedicalRecordSchema
-from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.medical_record_service import MedicalRecordService
 from app.utils.decorators import professional_required
 
@@ -61,13 +62,18 @@ def list_medical_records():
       401:
         description: No autenticado
     """
+    current_user_id = int(get_jwt_identity())
     patient_id = request.args.get('patient_id', type=int)
     professional_id = request.args.get('professional_id', type=int)
-    records = MedicalRecordService.list_medical_records(
-        patient_id=patient_id,
-        professional_id=professional_id,
-    )
-    return jsonify(medical_records_schema.dump(records)), 200
+    try:
+        records = MedicalRecordService.list_medical_records(
+            current_user_id=current_user_id,
+            patient_id=patient_id,
+            professional_id=professional_id,
+        )
+        return jsonify(medical_records_schema.dump(records)), 200
+    except (AccessDeniedError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:record_id>', methods=['GET'])
@@ -109,10 +115,13 @@ def get_medical_record(record_id):
         description: No autenticado
     """
     try:
-        record = MedicalRecordService.get_medical_record(record_id)
+        record = MedicalRecordService.get_medical_record(
+            record_id=record_id,
+            current_user_id=int(get_jwt_identity()),
+        )
         return jsonify(medical_record_schema.dump(record)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (AccessDeniedError, ResourceNotFoundError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -176,7 +185,7 @@ def create_medical_record():
         record = MedicalRecordService.create_medical_record(data, current_user_id)
         return jsonify(medical_record_schema.dump(record)), 201
     except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:record_id>', methods=['PUT'])
@@ -218,10 +227,14 @@ def update_medical_record(record_id):
     """
     data = request.get_json() or {}
     try:
-        record = MedicalRecordService.update_medical_record(record_id, data)
+        record = MedicalRecordService.update_medical_record(
+            record_id=record_id,
+            data=data,
+            current_user_id=int(get_jwt_identity()),
+        )
         return jsonify(medical_record_schema.dump(record)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (AccessDeniedError, ResourceNotFoundError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:record_id>', methods=['DELETE'])
@@ -248,7 +261,10 @@ def delete_medical_record(record_id):
         description: No autenticado (requiere rol professional)
     """
     try:
-        MedicalRecordService.delete_medical_record(record_id)
+        MedicalRecordService.delete_medical_record(
+            record_id=record_id,
+            current_user_id=int(get_jwt_identity()),
+        )
         return jsonify({'msg': 'Medical record deleted'}), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (AccessDeniedError, ResourceNotFoundError, ValidationError) as exc:
+        return domain_error_response(exc)

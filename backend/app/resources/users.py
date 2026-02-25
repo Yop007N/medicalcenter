@@ -6,7 +6,9 @@ User CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import User
+from app.resources.domain_errors import domain_error_response, message_response
 from app.services.user_service import UserService
+from app.services.exceptions import ValidationError
 from app.schemas.user_schema import UserSchema
 from app.utils.helpers import get_pagination_params
 from app.utils.decorators import admin_required
@@ -129,11 +131,11 @@ def get_user(user_id):
         description: No autenticado
     """
     if not _can_manage_user(user_id):
-        return jsonify({'msg': 'Insufficient permissions'}), 403
+        return message_response('Insufficient permissions', 403)
 
     user = UserService.get_user_by_id(user_id)
     if not user:
-        return jsonify({'msg': 'User not found'}), 404
+        return message_response('User not found', 404)
     return jsonify(user_schema.dump(user)), 200
 
 
@@ -182,8 +184,10 @@ def create_user():
     data = request.get_json() or {}
     try:
         user = UserService.create_user(data)
+    except ValidationError as exc:
+        return domain_error_response(exc)
     except ValueError as exc:
-        return jsonify({'msg': str(exc)}), 400
+        return message_response(str(exc), 400)
 
     return jsonify(user_schema.dump(user)), 201
 
@@ -227,16 +231,16 @@ def update_user(user_id):
         description: No autenticado
     """
     if not _can_manage_user(user_id):
-        return jsonify({'msg': 'Insufficient permissions'}), 403
+        return message_response('Insufficient permissions', 403)
 
     data = request.get_json() or {}
     try:
         user = UserService.update_user(user_id, data)
         if not user:
-            return jsonify({'msg': 'User not found'}), 404
+            return message_response('User not found', 404)
         return jsonify(user_schema.dump(user)), 200
-    except ValueError as e:
-        return jsonify({'msg': str(e)}), 400
+    except ValueError as exc:
+        return message_response(str(exc), 400)
 
 
 @blueprint.route('/<int:user_id>', methods=['DELETE'])
@@ -264,7 +268,7 @@ def delete_user(user_id):
     """
     ok = UserService.delete_user(user_id)
     if not ok:
-        return jsonify({'msg': 'User not found'}), 404
+        return message_response('User not found', 404)
     return jsonify({'msg': 'User deleted'}), 200
 
 

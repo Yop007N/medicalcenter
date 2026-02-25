@@ -36,9 +36,9 @@ export class BasePage {
    * Wait for loading spinner to disappear
    */
   async waitForLoadingComplete(): Promise<void> {
-    const spinner = this.page.locator('ion-spinner');
-    if (await spinner.isVisible()) {
-      await spinner.waitFor({ state: 'hidden', timeout: 30000 });
+    const visibleSpinner = this.page.locator('ion-spinner:visible').first();
+    if (await visibleSpinner.count() > 0) {
+      await visibleSpinner.waitFor({ state: 'hidden', timeout: 30000 });
     }
   }
 

@@ -6,6 +6,7 @@ Budget CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.budget import Budget
+from app.resources.domain_errors import domain_error_response
 from app.schemas.budget_schema import BudgetSchema
 from app.extensions import db
 from app.services.budget_service import BudgetService
@@ -146,7 +147,7 @@ def create_budget():
         budget = BudgetService.create_budget(data, current_user_id)
         return jsonify(budget_schema.dump(budget)), 201
     except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:budget_id>', methods=['PUT'])
@@ -189,10 +190,8 @@ def update_budget(budget_id):
     try:
         budget = BudgetService.update_budget(budget_id, data)
         return jsonify(budget_schema.dump(budget)), 200
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (ValidationError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:budget_id>', methods=['DELETE'])
@@ -221,7 +220,7 @@ def delete_budget(budget_id):
         BudgetService.delete_budget(budget_id)
         return jsonify({'msg': 'Budget deleted'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:budget_id>/send', methods=['POST'])
@@ -250,7 +249,7 @@ def send_budget(budget_id):
         budget = BudgetService.send_budget_to_patient(budget_id)
         return jsonify(budget_schema.dump(budget)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:budget_id>/accept', methods=['POST'])
@@ -261,4 +260,4 @@ def accept_budget(budget_id):
         budget = BudgetService.accept_budget(budget_id)
         return jsonify(budget_schema.dump(budget)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)

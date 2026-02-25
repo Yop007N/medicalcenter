@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { map, Observable, of } from 'rxjs';
 import {
   PsychologicalEvaluation,
   PsychologicalEvaluationCreate,
@@ -10,17 +10,58 @@ import { ApiClientService } from '../api/api-client.service';
 import { API_ENDPOINTS } from '../api/api-endpoints';
 
 type CollectionResponse<T> = { items?: T[] } | T[];
+type EvaluationsResponse<T> = { evaluations?: T[] } | CollectionResponse<T>;
+type SessionsResponse<T> = { sessions?: T[] } | CollectionResponse<T>;
 
 @Injectable({ providedIn: 'root' })
 export class PsychologyApiService {
   private apiClient = inject(ApiClientService);
 
-  listEvaluations(patientId?: number): Observable<PsychologicalEvaluation[]> {
+  listEvaluations(
+    patientIdOrFilters?: number | { patientId?: number; professionalId?: number }
+  ): Observable<PsychologicalEvaluation[]> {
+    const patientId =
+      typeof patientIdOrFilters === 'number'
+        ? patientIdOrFilters
+        : patientIdOrFilters?.patientId;
+    const professionalId =
+      typeof patientIdOrFilters === 'number'
+        ? undefined
+        : patientIdOrFilters?.professionalId;
+
+    if (typeof patientId === 'number') {
+      return this.apiClient
+        .get<EvaluationsResponse<PsychologicalEvaluation>>(
+          API_ENDPOINTS.psychology.evaluationsByPatient(patientId)
+        )
+        .pipe(map((response) => this.mapEvaluations(response)));
+    }
+
+    if (typeof professionalId === 'number') {
+      return this.apiClient
+        .get<EvaluationsResponse<PsychologicalEvaluation>>(
+          API_ENDPOINTS.psychology.evaluationsByProfessional(professionalId)
+        )
+        .pipe(map((response) => this.mapEvaluations(response)));
+    }
+
+    return of([]);
+  }
+
+  listEvaluationsByProfessional(professionalId: number): Observable<PsychologicalEvaluation[]> {
     return this.apiClient
-      .get<CollectionResponse<PsychologicalEvaluation>>(API_ENDPOINTS.psychology.evaluationsBase, {
-        patient_id: patientId
-      })
-      .pipe(map((response) => (Array.isArray(response) ? response : response.items ?? [])));
+      .get<EvaluationsResponse<PsychologicalEvaluation>>(
+        API_ENDPOINTS.psychology.evaluationsByProfessional(professionalId)
+      )
+      .pipe(map((response) => this.mapEvaluations(response)));
+  }
+
+  listEvaluationsByPatient(patientId: number): Observable<PsychologicalEvaluation[]> {
+    return this.apiClient
+      .get<EvaluationsResponse<PsychologicalEvaluation>>(
+        API_ENDPOINTS.psychology.evaluationsByPatient(patientId)
+      )
+      .pipe(map((response) => this.mapEvaluations(response)));
   }
 
   getEvaluation(id: number): Observable<PsychologicalEvaluation> {
@@ -41,8 +82,14 @@ export class PsychologyApiService {
 
   listSessions(evaluationId: number): Observable<TherapySession[]> {
     return this.apiClient
-      .get<CollectionResponse<TherapySession>>(API_ENDPOINTS.psychology.evaluationSessions(evaluationId))
-      .pipe(map((response) => (Array.isArray(response) ? response : response.items ?? [])));
+      .get<SessionsResponse<TherapySession>>(API_ENDPOINTS.psychology.evaluationSessions(evaluationId))
+      .pipe(map((response) => this.mapSessions(response)));
+  }
+
+  listSessionsByPatientHistory(patientId: number): Observable<TherapySession[]> {
+    return this.apiClient
+      .get<SessionsResponse<TherapySession>>(API_ENDPOINTS.psychology.sessionsByPatientHistory(patientId))
+      .pipe(map((response) => this.mapSessions(response)));
   }
 
   getSession(id: number): Observable<TherapySession> {
@@ -59,5 +106,33 @@ export class PsychologyApiService {
 
   deleteSession(id: number): Observable<void> {
     return this.apiClient.delete<void>(API_ENDPOINTS.psychology.sessionById(id));
+  }
+
+  private mapEvaluations(
+    response: EvaluationsResponse<PsychologicalEvaluation>
+  ): PsychologicalEvaluation[] {
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if ('evaluations' in response && Array.isArray(response.evaluations)) {
+      return response.evaluations;
+    }
+    if ('items' in response && Array.isArray(response.items)) {
+      return response.items;
+    }
+    return [];
+  }
+
+  private mapSessions(response: SessionsResponse<TherapySession>): TherapySession[] {
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if ('sessions' in response && Array.isArray(response.sessions)) {
+      return response.sessions;
+    }
+    if ('items' in response && Array.isArray(response.items)) {
+      return response.items;
+    }
+    return [];
   }
 }

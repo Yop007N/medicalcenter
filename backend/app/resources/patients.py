@@ -6,6 +6,7 @@ Patient CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.resources.domain_errors import domain_error_response
 from app.schemas.patient_schema import PatientSchema
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.patient_service import PatientService
@@ -60,7 +61,7 @@ def list_patients():
         patients = PatientService.list_patients(current_user_id=current_user_id, search=search)
         return jsonify([serialize_patient(patient) for patient in patients]), 200
     except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>', methods=['GET'])
@@ -92,10 +93,8 @@ def get_patient(patient_id):
     try:
         patient = PatientService.get_patient(patient_id=patient_id, current_user_id=current_user_id)
         return jsonify(serialize_patient(patient)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -157,9 +156,7 @@ def create_patient():
         patient = PatientService.create_patient(data)
         return jsonify(serialize_patient(patient)), 201
     except ValidationError as exc:
-        payload = {'msg': exc.message}
-        payload.update(exc.details)
-        return jsonify(payload), 400
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>', methods=['PUT'])
@@ -221,12 +218,8 @@ def update_patient(patient_id):
             data=data,
         )
         return jsonify(serialize_patient(patient)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>', methods=['DELETE'])
@@ -255,7 +248,7 @@ def delete_patient(patient_id):
         PatientService.delete_patient(patient_id)
         return jsonify({'msg': 'Patient deleted'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>/medical-history', methods=['GET'])
@@ -291,10 +284,8 @@ def get_patient_medical_history(patient_id):
     try:
         records = PatientService.get_patient_medical_history(patient_id, current_user_id)
         return jsonify(medical_records_schema.dump(records)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>/appointments', methods=['GET'])
@@ -330,10 +321,8 @@ def get_patient_appointments(patient_id):
     try:
         appointments = PatientService.get_patient_appointments(patient_id, current_user_id)
         return jsonify(appointments_schema.dump(appointments)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>/medical-records', methods=['GET'])
@@ -369,10 +358,8 @@ def get_patient_medical_records(patient_id):
     try:
         records = PatientService.get_patient_medical_records(patient_id, current_user_id)
         return jsonify(medical_records_schema.dump(records)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:patient_id>/budgets', methods=['GET'])
@@ -408,7 +395,5 @@ def get_patient_budgets(patient_id):
     try:
         budgets = PatientService.get_patient_budgets(patient_id, current_user_id)
         return jsonify(budgets_schema.dump(budgets)), 200
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
-    except AccessDeniedError as exc:
-        return jsonify({'msg': exc.message}), 403
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)

@@ -132,7 +132,17 @@ export class LoginPage implements OnInit {
       this.returnUrl = candidate;
     }
 
+    const reason = this.route.snapshot.queryParamMap.get('reason');
+    if (reason === 'role') {
+      this.errorMessage = 'Esta sesion pertenece a otro canal. Inicia sesion como paciente.';
+    }
+
     if (this.authService.isAuthenticated()) {
+      const user = this.authService.currentUserValue;
+      if (!this.isPatientRole(user?.role)) {
+        this.authService.logout();
+        return;
+      }
       void this.router.navigateByUrl(this.returnUrl);
     }
   }
@@ -152,7 +162,7 @@ export class LoginPage implements OnInit {
       .pipe(finalize(() => (this.isSubmitting = false)))
       .subscribe({
         next: (response) => {
-          if (response.user.role !== 'patient') {
+          if (!this.isPatientRole(response.user.role)) {
             this.authService.logout();
             this.errorMessage = 'Este acceso es solo para pacientes.';
             return;
@@ -178,5 +188,9 @@ export class LoginPage implements OnInit {
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {
     return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private isPatientRole(role: string | undefined): boolean {
+    return typeof role === 'string' && role.trim().toLowerCase() === 'patient';
   }
 }

@@ -85,6 +85,7 @@ class TestSyncPushEndpoint:
             assert updated_budget.title == 'Updated Budget Title'
             assert updated_budget.status == 'accepted'
             assert str(updated_budget.total_amount) == '1500.50'
+            assert updated_budget.sync_version == 2
 
     def test_push_delete_payment(self, client, auth_headers, app, sample_payment):
         payload = {
@@ -256,6 +257,7 @@ class TestSyncPushEndpoint:
         second_synced = second.json['synced'][0]
         assert second_synced['server_id'] == first_server_id
         assert second_synced['idempotent'] is True
+        assert isinstance(second_synced['sync_version'], int)
 
         with app.app_context():
             rows = Appointment.query.filter_by(
@@ -347,6 +349,7 @@ class TestSyncPushEndpoint:
         conflict = data['conflicts'][0]['conflict']
         assert conflict['conflict'] is True
         assert conflict['resolution'] == 'server_wins'
+        assert conflict['strategy'] == 'version_then_timestamp'
         assert 'server_version' in conflict
         assert 'client_version' in conflict
 
@@ -391,6 +394,38 @@ class TestSyncPushEndpoint:
         assert len(response.json['conflicts']) == 2
         for conflict in response.json['conflicts']:
             assert conflict['conflict']['resolution'] == 'server_wins'
+            assert conflict['conflict']['strategy'] == 'version_then_timestamp'
+
+    def test_push_stale_sync_version_conflict_is_detected_without_timestamp(
+        self,
+        client,
+        auth_headers,
+        sample_appointment
+    ):
+        payload = {
+            'changes': [
+                {
+                    'entity_type': 'appointment',
+                    'entity_id': sample_appointment.id,
+                    'operation': 'update',
+                    'data': {
+                        'status': 'completed',
+                        'sync_version': 0
+                    }
+                }
+            ]
+        }
+
+        response = client.post('/api/sync/push', json=payload, headers=auth_headers)
+        assert response.status_code == 200
+        assert response.json['synced'] == []
+        assert len(response.json['conflicts']) == 1
+
+        conflict = response.json['conflicts'][0]['conflict']
+        assert conflict['resolution'] == 'server_wins'
+        assert conflict['strategy'] == 'version_then_timestamp'
+        assert conflict['server_sync_version'] == 1
+        assert conflict['client_sync_version'] == 0
 
 
 class TestSyncPullEndpoint:
@@ -467,6 +502,7 @@ class TestSyncStatusAndLogsEndpoints:
         assert 'idempotency_key' in first_log
         assert 'external_entity_ref' in first_log
         assert 'result_entity_id' in first_log
+        assert 'result_entity_version' in first_log
         assert 'conflict_payload' in first_log
 
     def test_logs_limit_validation(self, client, admin_auth_headers):

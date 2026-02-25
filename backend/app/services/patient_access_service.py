@@ -5,7 +5,7 @@ Centralizes patient-resource access checks so API resources do not duplicate
 RBAC logic.
 """
 
-from app.models.user import User
+from app.services.access_scope_service import AccessScopeService
 
 
 class PatientAccessService:
@@ -28,7 +28,8 @@ class PatientAccessService:
     def can_access_patient(current_user_id, patient_id):
         """
         Access policy:
-        - admin/professional can access any patient resource
+        - admin can access any patient resource
+        - professional can access only linked patients
         - patient can access only own patient_id
         """
         if current_user_id is None or patient_id is None:
@@ -40,8 +41,8 @@ class PatientAccessService:
         except (TypeError, ValueError):
             return False
 
-        if current_user_id == patient_id:
+        try:
+            AccessScopeService.ensure_patient_access_scope(current_user_id, patient_id)
             return True
-
-        current_user = User.query.get(current_user_id)
-        return bool(current_user and current_user.role in ['admin', 'professional'])
+        except Exception:
+            return False

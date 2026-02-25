@@ -5,6 +5,7 @@ Payment Model - Payment transactions
 
 from datetime import datetime
 from app.extensions import db
+from app.models.sync_versioning import register_sync_version_listener
 
 
 class Payment(db.Model):
@@ -32,6 +33,10 @@ class Payment(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sync_version = db.Column(db.Integer, default=1, nullable=False)
 
     def __repr__(self):
         return f'<Payment {self.id} - {self.amount} {self.currency}>'
+
+
+register_sync_version_listener(Payment)

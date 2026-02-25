@@ -6,6 +6,7 @@ Payment CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
+from app.resources.domain_errors import domain_error_response
 from app.schemas.payment_schema import PaymentSchema
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.services.payment_service import PaymentService
@@ -77,7 +78,7 @@ def get_payment(payment_id):
         payment = PaymentService.get_payment(payment_id)
         return jsonify(payment_schema.dump(payment)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -127,7 +128,7 @@ def create_payment():
         payment = PaymentService.create_payment(data)
         return jsonify(payment_schema.dump(payment)), 201
     except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:payment_id>', methods=['PUT'])
@@ -175,10 +176,8 @@ def update_payment(payment_id):
     try:
         payment = PaymentService.update_payment(payment_id, data)
         return jsonify(payment_schema.dump(payment)), 200
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (ValidationError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:payment_id>', methods=['DELETE'])
@@ -208,7 +207,7 @@ def delete_payment(payment_id):
         PaymentService.delete_payment(payment_id)
         return jsonify({'msg': 'Payment deleted successfully'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:payment_id>/process', methods=['POST'])
@@ -251,4 +250,4 @@ def process_payment(payment_id):
         payment = PaymentService.process_payment(payment_id, data)
         return jsonify(payment_schema.dump(payment)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)

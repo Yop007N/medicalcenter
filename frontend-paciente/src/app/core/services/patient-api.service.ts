@@ -24,7 +24,7 @@ export interface PatientProfile {
 export interface PatientAppointment {
   id: number;
   appointment_date: string;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  status: 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   appointment_type?: string | null;
   reason?: string | null;
   professional?: {
@@ -33,6 +33,22 @@ export interface PatientAppointment {
     last_name: string;
     specialty?: string | null;
   };
+}
+
+export interface ProfessionalDirectoryItem {
+  id: number;
+  first_name: string;
+  last_name: string;
+  specialty?: string | null;
+  email?: string;
+}
+
+export interface CreatePatientAppointmentPayload {
+  professional_id: number;
+  appointment_date: string;
+  appointment_type?: string | null;
+  reason?: string | null;
+  duration_minutes?: number;
 }
 
 export interface PatientBudget {
@@ -137,6 +153,33 @@ export class PatientApiService {
         this.apiClient.get<PatientAppointment[]>(API_ENDPOINTS.patients.appointments(patientId))
       )
     );
+  }
+
+  listProfessionals(specialty?: string): Observable<ProfessionalDirectoryItem[]> {
+    return this.apiClient.get<ProfessionalDirectoryItem[]>(API_ENDPOINTS.professionals.base, {
+      specialty
+    });
+  }
+
+  createMyAppointment(payload: CreatePatientAppointmentPayload): Observable<PatientAppointment> {
+    return this.resolvePatientId().pipe(
+      switchMap((patientId) =>
+        this.apiClient.post<PatientAppointment>(API_ENDPOINTS.appointments.base, {
+          patient_id: patientId,
+          professional_id: payload.professional_id,
+          appointment_date: payload.appointment_date,
+          appointment_type: payload.appointment_type ?? null,
+          reason: payload.reason ?? null,
+          duration_minutes: payload.duration_minutes
+        })
+      )
+    );
+  }
+
+  cancelMyAppointment(appointmentId: number, reason?: string): Observable<{ msg: string }> {
+    return this.apiClient.delete<{ msg: string }>(API_ENDPOINTS.appointments.byId(appointmentId), {
+      reason
+    });
   }
 
   getMyBudgets(): Observable<PatientBudget[]> {

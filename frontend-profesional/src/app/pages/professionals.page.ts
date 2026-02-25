@@ -1,7 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
-import { ProfessionalService } from '../core/services/professional.service';
+import { AuthService } from '../core/auth/auth.service';
+import {
+  CreateProfessionalPayload,
+  ProfessionalService,
+  UpdateProfessionalPayload
+} from '../core/services/professional.service';
 import { Professional } from '../shared/models/user.model';
 import { pageShellStyles } from './page-shell.styles';
 
@@ -13,10 +19,12 @@ type ApiErrorShape = {
   };
 };
 
+type ProfessionalFormMode = 'create' | 'edit';
+
 @Component({
   selector: 'app-professionals-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
     <section class="page">
       <h1>Profesionales</h1>
@@ -30,16 +38,108 @@ type ApiErrorShape = {
           placeholder="Filtrar por especialidad"
           (keyup.enter)="applySpecialty(specialtyInput.value)"
         />
-        <button type="button" class="refresh-button" (click)="applySpecialty(specialtyInput.value)" [disabled]="loading">
+        <button type="button" class="toolbar-button" (click)="applySpecialty(specialtyInput.value)" [disabled]="loading">
           Filtrar
         </button>
-        <button type="button" class="refresh-button" (click)="loadProfessionals()" [disabled]="loading">
+        @if (canCreateProfessional) {
+          <button type="button" class="toolbar-button" (click)="openCreateForm()" [disabled]="formSubmitting">
+            Nuevo profesional
+          </button>
+        }
+        <button type="button" class="toolbar-button" (click)="loadProfessionals()" [disabled]="loading">
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
+      }
+
+      @if (successMessage) {
+        <div class="success-box" role="status">{{ successMessage }}</div>
+      }
+
+      @if (showForm) {
+        <article class="card form-card">
+          <h2 class="card-title">
+            @if (formMode === 'create') { Crear profesional } @else { Editar profesional #{{ editingProfessionalId }} }
+          </h2>
+
+          <form [formGroup]="professionalForm" (ngSubmit)="submitForm()" novalidate class="form-grid">
+            <label>
+              Nombre
+              <input type="text" formControlName="first_name" />
+            </label>
+
+            <label>
+              Apellido
+              <input type="text" formControlName="last_name" />
+            </label>
+
+            <label>
+              Correo
+              <input type="email" formControlName="email" [readonly]="formMode === 'edit'" />
+            </label>
+
+            <label>
+              Password
+              <input type="password" formControlName="password" placeholder="********" />
+            </label>
+
+            <label>
+              Matricula
+              <input type="text" formControlName="license_number" />
+            </label>
+
+            <label>
+              Especialidad
+              <input type="text" formControlName="specialty" />
+            </label>
+
+            <label>
+              Telefono
+              <input type="text" formControlName="phone" />
+            </label>
+
+            <label class="full-row">
+              Direccion
+              <input type="text" formControlName="address" />
+            </label>
+
+            @if (fieldError) {
+              <p class="field-error full-row">{{ fieldError }}</p>
+            }
+
+            <div class="form-actions full-row">
+              <button class="primary-button" type="submit" [disabled]="formSubmitting">
+                @if (formSubmitting) { Guardando... } @else if (formMode === 'create') { Crear } @else { Guardar }
+              </button>
+              <button class="secondary-button" type="button" (click)="closeForm()" [disabled]="formSubmitting">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </article>
+      }
+
+      @if (detailLoading) {
+        <article class="card detail-card">
+          <p class="card-text">Cargando detalle...</p>
+        </article>
+      }
+
+      @if (selectedProfessional && !detailLoading) {
+        <article class="card detail-card">
+          <h2 class="card-title">Detalle profesional #{{ selectedProfessional.id }}</h2>
+          <div class="detail-grid">
+            <p><strong>Nombre:</strong> {{ selectedProfessional.first_name }} {{ selectedProfessional.last_name }}</p>
+            <p><strong>Email:</strong> {{ selectedProfessional.email }}</p>
+            <p><strong>Especialidad:</strong> {{ selectedProfessional.specialty || '-' }}</p>
+            <p><strong>Matricula:</strong> {{ selectedProfessional.license_number || '-' }}</p>
+            <p><strong>Telefono:</strong> {{ selectedProfessional.phone || '-' }}</p>
+            <p class="full-width"><strong>Direccion:</strong> {{ selectedProfessional.address || '-' }}</p>
+          </div>
+        </article>
       }
 
       @if (!loading && professionals.length === 0 && !errorMessage) {
@@ -60,6 +160,7 @@ type ApiErrorShape = {
                 <th>Especialidad</th>
                 <th>Matricula</th>
                 <th>Activo</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -74,6 +175,19 @@ type ApiErrorShape = {
                     <span class="badge" [class]="professional.is_active ? 'status-active' : 'status-inactive'">
                       {{ professional.is_active ? 'Activo' : 'Inactivo' }}
                     </span>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="table-action" type="button" (click)="viewProfessional(professional.id)">Ver</button>
+                      <button
+                        class="table-action"
+                        type="button"
+                        (click)="startEdit(professional)"
+                        [disabled]="!canEditProfessional(professional)"
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               }
@@ -93,16 +207,20 @@ type ApiErrorShape = {
         margin-bottom: 0.75rem;
       }
 
-      .search-input {
+      .search-input,
+      input {
         border: 1px solid #d0d5dd;
         border-radius: 8px;
-        flex: 1 1 260px;
         font-size: 0.82rem;
-        min-width: 220px;
         padding: 0.45rem 0.6rem;
       }
 
-      .refresh-button {
+      .search-input {
+        flex: 1 1 260px;
+        min-width: 220px;
+      }
+
+      .toolbar-button {
         background: #ffffff;
         border: 1px solid #d0d5dd;
         border-radius: 8px;
@@ -113,9 +231,80 @@ type ApiErrorShape = {
         padding: 0.45rem 0.7rem;
       }
 
-      .refresh-button:disabled {
+      .toolbar-button:disabled {
         cursor: not-allowed;
         opacity: 0.65;
+      }
+
+      .form-card,
+      .detail-card {
+        margin-bottom: 0.75rem;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 0.6rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-top: 0.5rem;
+      }
+
+      .form-grid label {
+        color: #344054;
+        display: grid;
+        font-size: 0.78rem;
+        font-weight: 600;
+        gap: 0.3rem;
+      }
+
+      .full-row {
+        grid-column: 1 / -1;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .primary-button {
+        background: #1d4ed8;
+        border: 0;
+        border-radius: 8px;
+        color: #ffffff;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.45rem 0.75rem;
+      }
+
+      .secondary-button {
+        background: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        color: #344054;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.45rem 0.75rem;
+      }
+
+      .primary-button:disabled,
+      .secondary-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      .detail-grid {
+        display: grid;
+        gap: 0.45rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .detail-grid p {
+        margin: 0;
+      }
+
+      .full-width {
+        grid-column: 1 / -1;
       }
 
       .table-wrap {
@@ -124,7 +313,7 @@ type ApiErrorShape = {
 
       .table {
         border-collapse: collapse;
-        min-width: 760px;
+        min-width: 900px;
         width: 100%;
       }
 
@@ -139,6 +328,27 @@ type ApiErrorShape = {
       .table th {
         color: #475467;
         font-weight: 600;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 0.35rem;
+      }
+
+      .table-action {
+        background: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        color: #344054;
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.22rem 0.45rem;
+      }
+
+      .table-action:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
       }
 
       .badge {
@@ -159,14 +369,30 @@ type ApiErrorShape = {
         color: #b42318;
       }
 
-      .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
+      .error-box,
+      .success-box {
         border-radius: 8px;
-        color: #b42318;
         font-size: 0.82rem;
         margin-bottom: 0.75rem;
         padding: 0.55rem 0.7rem;
+      }
+
+      .error-box {
+        background: #fef3f2;
+        border: 1px solid #fecdca;
+        color: #b42318;
+      }
+
+      .success-box {
+        background: #ecfdf3;
+        border: 1px solid #abefc6;
+        color: #067647;
+      }
+
+      .field-error {
+        color: #b42318;
+        font-size: 0.78rem;
+        margin: 0;
       }
 
       .empty {
@@ -177,13 +403,43 @@ type ApiErrorShape = {
 })
 export class ProfessionalsPage implements OnInit {
   private readonly professionalService = inject(ProfessionalService);
+  private readonly authService = inject(AuthService);
+  private readonly fb = inject(NonNullableFormBuilder);
 
   professionals: Professional[] = [];
+  selectedProfessional: Professional | null = null;
   loading = false;
+  detailLoading = false;
+  formSubmitting = false;
   errorMessage: string | null = null;
+  successMessage: string | null = null;
+  fieldError: string | null = null;
   activeSpecialty = '';
+  showForm = false;
+  formMode: ProfessionalFormMode = 'create';
+  editingProfessionalId: number | null = null;
+  currentUserRole = '';
+  currentUserId: number | null = null;
+
+  readonly professionalForm = this.fb.group({
+    first_name: ['', [Validators.required]],
+    last_name: ['', [Validators.required]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.minLength(8)]],
+    license_number: ['', [Validators.required]],
+    specialty: [''],
+    phone: [''],
+    address: ['']
+  });
+
+  get canCreateProfessional(): boolean {
+    return this.currentUserRole === 'admin';
+  }
 
   ngOnInit(): void {
+    const currentUser = this.authService.currentUserValue;
+    this.currentUserRole = currentUser?.role ?? '';
+    this.currentUserId = currentUser?.id ?? null;
     this.loadProfessionals();
   }
 
@@ -210,6 +466,191 @@ export class ProfessionalsPage implements OnInit {
       });
   }
 
+  viewProfessional(professionalId: number): void {
+    this.showForm = false;
+    this.fieldError = null;
+    this.successMessage = null;
+    this.detailLoading = true;
+    this.errorMessage = null;
+
+    this.professionalService
+      .getProfessionalById(professionalId)
+      .pipe(finalize(() => (this.detailLoading = false)))
+      .subscribe({
+        next: (professional) => {
+          this.selectedProfessional = professional;
+        },
+        error: (error: unknown) => {
+          this.errorMessage = this.resolveErrorMessage(error);
+        }
+      });
+  }
+
+  openCreateForm(): void {
+    if (!this.canCreateProfessional) {
+      this.errorMessage = 'Solo administradores pueden crear profesionales.';
+      return;
+    }
+
+    this.formMode = 'create';
+    this.editingProfessionalId = null;
+    this.showForm = true;
+    this.selectedProfessional = null;
+    this.successMessage = null;
+    this.fieldError = null;
+    this.professionalForm.reset({
+      first_name: '',
+      last_name: '',
+      email: '',
+      password: '',
+      license_number: '',
+      specialty: '',
+      phone: '',
+      address: ''
+    });
+    this.professionalForm.controls.password.setValidators([Validators.required, Validators.minLength(8)]);
+    this.professionalForm.controls.password.updateValueAndValidity();
+  }
+
+  closeForm(): void {
+    this.showForm = false;
+    this.fieldError = null;
+  }
+
+  canEditProfessional(professional: Professional): boolean {
+    return this.currentUserRole === 'admin' || this.currentUserId === professional.id;
+  }
+
+  startEdit(professional: Professional): void {
+    if (!this.canEditProfessional(professional)) {
+      this.errorMessage = 'No tienes permisos para editar este profesional.';
+      return;
+    }
+
+    this.showForm = true;
+    this.formMode = 'edit';
+    this.editingProfessionalId = professional.id;
+    this.successMessage = null;
+    this.fieldError = null;
+    this.selectedProfessional = professional;
+    this.professionalForm.controls.password.clearValidators();
+    this.professionalForm.controls.password.setValidators([Validators.minLength(8)]);
+    this.professionalForm.controls.password.updateValueAndValidity();
+    this.professionalForm.patchValue({
+      first_name: professional.first_name || '',
+      last_name: professional.last_name || '',
+      email: professional.email || '',
+      password: '',
+      license_number: professional.license_number || '',
+      specialty: professional.specialty || '',
+      phone: professional.phone || '',
+      address: professional.address || ''
+    });
+  }
+
+  submitForm(): void {
+    if (this.professionalForm.invalid) {
+      this.professionalForm.markAllAsTouched();
+      this.fieldError = 'Revisa los campos requeridos y el formato del formulario.';
+      return;
+    }
+
+    const formValue = this.professionalForm.getRawValue();
+    const firstName = formValue.first_name.trim();
+    const lastName = formValue.last_name.trim();
+    const email = formValue.email.trim();
+    const password = formValue.password.trim();
+    const licenseNumber = formValue.license_number.trim();
+    this.formSubmitting = true;
+    this.errorMessage = null;
+    this.fieldError = null;
+    this.successMessage = null;
+
+    if (this.formMode === 'create') {
+      if (!firstName || !lastName || !email || !password || !licenseNumber) {
+        this.formSubmitting = false;
+        this.fieldError = 'Nombre, apellido, correo, password y matricula son obligatorios.';
+        return;
+      }
+
+      const createPayload: CreateProfessionalPayload = {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password,
+        license_number: licenseNumber,
+        specialty: this.trimOrNull(formValue.specialty),
+        phone: this.trimOrNull(formValue.phone),
+        address: this.trimOrNull(formValue.address)
+      };
+
+      this.professionalService
+        .createProfessional(createPayload)
+        .pipe(finalize(() => (this.formSubmitting = false)))
+        .subscribe({
+          next: (createdProfessional) => {
+            this.professionals = [createdProfessional, ...this.professionals];
+            this.selectedProfessional = createdProfessional;
+            this.showForm = false;
+            this.successMessage = `Profesional #${createdProfessional.id} creado correctamente.`;
+          },
+          error: (error: unknown) => {
+            this.errorMessage = this.resolveErrorMessage(error);
+          }
+        });
+      return;
+    }
+
+    if (!this.editingProfessionalId) {
+      this.formSubmitting = false;
+      this.fieldError = 'No se encontro el profesional a editar.';
+      return;
+    }
+
+    const updatePayload: UpdateProfessionalPayload = this.cleanOptionalStrings({
+      first_name: formValue.first_name,
+      last_name: formValue.last_name,
+      license_number: formValue.license_number,
+      specialty: formValue.specialty,
+      phone: formValue.phone,
+      address: formValue.address,
+      password: formValue.password
+    });
+
+    this.professionalService
+      .updateProfessional(this.editingProfessionalId, updatePayload)
+      .pipe(finalize(() => (this.formSubmitting = false)))
+      .subscribe({
+        next: (updatedProfessional) => {
+          this.professionals = this.professionals.map((professional) =>
+            professional.id === updatedProfessional.id ? { ...professional, ...updatedProfessional } : professional
+          );
+          this.selectedProfessional = updatedProfessional;
+          this.showForm = false;
+          this.successMessage = `Profesional #${updatedProfessional.id} actualizado correctamente.`;
+        },
+        error: (error: unknown) => {
+          this.errorMessage = this.resolveErrorMessage(error);
+        }
+      });
+  }
+
+  private cleanOptionalStrings(payload: Record<string, string>): Record<string, string> {
+    const cleanPayload: Record<string, string> = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      const trimmedValue = value.trim();
+      if (trimmedValue.length > 0) {
+        cleanPayload[key] = trimmedValue;
+      }
+    });
+    return cleanPayload;
+  }
+
+  private trimOrNull(value: string): string | null {
+    const trimmedValue = value.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  }
+
   private resolveErrorMessage(error: unknown): string {
     if (this.isApiErrorShape(error)) {
       const msg = error.error?.message ?? error.error?.msg ?? error.error?.error;
@@ -217,7 +658,7 @@ export class ProfessionalsPage implements OnInit {
         return msg;
       }
     }
-    return 'No se pudieron cargar los profesionales.';
+    return 'No se pudo completar la operacion de profesionales.';
   }
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {

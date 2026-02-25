@@ -5,6 +5,7 @@ Medical Record Model - Clinical records for consultations
 
 from datetime import datetime
 from app.extensions import db
+from app.models.sync_versioning import register_sync_version_listener
 
 
 class MedicalRecord(db.Model):
@@ -42,6 +43,7 @@ class MedicalRecord(db.Model):
     # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sync_version = db.Column(db.Integer, default=1, nullable=False)
 
     # Relationships
     # Bolt: Changed from 'dynamic' to 'select' to allow eager loading and prevent N+1 queries
@@ -49,3 +51,6 @@ class MedicalRecord(db.Model):
 
     def __repr__(self):
         return f'<MedicalRecord {self.id} - Patient {self.patient_id}>'
+
+
+register_sync_version_listener(MedicalRecord)

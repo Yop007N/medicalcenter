@@ -58,6 +58,12 @@ export const routes: Routes = [
         loadChildren: () => import('./features/payments/payments.routes').then(m => m.PAYMENTS_ROUTES)
       },
       {
+        path: 'files',
+        canActivate: [roleGuard],
+        data: { roles: ['admin', 'professional'] },
+        loadChildren: () => import('./features/files/files.routes').then(m => m.FILES_ROUTES)
+      },
+      {
         path: 'odontology',
         canActivate: [roleGuard],
         data: { roles: ['admin', 'professional'] },

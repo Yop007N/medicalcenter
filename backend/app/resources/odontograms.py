@@ -8,6 +8,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.schemas.odontogram_schema import OdontogramSchema, ToothSchema
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.services.odontogram_service import OdontogramService
+from app.utils.decorators import module_access_required
 
 blueprint = Blueprint('odontograms', __name__, url_prefix='/api/odontograms')
 
@@ -27,6 +28,12 @@ def _service_error_response(error):
     if getattr(error, 'details', None):
         payload.update(error.details)
     return jsonify(payload), status
+
+
+@blueprint.before_request
+@module_access_required('odontology')
+def _enforce_module_scope():
+    return None
 
 
 @blueprint.route('', methods=['GET'])

@@ -6,6 +6,7 @@ export interface SessionUser {
   first_name: string;
   last_name: string;
   role: string;
+  specialty?: string | null;
 }
 
 @Injectable({

@@ -4,6 +4,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.resources.domain_errors import domain_error_response
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.services.file_service import FileService
 
@@ -112,10 +113,8 @@ def upload_file():
             file_type=file_type,
             description=description,
         )
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (ValidationError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
 
     return jsonify(serialize_file(file_record)), 201
 
@@ -160,7 +159,7 @@ def get_file(file_id):
         file_record = FileService.get_file(file_id)
         return jsonify(serialize_file(file_record)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:file_id>/download', methods=['GET'])
@@ -199,7 +198,7 @@ def download_file(file_id):
             mimetype=file_record.mime_type,
         )
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:file_id>', methods=['DELETE'])
@@ -229,4 +228,4 @@ def delete_file(file_id):
         FileService.delete_file(file_id)
         return jsonify({'msg': 'File deleted'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)

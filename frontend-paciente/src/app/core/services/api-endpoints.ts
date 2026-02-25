@@ -7,6 +7,13 @@ export const API_ENDPOINTS = {
     appointments: (id: number) => `patients/${id}/appointments`,
     budgets: (id: number) => `patients/${id}/budgets`
   },
+  appointments: {
+    base: 'appointments',
+    byId: (id: number) => `appointments/${id}`
+  },
+  professionals: {
+    base: 'professionals'
+  },
   budgets: {
     accept: (id: number) => `budgets/${id}/accept`
   },

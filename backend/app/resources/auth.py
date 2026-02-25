@@ -6,6 +6,7 @@ Authentication endpoints - Login, refresh token, logout
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from flasgger import swag_from
+from app.resources.domain_errors import domain_error_response
 from app.services.auth_service import AuthService
 from app.services.exceptions import ConflictError, ValidationError
 from app.extensions import limiter
@@ -93,6 +94,7 @@ def login():
 			'first_name': user.first_name,
 			'last_name': user.last_name,
 			'role': user.role,
+			'specialty': getattr(user, 'specialty', None),
 		}
 	}), 200
 
@@ -209,10 +211,8 @@ def register():
 			license_number=license_number,
 			specialty=specialty,
 		)
-	except ValidationError as exc:
-		return jsonify({'msg': str(exc)}), 400
-	except ConflictError as exc:
-		return jsonify({'msg': str(exc)}), 409
+	except (ValidationError, ConflictError) as exc:
+		return domain_error_response(exc)
 
 	if not user:
 		return jsonify({'msg': 'Registration failed'}), 500

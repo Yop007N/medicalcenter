@@ -6,15 +6,23 @@ Dental Treatment CRUD endpoints
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.resources.domain_errors import domain_error_response
 from app.schemas.odontogram_schema import DentalTreatmentSchema
 from app.services.dental_treatment_service import DentalTreatmentService
 from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.utils.decorators import module_access_required
 from app.utils.helpers import get_pagination_params
 
 blueprint = Blueprint('dental_treatments', __name__, url_prefix='/api/dental-treatments')
 
 treatment_schema = DentalTreatmentSchema()
 treatments_schema = DentalTreatmentSchema(many=True)
+
+
+@blueprint.before_request
+@module_access_required('odontology')
+def _enforce_module_scope():
+    return None
 
 
 @blueprint.route('', methods=['GET'])
@@ -79,7 +87,7 @@ def list_treatments():
     try:
         pagination = DentalTreatmentService.list_treatments(filters, page, per_page)
     except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
+        return domain_error_response(exc)
 
     return jsonify({
         'items': treatments_schema.dump(pagination.items),
@@ -114,7 +122,7 @@ def get_treatment(treatment_id):
         treatment = DentalTreatmentService.get_treatment(treatment_id)
         return jsonify(treatment_schema.dump(treatment)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -167,12 +175,8 @@ def create_treatment():
     try:
         treatment = DentalTreatmentService.create_treatment(data, current_user_id)
         return jsonify(treatment_schema.dump(treatment)), 201
-    except ValidationError as exc:
-        payload = {'msg': exc.message}
-        payload.update(exc.details)
-        return jsonify(payload), 400
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (ValidationError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:treatment_id>', methods=['PUT'])
@@ -217,10 +221,8 @@ def update_treatment(treatment_id):
     try:
         treatment = DentalTreatmentService.update_treatment(treatment_id, data)
         return jsonify(treatment_schema.dump(treatment)), 200
-    except ValidationError as exc:
-        return jsonify({'msg': exc.message}), 400
-    except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+    except (ValidationError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:treatment_id>', methods=['DELETE'])
@@ -247,7 +249,7 @@ def delete_treatment(treatment_id):
         DentalTreatmentService.delete_treatment(treatment_id)
         return jsonify({'msg': 'Treatment deleted successfully'}), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/patient/<int:patient_id>/history', methods=['GET'])
@@ -286,7 +288,7 @@ def get_patient_treatment_history(patient_id):
             'pages': pagination.pages
         }), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:treatment_id>/complete', methods=['POST'])
@@ -328,7 +330,7 @@ def complete_treatment(treatment_id):
             'treatment': treatment_schema.dump(treatment)
         }), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:treatment_id>/cancel', methods=['POST'])
@@ -363,4 +365,4 @@ def cancel_treatment(treatment_id):
         treatment = DentalTreatmentService.cancel_treatment(treatment_id, data)
         return jsonify(treatment_schema.dump(treatment)), 200
     except ResourceNotFoundError as exc:
-        return jsonify({'msg': exc.message}), 404
+        return domain_error_response(exc)

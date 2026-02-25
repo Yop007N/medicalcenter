@@ -24,6 +24,7 @@ import {
   medkitOutline,
   calendarOutline,
   documentTextOutline,
+  folderOpenOutline,
   walletOutline,
   cardOutline,
   fitnessOutline,
@@ -448,6 +449,7 @@ export class MainLayoutComponent {
         { title: 'Profesionales', url: '/professionals', icon: 'medkit-outline', roles: ['admin', 'professional'] },
         { title: 'Citas', url: '/appointments', icon: 'calendar-outline', badge: 3, roles: ['admin', 'professional'] },
         { title: 'Historiales', url: '/medical-records', icon: 'document-text-outline', roles: ['admin', 'professional'] },
+        { title: 'Archivos', url: '/files', icon: 'folder-open-outline', roles: ['admin', 'professional'] },
         { title: 'Presupuestos', url: '/budgets', icon: 'wallet-outline', roles: ['admin', 'professional'] },
         { title: 'Pagos', url: '/payments', icon: 'card-outline', roles: ['admin', 'professional'] }
       ]
@@ -478,6 +480,7 @@ export class MainLayoutComponent {
       medkitOutline,
       calendarOutline,
       documentTextOutline,
+      folderOpenOutline,
       walletOutline,
       cardOutline,
       fitnessOutline,

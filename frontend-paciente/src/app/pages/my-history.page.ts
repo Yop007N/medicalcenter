@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { IonicModule } from '@ionic/angular';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import {
   ClinicalHistoryEvent,
   ClinicalSummary,
@@ -10,6 +10,8 @@ import {
   PatientApiService,
   PatientDocumentItem
 } from '../core/services/patient-api.service';
+import { OfflineService } from '../core/services/offline.service';
+import { SyncService } from '../core/services/sync.service';
 import { pageShellStyles } from './page-shell.styles';
 
 type SegmentView = 'summary' | 'timeline' | 'documents' | 'consents';
@@ -20,6 +22,11 @@ type ApiErrorShape = {
     message?: string;
     error?: string;
   };
+};
+
+type SectionResult<T> = {
+  data: T;
+  warning: string | null;
 };
 
 @Component({
@@ -42,6 +49,21 @@ type ApiErrorShape = {
         <p class="panel-text">Consulta resumen clinico, eventos, documentos y consentimientos.</p>
       </section>
 
+      <section class="panel connectivity-panel">
+        <p class="panel-text">
+          Estado de red:
+          <span class="status-chip" [class]="isOnline ? 'status-signed' : 'status-pending'">
+            {{ isOnline ? 'Online' : 'Offline' }}
+          </span>
+        </p>
+        <p class="panel-text">Cambios pendientes de sync: <strong>{{ pendingChangesCount }}</strong></p>
+        @if (isOnline && pendingChangesCount > 0) {
+          <ion-button size="small" fill="outline" (click)="syncNow()" [disabled]="syncing">
+            @if (syncing) { Sincronizando... } @else { Sincronizar ahora }
+          </ion-button>
+        }
+      </section>
+
       <ion-segment [value]="activeView" (ionChange)="onViewChange($event)">
         <ion-segment-button value="summary">Resumen</ion-segment-button>
         <ion-segment-button value="timeline">Timeline</ion-segment-button>
@@ -55,6 +77,10 @@ type ApiErrorShape = {
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
+      }
+
+      @if (warningMessage) {
+        <div class="warning-box" role="status">{{ warningMessage }}</div>
       }
 
       @if (loading) {
@@ -230,6 +256,31 @@ type ApiErrorShape = {
         margin: 12px;
       }
 
+      .connectivity-panel {
+        display: grid;
+        gap: 8px;
+      }
+
+      .warning-box {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 10px;
+        color: #92400e;
+        font-size: 0.82rem;
+        margin: 12px;
+        padding: 10px;
+      }
+
+      .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .status-signed {
+        background: #dcfce7;
+        color: #166534;
+      }
+
       .loading-panel {
         align-items: center;
         display: flex;
@@ -301,10 +352,16 @@ type ApiErrorShape = {
 })
 export class MyHistoryPage implements OnInit {
   private readonly patientApi = inject(PatientApiService);
+  private readonly offlineService = inject(OfflineService);
+  private readonly syncService = inject(SyncService);
 
   activeView: SegmentView = 'summary';
   loading = false;
+  syncing = false;
+  isOnline = true;
+  pendingChangesCount = 0;
   errorMessage: string | null = null;
+  warningMessage: string | null = null;
 
   summary: ClinicalSummary | null = null;
   timeline: ClinicalHistoryEvent[] = [];
@@ -314,6 +371,12 @@ export class MyHistoryPage implements OnInit {
   processingConsentIds = new Set<number>();
 
   ngOnInit(): void {
+    this.isOnline = this.offlineService.isOnline;
+    this.pendingChangesCount = this.syncService.getPendingChanges().length;
+    this.offlineService.online$.subscribe((online) => {
+      this.isOnline = online;
+      this.pendingChangesCount = this.syncService.getPendingChanges().length;
+    });
     this.loadHistory();
   }
 
@@ -328,7 +391,30 @@ export class MyHistoryPage implements OnInit {
     this.loadHistory(() => event.detail.complete());
   }
 
+  syncNow(): void {
+    if (!this.isOnline) {
+      this.warningMessage = 'Estas offline. No se puede sincronizar en este momento.';
+      return;
+    }
+
+    this.syncing = true;
+    this.warningMessage = null;
+    this.syncService.syncPendingChanges();
+    window.setTimeout(() => {
+      this.pendingChangesCount = this.syncService.getPendingChanges().length;
+      this.syncing = false;
+      if (this.pendingChangesCount === 0) {
+        this.warningMessage = 'Sincronizacion completada.';
+      }
+    }, 700);
+  }
+
   signConsent(consent: InformedConsentItem): void {
+    if (!this.isOnline) {
+      this.warningMessage = 'No puedes firmar consentimientos mientras estas offline.';
+      return;
+    }
+
     const defaultSignature = `signed-by-patient-${new Date().toISOString()}`;
     const signature = window.prompt('Ingresa tu firma para aprobar este consentimiento', defaultSignature);
 
@@ -358,6 +444,11 @@ export class MyHistoryPage implements OnInit {
   }
 
   rejectConsent(consent: InformedConsentItem): void {
+    if (!this.isOnline) {
+      this.warningMessage = 'No puedes rechazar consentimientos mientras estas offline.';
+      return;
+    }
+
     const reason = window.prompt('Ingresa el motivo de rechazo (opcional)') ?? undefined;
 
     this.processingConsentIds.add(consent.id);
@@ -376,6 +467,11 @@ export class MyHistoryPage implements OnInit {
   }
 
   downloadDocument(documentItem: PatientDocumentItem): void {
+    if (!this.isOnline) {
+      this.warningMessage = 'No puedes descargar documentos mientras estas offline.';
+      return;
+    }
+
     this.errorMessage = null;
 
     this.patientApi.downloadClinicalDocument(documentItem.id).subscribe({
@@ -396,18 +492,51 @@ export class MyHistoryPage implements OnInit {
   private loadHistory(onComplete?: () => void): void {
     this.loading = true;
     this.errorMessage = null;
+    this.warningMessage = null;
 
     forkJoin({
-      summary: this.patientApi.getMyClinicalSummary().pipe(catchError(() => of(null))),
-      timeline: this.patientApi.getMyClinicalTimeline().pipe(catchError(() => of([] as ClinicalHistoryEvent[]))),
-      documents: this.patientApi.getMyClinicalDocuments().pipe(catchError(() => of([] as PatientDocumentItem[]))),
-      consents: this.patientApi.getMyConsents().pipe(catchError(() => of([] as InformedConsentItem[])))
+      summary: this.withSectionFallback(
+        this.patientApi.getMyClinicalSummary(),
+        null,
+        'No se pudo cargar el resumen clinico.'
+      ),
+      timeline: this.withSectionFallback(
+        this.patientApi.getMyClinicalTimeline(),
+        [] as ClinicalHistoryEvent[],
+        'No se pudo cargar el timeline.'
+      ),
+      documents: this.withSectionFallback(
+        this.patientApi.getMyClinicalDocuments(),
+        [] as PatientDocumentItem[],
+        'No se pudo cargar la seccion de documentos.'
+      ),
+      consents: this.withSectionFallback(
+        this.patientApi.getMyConsents(),
+        [] as InformedConsentItem[],
+        'No se pudo cargar la seccion de consentimientos.'
+      )
     }).subscribe({
       next: ({ summary, timeline, documents, consents }) => {
-        this.summary = summary;
-        this.timeline = timeline;
-        this.documents = documents;
-        this.consents = consents;
+        this.summary = summary.data;
+        this.timeline = timeline.data;
+        this.documents = documents.data;
+        this.consents = consents.data;
+        this.pendingChangesCount = this.syncService.getPendingChanges().length;
+
+        const warnings = [summary.warning, timeline.warning, documents.warning, consents.warning].filter(
+          (message): message is string => !!message
+        );
+        if (warnings.length > 0) {
+          this.warningMessage = warnings[0];
+          if (warnings.length > 1) {
+            this.warningMessage += ` (+${warnings.length - 1} secciones con incidencias)`;
+          }
+        }
+
+        if (!this.summary && this.timeline.length === 0 && this.documents.length === 0 && this.consents.length === 0) {
+          this.errorMessage = 'No se encontro informacion clinica disponible para este paciente.';
+        }
+
         this.loading = false;
         onComplete?.();
       },
@@ -417,6 +546,19 @@ export class MyHistoryPage implements OnInit {
         onComplete?.();
       }
     });
+  }
+
+  private withSectionFallback<T>(source$: Observable<T>, fallback: T, warning: string): Observable<SectionResult<T>> {
+    return source$.pipe(
+      map((data: T): SectionResult<T> => ({ data, warning: null })),
+      catchError((error: unknown) => {
+        const message = this.resolveErrorMessage(error) || warning;
+        return of({
+          data: fallback,
+          warning: message
+        } as SectionResult<T>);
+      })
+    );
   }
 
   private updateConsentItem(updatedConsent: InformedConsentItem): void {
