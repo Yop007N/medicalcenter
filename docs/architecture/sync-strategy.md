@@ -1,66 +1,55 @@
-# Synchronization Strategy (estado real y cierre)
+# Synchronization Strategy (estado real)
 
-Actualizado: 2026-02-23
+Actualizado: 2026-02-25
 
 ## Objetivo
-Definir el estado actual de sincronizacion y el plan tecnico para cierre productivo sin ambiguedad documental.
+Documentar el estado implementado de sync y las brechas reales de cierre productivo.
 
-## Implementado actualmente
+## Implementado
 
 ### Endpoints
 - `POST /api/sync/push`
 - `GET /api/sync/pull`
 - `GET /api/sync/status`
-- `GET /api/sync/logs` (admin)
+- `GET /api/sync/logs` (`admin`)
 
-### Comportamiento actual en `push`
-- Valida cuerpo JSON y estructura minima por cambio.
-- Limita lotes a `500` cambios por request.
-- Registra eventos en `sync_logs`.
-- Aplica idempotencia por `idempotency_key` o fingerprint del payload.
-- Ejecuta handlers por entidad soportada.
-- Detecta conflictos por `updated_at`.
-- Responde conflictos con politica `server_wins`.
+### `push`
+- Validacion estructural de `changes`.
+- Limite de lote: `MAX_SYNC_CHANGES=500`.
+- Registro de eventos en `sync_logs`.
+- Idempotencia por `idempotency_key` o fingerprint.
+- Reserva temprana de `idempotency_key` para concurrencia.
+- Replay idempotente de operaciones `completed`, `in_progress` y `failed`.
+- Resolucion de conflictos por politica de entidad (`ENTITY_CONFLICT_POLICIES`): `version_then_timestamp` para `appointment`, `medical_record`, `budget`, `payment`; `version_only` para `file`.
+- Respuesta de conflicto con metadata ampliada (`strategy`, `server_sync_version`, `client_sync_version`).
 
-### Entidades soportadas hoy
+### `pull`
+- Entrega de cambios por `since`.
+- Incluye `sync_version` por registro en `data`.
+
+### Entidades sincronizadas actualmente
 - `appointment`
 - `medical_record`
 - `budget`
 - `payment`
 - `file`
 
-### Comportamiento actual en `pull`
-- Entrega cambios por fecha (`since`), con serializacion por modelo.
-- Omite aliases plurales para no duplicar resultados.
+### Versionado e idempotencia persistente
+- `sync_version` implementado en `appointments`, `medical_records`, `budgets`, `payments`, `files`.
+- `sync_logs` almacena `result_entity_version`.
+- Indice unico en `sync_logs(idempotency_key, direction)` cuando `idempotency_key` no es null.
 
-## Validacion ejecutada
-- `backend/tests/test_sync_endpoints.py` y `backend/tests/test_patients.py`
-- Resultado 2026-02-23: `42 passed`
+## Validacion tecnica registrada
+- `docker compose exec -T backend pytest -q tests/test_sync_endpoints.py tests/test_sync_service.py tests/test_sync_tasks.py` -> `25 passed`.
+- `docker compose exec -T backend alembic upgrade head`.
+- `docker compose exec -T backend alembic current` -> `f0e1d2c3b4a5 (head)`.
 
-## Brechas tecnicas pendientes
-- Versionado por registro robusto para merge distribuido.
-- Resolucion de conflictos mas granular (no solo timestamp).
-- Estrategia de idempotencia multi-nodo.
-- Cobertura E2E offline/online en flujos frontend.
-- Cobertura sync para mas entidades de dominio segun alcance final.
+## Brechas pendientes reales
+- E2E offline/online mas profundo en frontends contra entorno de despliegue.
+- Cobertura sync para entidades adicionales si entran al alcance final.
+- Politicas de merge de negocio para casos donde `server_wins` no sea suficiente.
 
-## Plan de cierre recomendado
-
-### Fase 1 - Contrato y observabilidad
-- Congelar contrato de payload de sync.
-- Unificar catalogo de errores funcionales.
-- Exponer metricas operativas de exito/error por ventana.
-
-### Fase 2 - Versionado y conflictos
-- Incorporar campo de version por entidad.
-- Definir politicas de conflicto por entidad con trazabilidad.
-- Garantizar reintentos idempotentes en escenarios distribuidos.
-
-### Fase 3 - Expansión funcional
-- Extender sync a entidades adicionales requeridas por producto.
-- Cubrir create/update/delete en pruebas de integracion por entidad.
-
-### Fase 4 - Validacion de release
-- Suite E2E de sincronizacion offline/online.
-- Pruebas de carga con lotes altos.
-- Criterios GO/NO-GO de sync para despliegue productivo.
+## Criterio de cierre de sync para release
+- Smoke sync por actor en entorno de despliegue.
+- Reintentos idempotentes verificados ante concurrencia.
+- Evidencia operativa de monitoreo y runbook de recuperacion vigente.

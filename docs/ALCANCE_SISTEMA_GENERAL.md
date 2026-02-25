@@ -1,14 +1,14 @@
-﻿# Alcance del Sistema - Medical Services
+# Alcance del Sistema - Medical Services
 
-Actualizado: 2026-02-23
+Actualizado: 2026-02-25
 
 ## 1. Objetivo general
-Plataforma de gestion clinica para centralizar operacion asistencial, administrativa y trazabilidad sobre pacientes, turnos e historia clinica.
+Plataforma de gestion clinica para centralizar operacion asistencial, administrativa y trazabilidad de pacientes, turnos, historia clinica, archivos y cobranza.
 
-## 2. Actores principales
-- Administrador: gobierno del sistema, usuarios, auditoria, reportes.
-- Profesional de salud: operacion diaria clinica y administrativa.
-- Paciente: consulta/autogestion desde canales web/moviles.
+## 2. Actores y frontera de acceso
+- Administrador (`admin`): gobierno total del sistema (usuarios, profesionales, auditoria, reportes y operacion global).
+- Profesional (`professional`): operacion clinica diaria sobre pacientes vinculados y modulos habilitados por especialidad.
+- Paciente (`patient`): acceso solo a informacion propia y a sus profesionales tratantes.
 
 ## 3. Alcance funcional incluido
 ### Core
@@ -19,43 +19,39 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 - Presupuestos y pagos.
 
 ### Especialidades
-- Odontologia (odontograma, tratamientos, historia clinica odontologica).
+- Odontologia (odontogramas, dientes y tratamientos).
 - Psicologia (evaluaciones y sesiones).
 - Psicopedagogia (evaluaciones e intervenciones).
 
 ### Gobierno operativo
+- Dashboard y reportes.
 - Auditoria de acciones.
-- Reportes y dashboard.
-- Base de tiempo real via WebSockets.
-- Soporte de tareas asincronas con Celery.
+- Soporte de sincronizacion local/nube.
+- Soporte asincrono con Celery y Redis.
 
 ## 4. Alcance tecnico incluido
 - Backend Flask + SQLAlchemy + PostgreSQL.
 - Redis + Celery para cache/tareas.
-- Frontends Angular/Ionic en multiples clientes.
-- Contenerizacion con Docker Compose.
+- Tres frontends separados por actor: `frontend-admin-profesional` (Angular) para `admin`, `frontend-profesional` (Angular) para `professional`, `frontend-paciente` (Ionic PWA) para `patient`.
+- Despliegue con Docker Compose.
 
-## 5. Fuera de alcance actual (todavia)
-- Integraciones productivas completas con pasarelas de pago.
-- Integraciones hospitalarias HL7/FHIR de nivel enterprise.
+## 5. Estado funcional actual
+- Casos de uso UC-MS-001..UC-MS-017 verificados como implementados.
+- Referencia: `docs/development/UC_RF_VERIFICATION_2026-02-24.md`.
+- Estado de modulos por sprint/evidencia: `docs/development/SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md` y `docs/development/solid_activity_tracker.md`.
+
+## 6. Fuera de alcance actual
+- Integraciones productivas completas con pasarelas de pago externas.
+- Integraciones hospitalarias HL7/FHIR enterprise.
 - Multi-tenant completo por organizacion.
-- PWA de paciente con paridad funcional total.
+- Observabilidad/alertas de nivel productivo completamente cerradas en compose/prod.
 
-## 6. Estado real por capa
-- Backend: alto avance funcional en modulos core y especialidades.
-- Frontend principal (`frontend-admin-profesional/`): avance alto relativo y mayor cobertura funcional.
-- Frontend web (`frontend-profesional/`): avance medio con foco profesional.
-- Frontend PWA (`frontend-paciente/`): base tecnica inicial, paridad funcional pendiente.
-- Sync cloud/local: funcionalidad base, cierre productivo pendiente.
+## 7. Brechas activas de cierre (no funcionales)
+- Hardening operativo de release (P2.2): healthchecks avanzados, alertas, validacion periodica de rollback/restore.
+- Cobertura E2E integral offline/online por actor en entorno de despliegue estable.
+- Endurecimiento adicional de autenticacion de salida (`logout` con revocacion real de token) segun estrategia final de sesiones.
 
-## 7. Veredicto de avance
-El sistema NO esta cerrado al 100% como producto integral.
-
-Si se evalua solo backend, el avance es alto.
-Si se evalua producto completo (backend + frontends + sync + despliegue operativo), todavia hay trabajo de cierre.
-
-## 8. Criterios para considerar "desarrollo terminado"
-- Backend + frontend elegido para produccion con paridad funcional completa.
-- Sincronizacion validada end-to-end con conflictos y reintentos.
-- Pipeline CI estable (tests + build) en entorno limpio.
-- Despliegue productivo documentado y probado (backup/restore, monitoreo, alertas).
+## 8. Criterio de cierre de producto
+- Build y suites criticas en verde de backend y 3 frontends.
+- Smoke/E2E por actor en entorno de despliegue.
+- Despliegue operativo documentado con backup/restore y rollback validados.

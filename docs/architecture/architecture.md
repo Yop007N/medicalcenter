@@ -1,30 +1,30 @@
 # Medical Services - Architecture (estado actual)
 
-Actualizado: 2026-02-23
+Actualizado: 2026-02-25
 
 ## Resumen
-Medical Services es una plataforma clinica modular con backend Flask y tres clientes frontend en distinto nivel de madurez funcional.
+Medical Services es una plataforma clinica modular con backend Flask y tres frontends separados por actor (`admin`, `professional`, `patient`) sobre una misma API.
 
 ## Flujo operativo
-- Ver flujo operativo integral por actores en `docs/architecture/operational-flow.md`.
+- Ver flujo operativo por actor en `docs/architecture/operational-flow.md`.
 
 ## Diagrama Mermaid (estado actual)
 ```mermaid
 flowchart LR
   subgraph Clientes["Canales cliente"]
-    FEI["Frontend Principal\nAngular + Ionic"]
-    FEW["Frontend Web\nAngular"]
-    FEP["Frontend PWA\nAngular + Ionic"]
+    FEA["Frontend Admin\nAngular"]
+    FEPRO["Frontend Profesional\nAngular"]
+    FEPAC["Frontend Paciente\nIonic PWA"]
     OFF["Cliente offline / edge"]
   end
 
   subgraph Edge["Entrada"]
-    NGINX["Nginx (produccion)"]
+    NGINX["Nginx / reverse proxy"]
   end
 
   subgraph API["Backend Flask"]
-    REST["REST Blueprints\n/auth /users /patients /appointments\n/medical-records /files /budgets /payments\n/sync /dashboard /audit /reports\n/odontograms /dental-treatments\n/psychology /psychopedagogy /clinical-history"]
-    AUTH["JWT + RBAC\nadmin_required / professional_required"]
+    REST["REST Blueprints\n/auth /users /patients /appointments\n/medical-records /files /budgets /payments\n/sync /dashboard /audit /reports\n/odontograms /dental-treatments\n/psychology /psychopedagogy /clinical-history /logs"]
+    AUTH["JWT + RBAC + scope por actor/especialidad"]
     WS["SocketIO"]
     CELERY["Celery Worker"]
   end
@@ -32,12 +32,12 @@ flowchart LR
   subgraph Data["Datos y soporte"]
     PG[("PostgreSQL")]
     REDIS[("Redis")]
-    FILES[("Storage files\nstorage/files")]
+    FILES[("storage/files")]
   end
 
-  FEI --> NGINX
-  FEW --> NGINX
-  FEP --> NGINX
+  FEA --> NGINX
+  FEPRO --> NGINX
+  FEPAC --> NGINX
   OFF <--> NGINX
   NGINX --> REST
   REST --> AUTH
@@ -54,67 +54,40 @@ flowchart LR
 
 ### Backend API (`backend/`)
 - Stack: Python, Flask, SQLAlchemy, Marshmallow.
-- Seguridad: JWT + controles por rol en endpoints sensibles.
-- Recursos registrados en `backend/app/__init__.py`:
-  - auth, users, professionals, patients
-  - appointments, medical_records, files
-  - budgets, payments, sync, dashboard, audit, reports
-  - odontograms, dental_treatments, psychology, psychopedagogy, clinical_history, logs
-- Servicios transversales: cache Redis, Celery, Flask-SocketIO, migraciones con Flask-Migrate.
+- Seguridad: JWT + RBAC + validaciones de alcance por actor/especialidad.
+- Recursos: auth, users, professionals, patients, appointments, medical-records, files, budgets, payments, sync, dashboard, audit, reports, odontology, psychology, psychopedagogy, clinical-history, logs.
+- Servicios transversales: Redis, Celery, Flask-SocketIO, migraciones Alembic.
 
-### Frontend principal (`frontend-admin-profesional/`)
-- Angular + Ionic.
-- Cliente con mayor cobertura funcional.
-
-### Frontend web (`frontend-profesional/`)
-- Angular standalone.
-- Build validado localmente el 2026-02-23.
-
-### Frontend PWA (`frontend-paciente/`)
-- Angular + Ionic.
-- Build validado localmente el 2026-02-23 con warnings no bloqueantes de tooling/CSS.
+### Frontends por actor
+- `frontend-admin-profesional/`: Angular para `admin`.
+- `frontend-profesional/`: Angular para `professional`.
+- `frontend-paciente/`: Ionic PWA para `patient`.
 
 ## Datos y almacenamiento
 - Datos transaccionales: PostgreSQL.
-- Cache y broker: Redis.
-- Archivos: storage local (`storage/files`) con endpoints `files`; existe configuracion S3 para escenarios futuros.
-- Trazabilidad de sincronizacion: tabla `sync_logs`.
+- Cache/broker: Redis.
+- Archivos clinicos: `storage/files` con endpoints `files`.
+- Trazabilidad de sync: `sync_logs` (incluye idempotencia y version resultante por entidad).
 
-## Sincronizacion
-- Endpoints disponibles en `backend/app/resources/sync.py`:
-  - `POST /api/sync/push`
-  - `GET /api/sync/pull`
-  - `GET /api/sync/status`
-  - `GET /api/sync/logs` (admin)
-- Capacidades actuales:
-  - validacion de payload
-  - limite de lote (`MAX_SYNC_CHANGES=500`)
-  - idempotencia por `idempotency_key` o fingerprint
-  - conflictos por `updated_at` con politica `server_wins`
-- Alcance actual de entidades sync: appointments, medical_records, budgets, payments, files.
+## Sincronizacion (estado real)
+- Endpoints: `POST /api/sync/push`, `GET /api/sync/pull`, `GET /api/sync/status`, `GET /api/sync/logs`.
+- Capacidad implementada: limite de lote (`MAX_SYNC_CHANGES=500`), idempotencia por `idempotency_key` (con reserva previa para concurrencia), conflictos por politica de entidad (`version_then_timestamp` / `version_only`) y versionado por registro (`sync_version`) en `appointments`, `medical_records`, `budgets`, `payments`, `files`.
+- Ver detalle en `docs/architecture/sync-strategy.md`.
 
 ## Despliegue
 
 ### Desarrollo
 - `docker-compose.yml`: postgres, redis, backend, celery, frontend-admin, frontend-web, frontend-pwa.
-- `docker-compose.db.yml`: postgres + pgAdmin para entorno de datos.
+- `docker-compose.db.yml`: stack de datos.
 
 ### Produccion base
 - `docker-compose.prod.yml`: postgres, redis, backend, celery, nginx.
-- Requiere cerrar healthchecks, observabilidad y politicas operativas para release estable.
 
-## Validaciones tecnicas recientes
-- Backend: `pytest backend/tests/test_patients.py backend/tests/test_sync_endpoints.py` -> `42 passed` (2026-02-23).
-- Frontend web: `npm --prefix frontend-profesional run build` -> OK (2026-02-23).
-- Frontend PWA: `npm --prefix frontend-paciente run build` -> OK con warnings no bloqueantes (2026-02-23).
-
-## Riesgos actuales
-- Sincronizacion aun limitada a un subconjunto de entidades.
-- Paridad funcional incompleta entre frontends secundarios y backend.
-- Hardening operativo de produccion aun pendiente en compose/productivo.
+## Estado de madurez
+- Funcional: UC-MS-001..UC-MS-017 cerrados (ver `docs/development/UC_RF_VERIFICATION_2026-02-24.md`).
+- Tecnico pendiente: hardening operativo release (healthchecks avanzados, alertas, validaciones periodicas de rollback/restore) y E2E integral en entorno de despliegue.
 
 ## Criterio de arquitectura estable (release candidate)
-- Contrato API y documentacion alineados.
-- Paridad funcional completa en al menos un frontend de produccion.
-- CI con tests backend y build frontend en verde de forma consistente.
-- Operacion productiva con backup/restore, monitoreo y rollback validados.
+- Build/test backend + 3 frontends en verde.
+- Smoke/E2E por actor en entorno de despliegue.
+- Runbooks operativos vigentes (backup/restore/rollback) con validacion periodica.

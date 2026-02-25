@@ -1,6 +1,6 @@
 # Flujo Operativo del Sistema
 
-Actualizado: 2026-02-23
+Actualizado: 2026-02-25
 Sistema: Medical Services
 
 ## 1. Objetivo
@@ -18,10 +18,18 @@ El flujo esta alineado con los casos de uso UC-MS-001..UC-MS-017 y con los endpo
 | Actor | Responsabilidad principal |
 |---|---|
 | Administrador | Gobierno del sistema: usuarios, profesionales, auditoria, reportes, monitoreo de sync. |
-| Profesional | Operacion clinica diaria: pacientes, turnos, historia clinica, presupuestos, pagos. |
-| Paciente | Consulta de informacion propia y aceptacion de presupuestos. |
+| Profesional | Operacion clinica diaria: pacientes propios, turnos, historia clinica, presupuestos, pagos y modulos segun especialidad. |
+| Paciente | Consulta/autogestion de informacion propia (perfil, turnos, presupuestos, historial) y visibilidad de sus profesionales tratantes. |
 | Cliente offline | Emite cambios locales y sincroniza con nube (push/pull) con control de conflictos. |
-si
+
+## 2.1 Frontends por actor
+
+| Frontend | Stack | Actor habilitado | Regla de acceso |
+|---|---|---|---|
+| `frontend-admin-profesional` | Angular | Administrador | Acceso exclusivo para `admin` (gobierno total de modulos). |
+| `frontend-profesional` | Angular | Profesional | Acceso exclusivo para `professional`; modulos de especialidad visibles/operables segun `specialty`. |
+| `frontend-paciente` | Ionic (PWA) | Paciente | Acceso exclusivo para `patient`; solo datos propios y profesionales vinculados. |
+
 ## 3. Flujo operativo end-to-end (secuencia)
 
 ![Flujo operativo end-to-end](../assets/operational_flow_sequence.png)

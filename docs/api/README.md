@@ -1,13 +1,15 @@
-﻿# Medical Services API - Referencia Operativa
+# Medical Services API - Referencia Operativa
 
-Actualizado: 2026-02-14
+Actualizado: 2026-02-25
 
 ## Base URL
 - Desarrollo: `http://localhost:5000/api`
+- Frontends por actor (proxy `/api`): ver `docs/deployment/ENDPOINTS_ACCESO_SMOKE_PLAYWRIGHT.md`.
 
 ## Autenticacion
 - JWT Bearer en `Authorization: Bearer <token>`
 - Publicos principales: `POST /api/auth/login`, `POST /api/auth/register`
+- Scopes por actor: `admin`, `professional`, `patient` (con restricciones de acceso por modulo/especialidad).
 
 ## Modulos de endpoints (prefijos)
 - `auth`: `/api/auth/*`
