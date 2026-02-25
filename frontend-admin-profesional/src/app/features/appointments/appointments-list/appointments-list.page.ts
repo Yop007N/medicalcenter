@@ -1,5 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import {
@@ -39,11 +39,19 @@ import {
 import { AppointmentsApiService } from '../../../core/services';
 import { Appointment } from '../../../models';
 
+// Import local data to be safe, though usually done in main.ts
+import { registerLocaleData } from '@angular/common';
+import localeEs from '@angular/common/locales/es-AR';
+
+registerLocaleData(localeEs, 'es-AR');
+
 @Component({
   selector: 'app-appointments-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
+    DatePipe,
     RouterModule,
     FormsModule,
     IonHeader,
@@ -92,18 +100,18 @@ import { Appointment } from '../../../models';
             <ion-icon name="calendar-outline"></ion-icon>
           </div>
           <div class="header-info">
-            <h1>{{ getTodayCount() }}</h1>
+            <h1>{{ todayCount }}</h1>
             <p>Citas para hoy</p>
           </div>
         </div>
         <div class="stats-row">
           <div class="stat-chip pending">
             <ion-icon name="hourglass-outline"></ion-icon>
-            <span>{{ getPendingCount() }} pendientes</span>
+            <span>{{ pendingCount }} pendientes</span>
           </div>
           <div class="stat-chip confirmed">
             <ion-icon name="checkmark-circle-outline"></ion-icon>
-            <span>{{ getConfirmedCount() }} confirmadas</span>
+            <span>{{ confirmedCount }} confirmadas</span>
           </div>
         </div>
       </div>
@@ -173,13 +181,13 @@ import { Appointment } from '../../../models';
                 <ion-card-content>
                   <div class="appointment-header">
                     <div class="date-badge">
-                      <span class="day">{{ getDayNumber(appointment.appointment_date) }}</span>
-                      <span class="month">{{ getMonthName(appointment.appointment_date) }}</span>
+                      <span class="day">{{ appointment.appointment_date | date:'d' }}</span>
+                      <span class="month">{{ appointment.appointment_date | date:'MMM':'':'es-AR' }}</span>
                     </div>
                     <div class="time-info">
                       <span class="time">
                         <ion-icon name="time-outline"></ion-icon>
-                        {{ getTime(appointment.appointment_date) }}
+                        {{ appointment.appointment_date | date:'HH:mm' }}
                       </span>
                       <span class="duration">{{ appointment.duration_minutes }} min</span>
                     </div>
@@ -617,12 +625,18 @@ import { Appointment } from '../../../models';
 })
 export class AppointmentsListPage implements OnInit {
   private appointmentsApi = inject(AppointmentsApiService);
+  private cdr = inject(ChangeDetectorRef);
 
   appointments: Appointment[] = [];
   filteredAppointments: Appointment[] = [];
   loading = true;
   errorMessage: string | null = null;
   selectedFilter = 'all';
+
+  // Stats properties
+  todayCount: number = 0;
+  pendingCount: number = 0;
+  confirmedCount: number = 0;
 
   constructor() {
     addIcons({
@@ -650,16 +664,37 @@ export class AppointmentsListPage implements OnInit {
     this.appointmentsApi.list().subscribe({
       next: (appointments) => {
         this.appointments = appointments;
+        this.calculateStats();
         this.filterAppointments();
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.appointments = [];
         this.filteredAppointments = [];
         this.loading = false;
         this.errorMessage = err.error?.msg || err.error?.message || 'No se pudo cargar la agenda';
+        this.cdr.markForCheck();
       }
     });
+  }
+
+  calculateStats(): void {
+    const today = new Date().toDateString();
+    this.todayCount = 0;
+    this.pendingCount = 0;
+    this.confirmedCount = 0;
+
+    for (const a of this.appointments) {
+      if (new Date(a.appointment_date).toDateString() === today) {
+        this.todayCount++;
+      }
+      if (a.status === 'pending') {
+        this.pendingCount++;
+      } else if (a.status === 'confirmed') {
+        this.confirmedCount++;
+      }
+    }
   }
 
   filterAppointments(): void {
@@ -675,48 +710,10 @@ export class AppointmentsListPage implements OnInit {
     setTimeout(() => event.target.complete(), 1000);
   }
 
-  // Stats helpers
-  getTodayCount(): number {
-    const today = new Date().toDateString();
-    return this.appointments.filter(a => new Date(a.appointment_date).toDateString() === today).length;
-  }
-
-  getPendingCount(): number {
-    return this.appointments.filter(a => a.status === 'pending').length;
-  }
-
-  getConfirmedCount(): number {
-    return this.appointments.filter(a => a.status === 'confirmed').length;
-  }
-
-  // Date helpers
-  getDayNumber(dateString: string): string {
-    return new Date(dateString).getDate().toString();
-  }
-
-  getMonthName(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('es-AR', { month: 'short' });
-  }
-
-  getTime(dateString: string): string {
-    return new Date(dateString).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  }
-
   getPatientInitials(appointment: Appointment): string {
     const first = appointment.patient?.first_name?.charAt(0) || '';
     const last = appointment.patient?.last_name?.charAt(0) || '';
     return first + last;
-  }
-
-  formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   }
 
   getStatusColor(status: string): string {
