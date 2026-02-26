@@ -33,6 +33,7 @@ export interface MedicalRecord {
 
 export interface MedicalRecordCreate {
   patient_id: number;
+  professional_id?: number;
   appointment_id?: number;
   chief_complaint?: string;
   symptoms?: string;

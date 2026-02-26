@@ -204,8 +204,15 @@ import { ToothActionModalComponent } from '../components/tooth-action-modal/toot
                     (toothClick)="onToothClick($event)"
                   ></app-odontogram-chart>
                 } @else {
-                  <div class="ion-text-center ion-padding">
+                  <div class="ion-text-center ion-padding no-odontogram-state">
                     <p>No hay odontograma activo para este paciente.</p>
+                    <ion-button
+                      size="small"
+                      [routerLink]="['/odontology/odontograms/new', treatment.patient_id]"
+                      [queryParams]="{ fromTreatment: treatment.id }"
+                    >
+                      Crear odontograma
+                    </ion-button>
                   </div>
                 }
               </ion-card-content>
@@ -549,6 +556,13 @@ import { ToothActionModalComponent } from '../components/tooth-action-modal/toot
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
+    }
+
+    .no-odontogram-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
 
     .actions-card ion-button {

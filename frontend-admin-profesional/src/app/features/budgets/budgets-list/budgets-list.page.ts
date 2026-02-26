@@ -68,7 +68,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
   ],
   template: `
     <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
+      <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button></ion-menu-button>
         </ion-buttons>
@@ -246,30 +246,33 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 
     /* Header */
     .page-header {
-      background: var(--medical-gradient-primary);
-      padding: 24px 20px;
-      margin: -16px -16px 0;
+      background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-md);
+      box-shadow: var(--medical-shadow-sm);
+      padding: 20px;
+      margin: 16px 16px 0;
     }
 
     .header-content {
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .header-icon {
       width: 56px;
       height: 56px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 16px;
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      border-radius: var(--medical-radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
 
       ion-icon {
         font-size: 28px;
-        color: white;
+        color: var(--ion-color-primary);
       }
     }
 
@@ -277,14 +280,14 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
       h1 {
         font-size: 28px;
         font-weight: 700;
-        color: white;
+        color: var(--ion-color-dark);
         margin: 0;
         line-height: 1;
       }
 
       p {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
+        color: var(--ion-color-medium);
         margin: 4px 0 0;
       }
     }
@@ -299,10 +302,11 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
+      background: var(--medical-bg-hover);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-full);
       font-size: 12px;
-      color: white;
+      color: var(--ion-color-dark);
       font-weight: 500;
 
       ion-icon {
@@ -310,14 +314,23 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
       }
     }
 
+    .stat-chip.draft ion-icon {
+      color: var(--ion-color-medium);
+    }
+
+    .stat-chip.accepted ion-icon {
+      color: var(--ion-color-success);
+    }
+
     /* Filter */
     .filter-container {
       padding: 16px;
-      margin-top: 16px;
+      margin-top: 8px;
     }
 
     ion-segment {
       --background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
       border-radius: 12px;
       padding: 4px;
       box-shadow: var(--medical-shadow-sm);
@@ -325,7 +338,8 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 
     ion-segment-button {
       --border-radius: 8px;
-      --color-checked: white;
+      --background-checked: rgba(var(--ion-color-primary-rgb), 0.12);
+      --color-checked: var(--ion-color-primary);
       font-size: 12px;
       font-weight: 500;
       min-height: 36px;
@@ -341,14 +355,13 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
     .budget-card {
       margin: 0 0 12px;
       border-radius: var(--medical-radius-md);
-      box-shadow: var(--medical-shadow-md);
+      box-shadow: var(--medical-shadow-sm);
       border: 1px solid var(--medical-border-light);
       cursor: pointer;
       transition: all 0.2s ease;
 
       &:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--medical-shadow-lg);
+        box-shadow: var(--medical-shadow-md);
       }
 
       ion-card-content {
@@ -374,27 +387,31 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 
       ion-icon {
         font-size: 22px;
-        color: white;
       }
 
       &[data-status="draft"] {
-        background: var(--ion-color-medium);
+        background: rgba(var(--ion-color-medium-rgb), 0.14);
+        color: var(--ion-color-medium);
       }
 
       &[data-status="sent"] {
-        background: var(--medical-gradient-warm);
+        background: rgba(var(--ion-color-warning-rgb), 0.14);
+        color: var(--ion-color-warning-shade);
       }
 
       &[data-status="accepted"] {
-        background: var(--medical-gradient-success);
+        background: rgba(var(--ion-color-success-rgb), 0.14);
+        color: var(--ion-color-success);
       }
 
       &[data-status="rejected"] {
-        background: var(--ion-color-danger);
+        background: rgba(var(--ion-color-danger-rgb), 0.14);
+        color: var(--ion-color-danger);
       }
 
       &[data-status="expired"] {
-        background: var(--ion-color-dark);
+        background: rgba(var(--ion-color-dark-rgb), 0.1);
+        color: var(--ion-color-dark);
       }
     }
 
@@ -429,27 +446,27 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
       flex-shrink: 0;
 
       &[data-status="draft"] {
-        background: rgba(100, 116, 139, 0.1);
+        background: rgba(var(--ion-color-medium-rgb), 0.12);
         color: var(--ion-color-medium);
       }
 
       &[data-status="sent"] {
-        background: rgba(245, 158, 11, 0.1);
+        background: rgba(var(--ion-color-warning-rgb), 0.12);
         color: var(--ion-color-warning-shade);
       }
 
       &[data-status="accepted"] {
-        background: rgba(16, 185, 129, 0.1);
+        background: rgba(var(--ion-color-success-rgb), 0.12);
         color: var(--ion-color-success);
       }
 
       &[data-status="rejected"] {
-        background: rgba(239, 68, 68, 0.1);
+        background: rgba(var(--ion-color-danger-rgb), 0.12);
         color: var(--ion-color-danger);
       }
 
       &[data-status="expired"] {
-        background: rgba(30, 41, 59, 0.1);
+        background: rgba(var(--ion-color-dark-rgb), 0.08);
         color: var(--ion-color-dark);
       }
     }
@@ -570,7 +587,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 
     /* FAB */
     ion-fab-button {
-      --background: var(--medical-gradient-primary);
+      --background: var(--ion-color-primary);
       --box-shadow: var(--medical-shadow-lg);
     }
 

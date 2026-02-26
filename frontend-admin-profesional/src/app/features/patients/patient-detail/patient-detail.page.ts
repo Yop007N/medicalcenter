@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { firstValueFrom, take } from 'rxjs';
 import {
@@ -23,8 +23,6 @@ import {
   IonLabel,
   IonBadge,
   IonSkeletonText,
-  IonSegment,
-  IonSegmentButton,
   IonRefresher,
   IonRefresherContent,
   AlertController
@@ -50,7 +48,8 @@ import {
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading } from '../../../store/patients/patients.selectors';
 import { selectUser } from '../../../store/auth/auth.selectors';
-import { OdontologyApiService, PatientsApiService } from '../../../core/services';
+import { FilesApiService, OdontologyApiService, PatientsApiService } from '../../../core/services';
+import { FileCategory, MedicalFile, formatFileSize, getFileCategoryLabel, getFileIcon } from '../../../models/file.model';
 import { User } from '../../../models';
 
 interface AppointmentSummary {
@@ -60,6 +59,14 @@ interface AppointmentSummary {
   status: string;
   professional_id?: number;
 }
+
+type ApiErrorShape = {
+  error?: {
+    msg?: string;
+    message?: string;
+    error?: string;
+  };
+};
 
 @Component({
   selector: 'app-patient-detail',
@@ -86,8 +93,6 @@ interface AppointmentSummary {
     IonLabel,
     IonBadge,
     IonSkeletonText,
-    IonSegment,
-    IonSegmentButton,
     IonRefresher,
     IonRefresherContent
   ],
@@ -279,258 +284,259 @@ interface AppointmentSummary {
                   </ion-card-content>
                 </ion-card>
               }
-            </div>
 
-            <!-- Side Column -->
-            <div class="detail-layout__side">
-              <!-- Tabs Section in Side Column on Desktop -->
-              <ion-segment [(ngModel)]="selectedSegment" (ionChange)="segmentChanged($event)" [scrollable]="true" class="segment-tabs">
-                <ion-segment-button value="appointments">
-                  <ion-label>Citas</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="odontology">
-                  <ion-label>Odontología</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="history">
-                  <ion-label>Historial</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="budgets">
-                  <ion-label>Presupuestos</ion-label>
-                </ion-segment-button>
-              </ion-segment>
-
-        @if (selectedSegment === 'appointments') {
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Próximas Citas</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              @if (appointments.length > 0) {
-                <ion-list>
-                  @for (apt of appointments; track apt.id) {
-                    <ion-item>
-                      <ion-icon name="calendar-outline" slot="start"></ion-icon>
-                      <ion-label>
-                        <h3>{{ formatDateTime(apt.appointment_date) }}</h3>
-                        <p>{{ apt.appointment_type }}</p>
-                      </ion-label>
-                      <ion-badge slot="end" [color]="getStatusColor(apt.status)">
-                        {{ apt.status }}
-                      </ion-badge>
-                    </ion-item>
-                  }
-                </ion-list>
-              } @else {
-                <p class="ion-text-center">No hay citas programadas</p>
-              }
-            </ion-card-content>
-          </ion-card>
-        }
-
-        @if (selectedSegment === 'odontology') {
-          <!-- Odontogram Card -->
-          <ion-card>
-            <ion-card-header>
-              <div class="card-header-with-action">
-                <ion-card-title>
-                  <ion-icon name="fitness-outline"></ion-icon>
-                  Odontograma
-                </ion-card-title>
-                @if (!odontogram) {
-                  <ion-button size="small" (click)="createOdontogram()">
-                    <ion-icon slot="start" name="add-outline"></ion-icon>
-                    Crear
-                  </ion-button>
-                } @else {
-                  <ion-button size="small" [routerLink]="['/odontology/odontogram', odontogram.id]">
-                    <ion-icon slot="start" name="eye-outline"></ion-icon>
-                    Ver Completo
-                  </ion-button>
-                }
-              </div>
-            </ion-card-header>
-            <ion-card-content>
-              @if (loadingOdontology) {
-                <ion-skeleton-text [animated]="true" style="width: 100%; height: 100px"></ion-skeleton-text>
-              } @else if (odontogram) {
-                <div class="odontogram-summary">
-                  <div class="teeth-summary">
-                    <div class="summary-item">
-                      <span class="count">{{ getTeethCount('healthy') }}</span>
-                      <span class="label">Sanos</span>
+              <!-- Modules in vertical cards -->
+              <div class="modules-stack">
+                <!-- Citas -->
+                <ion-card class="module-card clickable-card" (click)="openAppointmentsModule()" tabindex="0" role="button">
+                  <ion-card-header>
+                    <div class="card-header-with-action">
+                      <ion-card-title>
+                        <ion-icon name="calendar-outline"></ion-icon>
+                        Citas
+                      </ion-card-title>
+                      <ion-badge color="primary">{{ appointments.length }}</ion-badge>
                     </div>
-                    <div class="summary-item warning">
-                      <span class="count">{{ getTeethCount('caries') }}</span>
-                      <span class="label">Con caries</span>
-                    </div>
-                    <div class="summary-item success">
-                      <span class="count">{{ getTeethCount('filled') }}</span>
-                      <span class="label">Restaurados</span>
-                    </div>
-                    <div class="summary-item danger">
-                      <span class="count">{{ getTeethCount('missing') + getTeethCount('extracted') }}</span>
-                      <span class="label">Ausentes</span>
-                    </div>
-                  </div>
-                  <p class="last-update">
-                    Última actualización: {{ formatDate(odontogram.updated_at) }}
-                  </p>
-                </div>
-              } @else {
-                <div class="empty-state">
-                  <ion-icon name="fitness-outline"></ion-icon>
-                  <p>No hay odontograma registrado</p>
-                  <ion-button size="small" (click)="createOdontogram()">
-                    Crear Odontograma
-                  </ion-button>
-                </div>
-              }
-            </ion-card-content>
-          </ion-card>
-
-          <!-- Dental Treatments Card -->
-          <ion-card>
-            <ion-card-header>
-              <div class="card-header-with-action">
-                <ion-card-title>
-                  <ion-icon name="medkit-outline"></ion-icon>
-                  Tratamientos Dentales
-                </ion-card-title>
-                <ion-button size="small" [routerLink]="['/odontology/treatments/new']" [queryParams]="{patient_id: patientId}">
-                  <ion-icon slot="start" name="add-outline"></ion-icon>
-                  Nuevo
-                </ion-button>
-              </div>
-            </ion-card-header>
-            <ion-card-content>
-              @if (loadingOdontology) {
-                <ion-skeleton-text [animated]="true" style="width: 100%"></ion-skeleton-text>
-                <ion-skeleton-text [animated]="true" style="width: 80%"></ion-skeleton-text>
-              } @else if (dentalTreatments.length > 0) {
-                <ion-list>
-                  @for (treatment of dentalTreatments; track treatment.id) {
-                    <ion-item button [routerLink]="['/odontology/treatments', treatment.id]" detail="true">
-                      <ion-icon name="medkit-outline" slot="start" [color]="getTreatmentStatusColor(treatment.status)"></ion-icon>
-                      <ion-label>
-                        <h3>{{ getTreatmentTypeLabel(treatment.treatment_type) }}</h3>
-                        <p>
-                          @if (treatment.affected_teeth && treatment.affected_teeth.length > 0) {
-                            Dientes: {{ treatment.affected_teeth.join(', ') }}
-                          }
-                          @if (treatment.treatment_date) {
-                            - {{ formatDate(treatment.treatment_date) }}
-                          }
-                        </p>
-                      </ion-label>
-                      <ion-badge slot="end" [color]="getTreatmentStatusColor(treatment.status)">
-                        {{ getTreatmentStatusLabel(treatment.status) }}
-                      </ion-badge>
-                    </ion-item>
-                  }
-                </ion-list>
-                @if (dentalTreatments.length >= 5) {
-                  <ion-button expand="block" fill="clear" [routerLink]="['/odontology/treatments']" [queryParams]="{patient_id: patientId}">
-                    Ver todos los tratamientos
-                    <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
-                  </ion-button>
-                }
-              } @else {
-                <div class="empty-state">
-                  <ion-icon name="medkit-outline"></ion-icon>
-                  <p>No hay tratamientos registrados</p>
-                  <ion-button size="small" [routerLink]="['/odontology/treatments/new']" [queryParams]="{patient_id: patientId}">
-                    Crear Tratamiento
-                  </ion-button>
-                </div>
-              }
-            </ion-card-content>
-          </ion-card>
-        }
-
-        @if (selectedSegment === 'history') {
-          <ion-card>
-            <ion-card-header>
-              <ion-card-title>Historial Médico</ion-card-title>
-            </ion-card-header>
-            <ion-card-content>
-              @if (medicalRecords.length > 0) {
-                <ion-list>
-                  @for (record of medicalRecords; track record.id) {
-                    <ion-item>
-                      <ion-icon name="document-text-outline" slot="start"></ion-icon>
-                      <ion-label>
-                        <h3>{{ formatDate(record.record_date) }}</h3>
-                        <p>{{ record.diagnosis || 'Sin diagnóstico' }}</p>
-                      </ion-label>
-                    </ion-item>
-                  }
-                </ion-list>
-              } @else {
-                <p class="ion-text-center">No hay registros médicos</p>
-              }
-            </ion-card-content>
-          </ion-card>
-        }
-
-        @if (selectedSegment === 'budgets') {
-          <ion-card>
-            <ion-card-header>
-              <div class="card-header-with-action">
-                <ion-card-title>
-                  <ion-icon name="wallet-outline"></ion-icon>
-                  Presupuestos
-                </ion-card-title>
-                <ion-button size="small" [routerLink]="['/budgets/new']" [queryParams]="{patient_id: patientId}">
-                  <ion-icon slot="start" name="add-outline"></ion-icon>
-                  Nuevo
-                </ion-button>
-              </div>
-            </ion-card-header>
-            <ion-card-content>
-              @if (budgets.length > 0) {
-                <ion-list>
-                  @for (budget of budgets; track budget.id) {
-                    <ion-item button [routerLink]="['/budgets', budget.id]" detail="true">
-                      <ion-icon name="wallet-outline" slot="start" [color]="getBudgetStatusColor(budget.status)"></ion-icon>
-                      <ion-label>
-                        <h3>{{ budget.title || 'Presupuesto #' + budget.id }}</h3>
-                        <p class="budget-amounts">
-                          <span class="total">Total: {{ formatCurrency(budget.total_amount, budget.currency) }}</span>
-                          @if (budget.total_paid !== undefined) {
-                            <span class="paid">Pagado: {{ formatCurrency(budget.total_paid, budget.currency) }}</span>
-                          }
-                        </p>
-                        @if (budget.total_paid !== undefined && budget.total_amount > 0) {
-                          <div class="progress-bar">
-                            <div class="progress-fill" [style.width.%]="getPaymentProgress(budget)"></div>
-                          </div>
-                          <p class="payment-status">
-                            @if (budget.total_paid >= budget.total_amount) {
-                              <span class="completed">Pagado completo</span>
-                            } @else {
-                              <span class="pending">Pendiente: {{ formatCurrency(budget.total_amount - budget.total_paid, budget.currency) }}</span>
-                            }
-                          </p>
+                  </ion-card-header>
+                  <ion-card-content>
+                    @if (appointments.length > 0) {
+                      <ion-list class="compact-list">
+                        @for (apt of appointments.slice(0, 3); track apt.id) {
+                          <ion-item button [routerLink]="['/appointments', apt.id]" detail="true" (click)="$event.stopPropagation()">
+                            <ion-icon name="calendar-outline" slot="start"></ion-icon>
+                            <ion-label>
+                              <h3>{{ formatDateTime(apt.appointment_date) }}</h3>
+                              <p>{{ apt.appointment_type }}</p>
+                            </ion-label>
+                            <ion-badge slot="end" [color]="getStatusColor(apt.status)">
+                              {{ apt.status }}
+                            </ion-badge>
+                          </ion-item>
                         }
-                      </ion-label>
-                      <ion-badge slot="end" [color]="getBudgetStatusColor(budget.status)">
-                        {{ getBudgetStatusLabel(budget.status) }}
-                      </ion-badge>
-                    </ion-item>
-                  }
-                </ion-list>
-              } @else {
-                <div class="empty-state">
-                  <ion-icon name="wallet-outline"></ion-icon>
-                  <p>No hay presupuestos</p>
-                  <ion-button size="small" [routerLink]="['/budgets/new']" [queryParams]="{patient_id: patientId}">
-                    Crear Presupuesto
-                  </ion-button>
-                </div>
-              }
-            </ion-card-content>
-          </ion-card>
-        }
+                      </ion-list>
+                    } @else {
+                      <p class="empty-small">No hay citas registradas para este paciente.</p>
+                    }
+
+                    <div class="module-actions">
+                      <ion-button size="small" fill="outline" (click)="openAppointmentsModule($event)">
+                        Ver módulo
+                      </ion-button>
+                      <ion-button size="small" (click)="createAppointment($event)">
+                        Nueva cita
+                      </ion-button>
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+
+                <!-- Odontología -->
+                <ion-card class="module-card clickable-card" (click)="openOdontologyModule()" tabindex="0" role="button">
+                  <ion-card-header>
+                    <div class="card-header-with-action">
+                      <ion-card-title>
+                        <ion-icon name="fitness-outline"></ion-icon>
+                        Odontología
+                      </ion-card-title>
+                      <ion-badge color="tertiary">{{ dentalTreatments.length }}</ion-badge>
+                    </div>
+                  </ion-card-header>
+                  <ion-card-content>
+                    @if (loadingOdontology) {
+                      <ion-skeleton-text [animated]="true" style="width: 100%; height: 80px"></ion-skeleton-text>
+                    } @else {
+                      @if (odontogram) {
+                        <div class="odontogram-summary">
+                          <div class="teeth-summary">
+                            <div class="summary-item">
+                              <span class="count">{{ getTeethCount('healthy') }}</span>
+                              <span class="label">Sanos</span>
+                            </div>
+                            <div class="summary-item warning">
+                              <span class="count">{{ getTeethCount('caries') }}</span>
+                              <span class="label">Caries</span>
+                            </div>
+                            <div class="summary-item success">
+                              <span class="count">{{ getTeethCount('filled') }}</span>
+                              <span class="label">Restaurados</span>
+                            </div>
+                            <div class="summary-item danger">
+                              <span class="count">{{ getTeethCount('missing') + getTeethCount('extracted') }}</span>
+                              <span class="label">Ausentes</span>
+                            </div>
+                          </div>
+                        </div>
+                      } @else {
+                        <p class="empty-small">No hay odontograma activo.</p>
+                      }
+
+                      @if (dentalTreatments.length > 0) {
+                        <ion-list class="compact-list">
+                          @for (treatment of dentalTreatments.slice(0, 3); track treatment.id) {
+                            <ion-item button [routerLink]="['/odontology/treatments', treatment.id]" detail="true" (click)="$event.stopPropagation()">
+                              <ion-icon name="medkit-outline" slot="start" [color]="getTreatmentStatusColor(treatment.status)"></ion-icon>
+                              <ion-label>
+                                <h3>{{ getTreatmentTypeLabel(treatment.treatment_type) }}</h3>
+                                <p>{{ formatDate(treatment.treatment_date) }}</p>
+                              </ion-label>
+                              <ion-badge slot="end" [color]="getTreatmentStatusColor(treatment.status)">
+                                {{ getTreatmentStatusLabel(treatment.status) }}
+                              </ion-badge>
+                            </ion-item>
+                          }
+                        </ion-list>
+                      }
+                    }
+
+                    <div class="module-actions">
+                      <ion-button size="small" fill="outline" (click)="openOdontologyModule($event)">
+                        Ver módulo
+                      </ion-button>
+                      @if (odontogram) {
+                        <ion-button size="small" [routerLink]="['/odontology/odontograms', odontogram.id]" (click)="$event.stopPropagation()">
+                          Ver odontograma
+                        </ion-button>
+                      } @else {
+                        <ion-button size="small" (click)="createOdontogramFromCard($event)" [disabled]="creatingOdontogram">
+                          Crear odontograma
+                        </ion-button>
+                      }
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+
+                <!-- Historial Médico -->
+                <ion-card class="module-card clickable-card" (click)="openMedicalRecordsModule()" tabindex="0" role="button">
+                  <ion-card-header>
+                    <div class="card-header-with-action">
+                      <ion-card-title>
+                        <ion-icon name="document-text-outline"></ion-icon>
+                        Historial Médico
+                      </ion-card-title>
+                      <ion-badge color="secondary">{{ medicalRecords.length }}</ion-badge>
+                    </div>
+                  </ion-card-header>
+                  <ion-card-content>
+                    @if (medicalRecords.length > 0) {
+                      <ion-list class="compact-list">
+                        @for (record of medicalRecords.slice(0, 3); track record.id) {
+                          <ion-item button [routerLink]="['/medical-records', record.id]" detail="true" (click)="$event.stopPropagation()">
+                            <ion-icon name="document-text-outline" slot="start"></ion-icon>
+                            <ion-label>
+                              <h3>{{ formatDate(record.record_date) }}</h3>
+                              <p>{{ record.diagnosis || 'Sin diagnóstico' }}</p>
+                            </ion-label>
+                          </ion-item>
+                        }
+                      </ion-list>
+                    } @else {
+                      <p class="empty-small">No hay historiales registrados.</p>
+                    }
+
+                    <div class="module-actions">
+                      <ion-button size="small" fill="outline" (click)="openMedicalRecordsModule($event)">
+                        Ver módulo
+                      </ion-button>
+                      <ion-button size="small" (click)="createMedicalRecord($event)">
+                        Nuevo historial
+                      </ion-button>
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+
+                <!-- Presupuestos -->
+                <ion-card class="module-card clickable-card" (click)="openBudgetsModule()" tabindex="0" role="button">
+                  <ion-card-header>
+                    <div class="card-header-with-action">
+                      <ion-card-title>
+                        <ion-icon name="wallet-outline"></ion-icon>
+                        Presupuestos
+                      </ion-card-title>
+                      <ion-badge color="warning">{{ budgets.length }}</ion-badge>
+                    </div>
+                  </ion-card-header>
+                  <ion-card-content>
+                    @if (budgets.length > 0) {
+                      <ion-list class="compact-list">
+                        @for (budget of budgets.slice(0, 3); track budget.id) {
+                          <ion-item button [routerLink]="['/budgets', budget.id]" detail="true" (click)="$event.stopPropagation()">
+                            <ion-icon name="wallet-outline" slot="start" [color]="getBudgetStatusColor(budget.status)"></ion-icon>
+                            <ion-label>
+                              <h3>{{ budget.title || 'Presupuesto #' + budget.id }}</h3>
+                              <p class="budget-amounts">
+                                <span class="total">{{ formatCurrency(budget.total_amount, budget.currency) }}</span>
+                                @if (budget.total_paid !== undefined) {
+                                  <span class="paid">Pagado: {{ formatCurrency(budget.total_paid, budget.currency) }}</span>
+                                }
+                              </p>
+                              @if (budget.total_paid !== undefined && budget.total_amount > 0) {
+                                <div class="progress-bar">
+                                  <div class="progress-fill" [style.width.%]="getPaymentProgress(budget)"></div>
+                                </div>
+                              }
+                            </ion-label>
+                            <ion-badge slot="end" [color]="getBudgetStatusColor(budget.status)">
+                              {{ getBudgetStatusLabel(budget.status) }}
+                            </ion-badge>
+                          </ion-item>
+                        }
+                      </ion-list>
+                    } @else {
+                      <p class="empty-small">No hay presupuestos registrados.</p>
+                    }
+
+                    <div class="module-actions">
+                      <ion-button size="small" fill="outline" (click)="openBudgetsModule($event)">
+                        Ver módulo
+                      </ion-button>
+                      <ion-button size="small" (click)="createBudget($event)">
+                        Nuevo presupuesto
+                      </ion-button>
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+
+                <!-- Archivos -->
+                <ion-card class="module-card clickable-card" (click)="openFilesModule()" tabindex="0" role="button">
+                  <ion-card-header>
+                    <div class="card-header-with-action">
+                      <ion-card-title>
+                        <ion-icon name="document-text-outline"></ion-icon>
+                        Archivos
+                      </ion-card-title>
+                      <ion-badge color="medium">{{ files.length }}</ion-badge>
+                    </div>
+                  </ion-card-header>
+                  <ion-card-content>
+                    @if (loadingFiles) {
+                      <ion-skeleton-text [animated]="true" style="width: 100%; height: 60px"></ion-skeleton-text>
+                    } @else if (files.length > 0) {
+                      <ion-list class="compact-list files-list">
+                        @for (file of files.slice(0, 4); track file.id) {
+                          <ion-item button (click)="openFilesModule($event)">
+                            <ion-icon [name]="getFileIconName(file.file_type)" slot="start"></ion-icon>
+                            <ion-label>
+                              <h3>{{ file.original_filename || file.filename }}</h3>
+                              <p>{{ getFileCategory(file.category) }} · {{ formatDate(file.upload_date) }}</p>
+                            </ion-label>
+                            <ion-badge slot="end" color="medium">{{ getFileSize(file.file_size) }}</ion-badge>
+                          </ion-item>
+                        }
+                      </ion-list>
+                    } @else {
+                      <p class="empty-small">No hay archivos cargados para este paciente.</p>
+                    }
+
+                    <div class="module-actions">
+                      <ion-button size="small" fill="outline" (click)="openFilesModule($event)">
+                        Ver módulo
+                      </ion-button>
+                      <ion-button size="small" (click)="openFilesModule($event)">
+                        Subir archivo
+                      </ion-button>
+                    </div>
+                  </ion-card-content>
+                </ion-card>
+              </div>
             </div>
           </div>
         </div>
@@ -543,8 +549,47 @@ interface AppointmentSummary {
       margin-right: 8px;
     }
 
-    .segment-tabs {
-      margin: 0 0 16px;
+    .detail-layout__main {
+      max-width: 100% !important;
+    }
+
+    .modules-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .module-card {
+      margin: 12px 0;
+    }
+
+    .clickable-card {
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .clickable-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--medical-shadow-md);
+    }
+
+    .compact-list ion-item {
+      --padding-start: 0;
+      --inner-padding-end: 0;
+      --min-height: 48px;
+    }
+
+    .module-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .empty-small {
+      color: var(--ion-color-medium);
+      font-size: 0.9rem;
+      margin: 4px 0 0;
     }
 
     ion-list ion-item h3 {
@@ -558,6 +603,7 @@ interface AppointmentSummary {
 
     .budget-amounts {
       display: flex;
+      flex-wrap: wrap;
       gap: 16px;
       margin-top: 4px;
     }
@@ -676,23 +722,27 @@ interface AppointmentSummary {
 export class PatientDetailPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private alertController = inject(AlertController);
   private patientsApi = inject(PatientsApiService);
   private odontologyApi = inject(OdontologyApiService);
+  private filesApi = inject(FilesApiService);
 
   patient$ = this.store.select(selectSelectedPatient);
   loading$ = this.store.select(selectPatientsLoading);
 
-  selectedSegment = 'appointments';
   appointments: AppointmentSummary[] = [];
   medicalRecords: any[] = [];
   budgets: any[] = [];
+  files: MedicalFile[] = [];
   patientId: number | null = null;
+  loadingFiles = false;
 
   // Odontology data
   odontogram: any = null;
   dentalTreatments: any[] = [];
   loadingOdontology = false;
+  creatingOdontogram = false;
 
   constructor() {
     addIcons({
@@ -720,6 +770,10 @@ export class PatientDetailPage implements OnInit {
       this.patientId = parseInt(idParam, 10);
       this.store.dispatch(PatientsActions.loadPatient({ id: this.patientId }));
       this.loadAppointments();
+      this.loadMedicalRecords();
+      this.loadBudgets();
+      this.loadOdontologyData();
+      this.loadFiles();
     }
   }
 
@@ -727,23 +781,12 @@ export class PatientDetailPage implements OnInit {
     if (this.patientId) {
       this.store.dispatch(PatientsActions.loadPatient({ id: this.patientId }));
       this.loadAppointments();
+      this.loadMedicalRecords();
+      this.loadBudgets();
+      this.loadOdontologyData();
+      this.loadFiles();
     }
     setTimeout(() => event.target.complete(), 1000);
-  }
-
-  segmentChanged(event: any): void {
-    this.selectedSegment = event.detail.value;
-    if (this.patientId) {
-      if (this.selectedSegment === 'appointments' && this.appointments.length === 0) {
-        this.loadAppointments();
-      } else if (this.selectedSegment === 'history' && this.medicalRecords.length === 0) {
-        this.loadMedicalRecords();
-      } else if (this.selectedSegment === 'budgets' && this.budgets.length === 0) {
-        this.loadBudgets();
-      } else if (this.selectedSegment === 'odontology' && !this.odontogram) {
-        this.loadOdontologyData();
-      }
-    }
   }
 
   loadAppointments(): void {
@@ -754,7 +797,10 @@ export class PatientDetailPage implements OnInit {
 
     this.patientsApi.listAppointments(this.patientId)
       .subscribe({
-        next: (data) => this.appointments = this.normalizeAppointments(data),
+        next: (data) => {
+          this.appointments = this.normalizeAppointments(data)
+            .sort((a, b) => this.getTimestamp(b.appointment_date) - this.getTimestamp(a.appointment_date));
+        },
         error: () => this.appointments = []
       });
   }
@@ -767,7 +813,11 @@ export class PatientDetailPage implements OnInit {
 
     this.patientsApi.listMedicalRecords(this.patientId)
       .subscribe({
-        next: (data) => this.medicalRecords = data,
+        next: (data) => {
+          this.medicalRecords = [...data].sort(
+            (a, b) => this.getTimestamp(b.record_date) - this.getTimestamp(a.record_date)
+          );
+        },
         error: () => this.medicalRecords = []
       });
   }
@@ -780,7 +830,13 @@ export class PatientDetailPage implements OnInit {
 
     this.patientsApi.listBudgets(this.patientId)
       .subscribe({
-        next: (data) => this.budgets = data,
+        next: (data) => {
+          this.budgets = [...data].sort((a, b) => {
+            const dateA = this.getTimestamp(a.updated_at || a.created_at || a.valid_until);
+            const dateB = this.getTimestamp(b.updated_at || b.created_at || b.valid_until);
+            return dateB - dateA;
+          });
+        },
         error: () => this.budgets = []
       });
   }
@@ -810,7 +866,11 @@ export class PatientDetailPage implements OnInit {
     // Load dental treatments for this patient
     this.odontologyApi.listDentalTreatments(this.patientId).subscribe({
       next: (treatments) => {
-        this.dentalTreatments = treatments;
+        this.dentalTreatments = [...treatments].sort((a, b) => {
+          const dateA = this.getTimestamp(a.treatment_date || a.created_at);
+          const dateB = this.getTimestamp(b.treatment_date || b.created_at);
+          return dateB - dateA;
+        });
       },
       error: () => {
         this.dentalTreatments = [];
@@ -818,7 +878,34 @@ export class PatientDetailPage implements OnInit {
     });
   }
 
+  loadFiles(): void {
+    if (!this.patientId) {
+      this.files = [];
+      return;
+    }
+
+    this.loadingFiles = true;
+    this.filesApi.list(this.patientId).subscribe({
+      next: (files) => {
+        this.files = [...files].sort((a, b) => {
+          const dateA = this.getTimestamp(a.upload_date || a.created_at);
+          const dateB = this.getTimestamp(b.upload_date || b.created_at);
+          return dateB - dateA;
+        });
+        this.loadingFiles = false;
+      },
+      error: () => {
+        this.files = [];
+        this.loadingFiles = false;
+      }
+    });
+  }
+
   async createOdontogram(): Promise<void> {
+    if (this.creatingOdontogram) {
+      return;
+    }
+
     const patient = await firstValueFrom(this.patient$.pipe(take(1)));
     const currentUser = await firstValueFrom(this.store.select(selectUser).pipe(take(1)));
     if (!patient) {
@@ -826,25 +913,133 @@ export class PatientDetailPage implements OnInit {
     }
 
     const professionalId = this.resolveProfessionalId(currentUser);
-    if (!professionalId) {
-      console.error('Cannot create odontogram without a professional_id');
+    if (!professionalId && currentUser?.role !== 'professional') {
+      await this.presentMessage(
+        'No se pudo crear odontograma',
+        'No hay profesional asociado al paciente. Crea una cita con profesional o ingresa con un usuario profesional.'
+      );
       return;
     }
 
-    const odontogramData = {
+    const odontogramData: {
+      patient_id: number;
+      is_active: boolean;
+      professional_id?: number;
+    } = {
       patient_id: patient.id,
-      professional_id: professionalId,
       is_active: true
     };
+
+    if (professionalId) {
+      odontogramData.professional_id = professionalId;
+    }
+
+    this.creatingOdontogram = true;
+
     this.odontologyApi.createOdontogram(odontogramData)
       .subscribe({
         next: (odontogram) => {
           this.odontogram = odontogram;
+          this.creatingOdontogram = false;
+          this.loadOdontologyData();
         },
-        error: (err) => {
-          console.error('Error creating odontogram:', err);
+        error: async (err: unknown) => {
+          this.creatingOdontogram = false;
+          await this.presentMessage(
+            'Error al crear odontograma',
+            this.resolveApiErrorMessage(err, 'No se pudo crear el odontograma.')
+          );
         }
       });
+  }
+
+  createOdontogramFromCard(event: Event): void {
+    this.stopCardClick(event);
+    void this.createOdontogram();
+  }
+
+  openAppointmentsModule(event?: Event): void {
+    this.stopCardClick(event);
+    if (this.appointments.length > 0) {
+      void this.router.navigate(['/appointments', this.appointments[0].id]);
+      return;
+    }
+    if (this.patientId) {
+      void this.router.navigate(['/appointments/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  createAppointment(event: Event): void {
+    this.stopCardClick(event);
+    if (this.patientId) {
+      void this.router.navigate(['/appointments/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  openOdontologyModule(event?: Event): void {
+    this.stopCardClick(event);
+    if (this.patientId) {
+      void this.router.navigate(['/odontology/clinical-history', this.patientId]);
+    }
+  }
+
+  openMedicalRecordsModule(event?: Event): void {
+    this.stopCardClick(event);
+    if (this.medicalRecords.length > 0) {
+      void this.router.navigate(['/medical-records', this.medicalRecords[0].id]);
+      return;
+    }
+    if (this.patientId) {
+      void this.router.navigate(['/medical-records/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  createMedicalRecord(event: Event): void {
+    this.stopCardClick(event);
+    if (this.patientId) {
+      void this.router.navigate(['/medical-records/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  openBudgetsModule(event?: Event): void {
+    this.stopCardClick(event);
+    if (this.budgets.length > 0) {
+      void this.router.navigate(['/budgets', this.budgets[0].id]);
+      return;
+    }
+    if (this.patientId) {
+      void this.router.navigate(['/budgets/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  createBudget(event: Event): void {
+    this.stopCardClick(event);
+    if (this.patientId) {
+      void this.router.navigate(['/budgets/new'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  openFilesModule(event?: Event): void {
+    this.stopCardClick(event);
+    if (this.patientId) {
+      void this.router.navigate(['/files'], { queryParams: { patient_id: this.patientId } });
+    }
+  }
+
+  getFileCategory(category: string): string {
+    return getFileCategoryLabel(category as FileCategory);
+  }
+
+  getFileSize(bytes: number): string {
+    return formatFileSize(bytes);
+  }
+
+  getFileIconName(fileType: string): string {
+    return getFileIcon(fileType);
+  }
+
+  private stopCardClick(event?: Event): void {
+    event?.stopPropagation();
   }
 
   private normalizeAppointments(data: unknown): AppointmentSummary[] {
@@ -864,13 +1059,50 @@ export class PatientDetailPage implements OnInit {
       .filter((item) => Number.isFinite(item.id));
   }
 
+  private getTimestamp(dateValue: string | null | undefined): number {
+    if (!dateValue) {
+      return 0;
+    }
+    const parsed = new Date(dateValue).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
   private resolveProfessionalId(user: User | null): number | null {
     if (user?.role === 'professional' && Number.isFinite(user.id)) {
       return user.id;
     }
 
     const fromAppointments = this.appointments.find((appointment) => Number.isFinite(appointment.professional_id))?.professional_id;
-    return typeof fromAppointments === 'number' ? fromAppointments : null;
+    if (typeof fromAppointments === 'number') {
+      return fromAppointments;
+    }
+
+    const fromTreatments = this.dentalTreatments.find((treatment) => Number.isFinite(treatment?.professional_id))?.professional_id;
+    return typeof fromTreatments === 'number' ? fromTreatments : null;
+  }
+
+  private resolveApiErrorMessage(error: unknown, fallback: string): string {
+    if (this.isApiErrorShape(error)) {
+      const message = error.error?.msg ?? error.error?.message ?? error.error?.error;
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+    }
+
+    return fallback;
+  }
+
+  private isApiErrorShape(value: unknown): value is ApiErrorShape {
+    return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private async presentMessage(header: string, message: string): Promise<void> {
+    const alert = await this.alertController.create({
+      header,
+      message,
+      buttons: ['OK']
+    });
+    await alert.present();
   }
 
   getTeethCount(status: string): number {

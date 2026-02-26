@@ -32,11 +32,19 @@ export const loadPaymentFailure = createAction(
 // Create Payment
 export const createPayment = createAction(
   '[Payments] Create Payment',
-  props<{ payment: PaymentCreate }>()
+  props<{
+    payment: PaymentCreate;
+    autoProcessOnCreate?: boolean;
+    navigateToBudgetOnSuccess?: boolean;
+  }>()
 );
 export const createPaymentSuccess = createAction(
   '[Payments] Create Payment Success',
-  props<{ payment: Payment }>()
+  props<{
+    payment: Payment;
+    autoProcessOnCreate?: boolean;
+    navigateToBudgetOnSuccess?: boolean;
+  }>()
 );
 export const createPaymentFailure = createAction(
   '[Payments] Create Payment Failure',
@@ -74,11 +82,21 @@ export const deletePaymentFailure = createAction(
 // Process Payment
 export const processPayment = createAction(
   '[Payments] Process Payment',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    budgetId?: number;
+    redirectToBudget?: boolean;
+    silentSuccess?: boolean;
+  }>()
 );
 export const processPaymentSuccess = createAction(
   '[Payments] Process Payment Success',
-  props<{ payment: Payment }>()
+  props<{
+    payment: Payment;
+    budgetId?: number;
+    redirectToBudget?: boolean;
+    silentSuccess?: boolean;
+  }>()
 );
 export const processPaymentFailure = createAction(
   '[Payments] Process Payment Failure',

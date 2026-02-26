@@ -40,7 +40,7 @@ export const uploadFileSuccess = createAction(
 );
 export const uploadFileFailure = createAction(
   '[Files] Upload File Failure',
-  props<{ error: string }>()
+  props<{ error: string; patientId?: number }>()
 );
 
 // Delete File

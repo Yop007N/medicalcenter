@@ -173,21 +173,21 @@ type ToothType = 'incisor' | 'canine' | 'premolar' | 'molar';
     .missing-x span {
       font-size: 32px;
       font-weight: bold;
-      color: #F44336;
+      color: #b66a6a;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
 
     .crown-indicator .crown-ring {
       width: 30px;
       height: 30px;
-      border: 3px dashed #9C27B0;
+      border: 3px dashed #6f8393;
       border-radius: 50%;
     }
 
     .implant-indicator .implant-screw {
       width: 8px;
       height: 25px;
-      background: linear-gradient(180deg, #FF9800 0%, #E65100 100%);
+      background: linear-gradient(180deg, #a07b44 0%, #8d6c3c 100%);
       border-radius: 2px;
       position: relative;
 
@@ -199,7 +199,7 @@ type ToothType = 'incisor' | 'canine' | 'premolar' | 'molar';
         transform: translateX(-50%);
         width: 12px;
         height: 4px;
-        background: #E65100;
+        background: #8d6c3c;
         border-radius: 2px;
       }
     }
@@ -207,7 +207,7 @@ type ToothType = 'incisor' | 'canine' | 'premolar' | 'molar';
     .root-canal-indicator .root-line {
       width: 3px;
       height: 30px;
-      background: #795548;
+      background: #627381;
       border-radius: 1px;
     }
 
@@ -215,7 +215,7 @@ type ToothType = 'incisor' | 'canine' | 'premolar' | 'molar';
       font-size: 10px;
       font-weight: bold;
       color: white;
-      background: #FF5722;
+      background: #c07979;
       padding: 2px 4px;
       border-radius: 4px;
     }

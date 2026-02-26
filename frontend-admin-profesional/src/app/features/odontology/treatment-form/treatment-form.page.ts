@@ -30,6 +30,18 @@ import { selectAllPatients } from '../../../store/patients/patients.selectors';
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.model';
 
+type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
+type ToothFamily = 'all' | 'molar' | 'premolar' | 'canine' | 'incisor';
+type ToothQuadrant = 1 | 2 | 3 | 4;
+
+interface ToothOption {
+  number: number;
+  family: Exclude<ToothFamily, 'all'>;
+  quadrant: ToothQuadrant;
+  label: string;
+  shortLabel: string;
+}
+
 @Component({
   selector: 'app-treatment-form',
   standalone: true,
@@ -90,6 +102,10 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
                         labelPlacement="stacked"
                         formControlName="patient_id"
                         placeholder="Seleccione un paciente"
+                        [interface]="responsiveSelectInterface"
+                        [interfaceOptions]="buildResponsiveSelectOptions('Seleccionar paciente')"
+                        okText="Seleccionar"
+                        cancelText="Cancelar"
                       >
                         @for (patient of patients$ | async; track patient.id) {
                           <ion-select-option [value]="patient.id">
@@ -111,6 +127,10 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
                         labelPlacement="stacked"
                         formControlName="treatment_type"
                         placeholder="Seleccione el tipo"
+                        [interface]="responsiveSelectInterface"
+                        [interfaceOptions]="buildResponsiveSelectOptions('Tipo de Tratamiento')"
+                        okText="Seleccionar"
+                        cancelText="Cancelar"
                       >
                         @for (type of treatmentTypes; track type.value) {
                           <ion-select-option [value]="type.value">{{ type.label }}</ion-select-option>
@@ -141,10 +161,11 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
               <div class="form-section">
                 <h3 class="section-title">Dientes Afectados</h3>
                 <div class="teeth-selector">
+                  <p class="teeth-helper">Selecciona por tipo de pieza y cuadrante para ubicar los dientes más rápido.</p>
                   <div class="selected-teeth">
                     @for (tooth of selectedTeeth; track tooth) {
-                      <ion-chip (click)="removeTooth(tooth)">
-                        {{ tooth }}
+                      <ion-chip color="primary" (click)="removeTooth(tooth)">
+                        {{ getToothDisplayLabel(tooth) }}
                         <ion-icon name="close-circle-outline"></ion-icon>
                       </ion-chip>
                     }
@@ -152,19 +173,48 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
                       <span class="no-teeth">No hay dientes seleccionados</span>
                     }
                   </div>
-                  <ion-item>
-                    <ion-select
-                      label="Agregar diente"
-                      labelPlacement="stacked"
-                      placeholder="Seleccione"
-                      (ionChange)="addTooth($event)"
-                      [value]="null"
-                    >
-                      @for (tooth of availableTeeth; track tooth) {
-                        <ion-select-option [value]="tooth">Diente {{ tooth }}</ion-select-option>
+
+                  <div class="teeth-filter-row">
+                    <ion-button size="small" [fill]="toothFamilyFilter === 'all' ? 'solid' : 'outline'" (click)="setToothFamilyFilter('all')">
+                      Todos
+                    </ion-button>
+                    <ion-button size="small" [fill]="toothFamilyFilter === 'molar' ? 'solid' : 'outline'" (click)="setToothFamilyFilter('molar')">
+                      Molares
+                    </ion-button>
+                    <ion-button size="small" [fill]="toothFamilyFilter === 'premolar' ? 'solid' : 'outline'" (click)="setToothFamilyFilter('premolar')">
+                      Premolares
+                    </ion-button>
+                    <ion-button size="small" [fill]="toothFamilyFilter === 'canine' ? 'solid' : 'outline'" (click)="setToothFamilyFilter('canine')">
+                      Caninos
+                    </ion-button>
+                    <ion-button size="small" [fill]="toothFamilyFilter === 'incisor' ? 'solid' : 'outline'" (click)="setToothFamilyFilter('incisor')">
+                      Incisivos
+                    </ion-button>
+                  </div>
+
+                  @if (availableToothOptions.length === 0) {
+                    <span class="no-teeth">No hay más dientes disponibles para este filtro.</span>
+                  } @else {
+                    <div class="teeth-quadrants">
+                      @for (quadrant of quadrantOrder; track quadrant) {
+                        @if (getTeethForQuadrant(quadrant).length > 0) {
+                          <div class="quadrant-card">
+                            <h4>{{ getQuadrantLabel(quadrant) }}</h4>
+                            <div class="quadrant-teeth">
+                              @for (option of getTeethForQuadrant(quadrant); track option.number) {
+                                <ion-button size="small" fill="outline" (click)="addToothByNumber(option.number)">
+                                  <span class="tooth-pill">
+                                    <span class="tooth-short">{{ option.shortLabel }}</span>
+                                    <span class="tooth-number">#{{ option.number }}</span>
+                                  </span>
+                                </ion-button>
+                              }
+                            </div>
+                          </div>
+                        }
                       }
-                    </ion-select>
-                  </ion-item>
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -203,6 +253,10 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
                         labelPlacement="stacked"
                         formControlName="anesthesia_type"
                         placeholder="Seleccione"
+                        [interface]="responsiveSelectInterface"
+                        [interfaceOptions]="buildResponsiveSelectOptions('Tipo de Anestesia')"
+                        okText="Seleccionar"
+                        cancelText="Cancelar"
                       >
                         <ion-select-option value="">Sin anestesia</ion-select-option>
                         <ion-select-option value="local">Local</ion-select-option>
@@ -264,6 +318,10 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
                           label="Estado"
                           labelPlacement="stacked"
                           formControlName="status"
+                          [interface]="responsiveSelectInterface"
+                          [interfaceOptions]="buildResponsiveSelectOptions('Estado del tratamiento')"
+                          okText="Seleccionar"
+                          cancelText="Cancelar"
                         >
                           <ion-select-option value="planned">Planificado</ion-select-option>
                           <ion-select-option value="in_progress">En Progreso</ion-select-option>
@@ -448,6 +506,12 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
       padding: 12px;
     }
 
+    .teeth-helper {
+      margin: 0 0 10px;
+      color: var(--ion-color-medium);
+      font-size: 13px;
+    }
+
     .selected-teeth {
       display: flex;
       flex-wrap: wrap;
@@ -460,6 +524,72 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
     .no-teeth {
       color: var(--ion-color-medium);
       font-size: 14px;
+    }
+
+    .teeth-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 6px 0 12px;
+    }
+
+    .teeth-filter-row ion-button {
+      --border-radius: 16px;
+      --padding-start: 10px;
+      --padding-end: 10px;
+      height: 30px;
+      min-height: 30px;
+    }
+
+    .teeth-quadrants {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .quadrant-card {
+      border: 1px solid var(--medical-border-color);
+      border-radius: 10px;
+      padding: 10px;
+      background: var(--medical-bg-card);
+    }
+
+    .quadrant-card h4 {
+      margin: 0 0 8px 0;
+      color: var(--ion-color-primary);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .quadrant-teeth {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .quadrant-teeth ion-button {
+      --border-radius: 10px;
+      --padding-start: 10px;
+      --padding-end: 10px;
+      min-height: 38px;
+      height: auto;
+    }
+
+    .tooth-pill {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      align-items: flex-start;
+    }
+
+    .tooth-short {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .tooth-number {
+      font-size: 11px;
+      opacity: 0.75;
     }
 
     ion-chip {
@@ -485,6 +615,10 @@ import { TREATMENT_TYPES, PERMANENT_TEETH } from '../../../models/odontology.mod
       .form-field.full-width {
         flex: 1 1 100%;
       }
+
+      .teeth-quadrants {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (min-width: 1200px) {
@@ -508,6 +642,9 @@ export class TreatmentFormPage implements OnInit {
   isEditMode = false;
   treatmentTypes = TREATMENT_TYPES;
   selectedTeeth: number[] = [];
+  toothFamilyFilter: ToothFamily = 'all';
+  readonly quadrantOrder: ToothQuadrant[] = [1, 2, 3, 4];
+  readonly responsiveSelectInterface: SelectOverlayInterface = 'modal';
 
   // All permanent teeth
   allTeeth = [
@@ -516,6 +653,7 @@ export class TreatmentFormPage implements OnInit {
     ...PERMANENT_TEETH.lowerLeft,
     ...PERMANENT_TEETH.lowerRight
   ].sort((a, b) => a - b);
+  allToothOptions: ToothOption[] = this.allTeeth.map((toothNumber) => this.buildToothOption(toothNumber));
 
   treatmentForm: FormGroup = this.fb.group({
     patient_id: [null, [Validators.required]],
@@ -541,8 +679,11 @@ export class TreatmentFormPage implements OnInit {
     addIcons({ saveOutline, closeCircleOutline });
   }
 
-  get availableTeeth(): number[] {
-    return this.allTeeth.filter(t => !this.selectedTeeth.includes(t));
+  get availableToothOptions(): ToothOption[] {
+    return this.allToothOptions.filter((option) =>
+      !this.selectedTeeth.includes(option.number) &&
+      (this.toothFamilyFilter === 'all' || option.family === this.toothFamilyFilter)
+    );
   }
 
   ngOnInit(): void {
@@ -592,17 +733,27 @@ export class TreatmentFormPage implements OnInit {
     }
   }
 
-  addTooth(event: any): void {
-    const toothNumber = event.detail.value;
+  setToothFamilyFilter(filter: ToothFamily): void {
+    this.toothFamilyFilter = filter;
+  }
+
+  getTeethForQuadrant(quadrant: ToothQuadrant): ToothOption[] {
+    return this.availableToothOptions.filter((option) => option.quadrant === quadrant);
+  }
+
+  addToothByNumber(toothNumber: number): void {
     if (toothNumber && !this.selectedTeeth.includes(toothNumber)) {
       this.selectedTeeth = [...this.selectedTeeth, toothNumber].sort((a, b) => a - b);
     }
-    // Reset select
-    event.target.value = null;
   }
 
   removeTooth(toothNumber: number): void {
     this.selectedTeeth = this.selectedTeeth.filter(t => t !== toothNumber);
+  }
+
+  getToothDisplayLabel(toothNumber: number): string {
+    const option = this.allToothOptions.find((item) => item.number === toothNumber);
+    return option ? `${option.label} (#${toothNumber})` : `Diente #${toothNumber}`;
   }
 
   onSubmit(): void {
@@ -662,6 +813,79 @@ export class TreatmentFormPage implements OnInit {
       } else {
         this.store.dispatch(OdontologyActions.createDentalTreatment({ treatment }));
       }
+    }
+  }
+
+  buildResponsiveSelectOptions(header: string): Record<string, unknown> {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 992px)').matches) {
+      return {
+        header,
+        cssClass: 'select-modal-responsive select-modal-desktop'
+      };
+    }
+
+    return {
+      header,
+      cssClass: 'select-modal-responsive select-modal-mobile',
+      breakpoints: [0, 0.75, 1],
+      initialBreakpoint: 0.75,
+      backdropBreakpoint: 0.35,
+      handle: true
+    };
+  }
+
+  private buildToothOption(toothNumber: number): ToothOption {
+    const quadrant = Math.floor(toothNumber / 10) as ToothQuadrant;
+    const position = toothNumber % 10;
+    const descriptor = this.getToothDescriptor(position);
+
+    return {
+      number: toothNumber,
+      family: descriptor.family,
+      quadrant,
+      label: `${descriptor.label} ${this.getQuadrantLabel(quadrant).toLowerCase()}`,
+      shortLabel: descriptor.shortLabel
+    };
+  }
+
+  private getToothDescriptor(position: number): {
+    family: Exclude<ToothFamily, 'all'>;
+    label: string;
+    shortLabel: string;
+  } {
+    switch (position) {
+      case 8:
+        return { family: 'molar', label: 'Tercer molar', shortLabel: 'M3' };
+      case 7:
+        return { family: 'molar', label: 'Segundo molar', shortLabel: 'M2' };
+      case 6:
+        return { family: 'molar', label: 'Primer molar', shortLabel: 'M1' };
+      case 5:
+        return { family: 'premolar', label: 'Segundo premolar', shortLabel: 'PM2' };
+      case 4:
+        return { family: 'premolar', label: 'Primer premolar', shortLabel: 'PM1' };
+      case 3:
+        return { family: 'canine', label: 'Canino', shortLabel: 'C' };
+      case 2:
+        return { family: 'incisor', label: 'Incisivo lateral', shortLabel: 'IL' };
+      case 1:
+      default:
+        return { family: 'incisor', label: 'Incisivo central', shortLabel: 'IC' };
+    }
+  }
+
+  getQuadrantLabel(quadrant: ToothQuadrant): string {
+    switch (quadrant) {
+      case 1:
+        return 'Superior derecho';
+      case 2:
+        return 'Superior izquierdo';
+      case 3:
+        return 'Inferior izquierdo';
+      case 4:
+        return 'Inferior derecho';
+      default:
+        return 'Cuadrante';
     }
   }
 }

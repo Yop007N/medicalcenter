@@ -108,7 +108,7 @@ type DentitionType = 'permanent' | 'deciduous' | 'mixed';
 
       &.print-mode {
         box-shadow: none;
-        border: 2px solid #333;
+        border: 2px solid var(--ion-color-dark);
       }
     }
 
@@ -180,7 +180,7 @@ type DentitionType = 'permanent' | 'deciduous' | 'mixed';
     @media print {
       .odontogram-chart {
         box-shadow: none;
-        border: 1px solid #000;
+        border: 1px solid var(--ion-color-dark);
       }
     }
 

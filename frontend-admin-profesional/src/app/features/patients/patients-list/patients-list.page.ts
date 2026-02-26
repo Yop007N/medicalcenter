@@ -15,8 +15,10 @@ import {
   IonFab,
   IonFabButton,
   IonSkeletonText,
-  IonCard,
-  IonCardContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonAvatar,
   IonButton
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -55,13 +57,15 @@ interface PatientListItem extends Patient {
     IonFab,
     IonFabButton,
     IonSkeletonText,
-    IonCard,
-    IonCardContent,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonAvatar,
     IonButton
   ],
   template: `
     <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
+      <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
         </ion-buttons>
@@ -109,19 +113,19 @@ interface PatientListItem extends Patient {
       </div>
 
       @if (loading) {
-        <div class="patients-grid">
+        <ion-list class="patients-list skeleton-list">
           @for (i of skeletonCards; track i) {
-            <ion-card class="patient-card skeleton-card">
-              <ion-card-content>
-                <div class="patient-avatar skeleton">
-                  <ion-skeleton-text [animated]="true"></ion-skeleton-text>
-                </div>
-                <ion-skeleton-text [animated]="true" style="width: 80%; height: 18px; margin: 12px auto 8px;"></ion-skeleton-text>
-                <ion-skeleton-text [animated]="true" style="width: 60%; height: 14px; margin: 0 auto;"></ion-skeleton-text>
-              </ion-card-content>
-            </ion-card>
+            <ion-item class="patient-list-item">
+              <ion-avatar slot="start" class="patient-avatar skeleton">
+                <ion-skeleton-text [animated]="true"></ion-skeleton-text>
+              </ion-avatar>
+              <ion-label>
+                <ion-skeleton-text [animated]="true" style="width: 60%; height: 18px;"></ion-skeleton-text>
+                <ion-skeleton-text [animated]="true" style="width: 70%; height: 14px;"></ion-skeleton-text>
+              </ion-label>
+            </ion-item>
           }
-        </div>
+        </ion-list>
       } @else if (errorMessage) {
         <div class="empty-state" role="alert" aria-live="assertive">
           <div class="empty-icon">
@@ -149,37 +153,34 @@ interface PatientListItem extends Patient {
             }
           </div>
         } @else {
-          <div class="patients-grid">
+          <ion-list class="patients-list">
             @for (patient of filteredPatients; track patient.id) {
-              <ion-card class="patient-card" [routerLink]="['/patients', patient.id]">
-                <ion-card-content>
-                  <div class="patient-avatar" [class.inactive]="!patient.is_active">
-                    <span class="avatar-initials">{{ patient.initials }}</span>
-                    <span class="status-indicator" [class.active]="patient.is_active"></span>
-                  </div>
-                  <h3 class="patient-name">{{ patient.first_name }} {{ patient.last_name }}</h3>
-                  <div class="patient-info">
-                    <div class="info-item">
-                      <ion-icon name="mail-outline"></ion-icon>
-                      <span>{{ patient.email }}</span>
-                    </div>
-                    @if (patient.phone) {
-                      <div class="info-item">
-                        <ion-icon name="call-outline"></ion-icon>
-                        <span>{{ patient.phone }}</span>
-                      </div>
-                    }
-                  </div>
-                  <div class="card-footer">
-                    <span class="status-badge" [class.active]="patient.is_active" [class.inactive]="!patient.is_active">
-                      {{ patient.is_active ? 'Activo' : 'Inactivo' }}
-                    </span>
-                    <ion-icon name="chevron-forward-outline" class="arrow-icon"></ion-icon>
-                  </div>
-                </ion-card-content>
-              </ion-card>
+              <ion-item button class="patient-list-item" [routerLink]="['/patients', patient.id]" detail="false">
+                <ion-avatar slot="start" class="patient-avatar" [class.inactive]="!patient.is_active">
+                  <span class="avatar-initials">{{ patient.initials }}</span>
+                </ion-avatar>
+
+                <ion-label>
+                  <h2 class="patient-name">{{ patient.first_name }} {{ patient.last_name }}</h2>
+                  <p class="info-item">
+                    <ion-icon name="mail-outline"></ion-icon>
+                    <span>{{ patient.email }}</span>
+                  </p>
+                  @if (patient.phone) {
+                    <p class="info-item">
+                      <ion-icon name="call-outline"></ion-icon>
+                      <span>{{ patient.phone }}</span>
+                    </p>
+                  }
+                </ion-label>
+
+                <span slot="end" class="status-badge" [class.active]="patient.is_active" [class.inactive]="!patient.is_active">
+                  {{ patient.is_active ? 'Activo' : 'Inactivo' }}
+                </span>
+                <ion-icon slot="end" name="chevron-forward-outline" class="arrow-icon"></ion-icon>
+              </ion-item>
             }
-          </div>
+          </ion-list>
         }
       }
 
@@ -206,30 +207,33 @@ interface PatientListItem extends Patient {
 
     /* Header */
     .page-header {
-      background: var(--medical-gradient-primary);
-      padding: 24px 20px;
-      margin: -16px -16px 0;
+      background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-md);
+      box-shadow: var(--medical-shadow-sm);
+      padding: 20px;
+      margin: 16px 16px 0;
     }
 
     .header-content {
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .header-icon {
       width: 56px;
       height: 56px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 16px;
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      border-radius: var(--medical-radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
 
       ion-icon {
         font-size: 28px;
-        color: white;
+        color: var(--ion-color-primary);
       }
     }
 
@@ -237,14 +241,14 @@ interface PatientListItem extends Patient {
       h1 {
         font-size: 32px;
         font-weight: 700;
-        color: white;
+        color: var(--ion-color-dark);
         margin: 0;
         line-height: 1;
       }
 
       p {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
+        color: var(--ion-color-medium);
         margin: 4px 0 0;
       }
     }
@@ -259,10 +263,11 @@ interface PatientListItem extends Patient {
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
+      background: var(--medical-bg-hover);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-full);
       font-size: 12px;
-      color: white;
+      color: var(--ion-color-dark);
       font-weight: 500;
 
       .stat-dot {
@@ -272,18 +277,18 @@ interface PatientListItem extends Patient {
       }
 
       &.active .stat-dot {
-        background: #34d399;
+        background: var(--ion-color-success);
       }
 
       &.inactive .stat-dot {
-        background: rgba(255, 255, 255, 0.5);
+        background: var(--ion-color-medium);
       }
     }
 
     /* Search */
     .search-container {
       padding: 16px;
-      margin-top: 16px;
+      margin-top: 8px;
     }
 
     ion-searchbar {
@@ -294,72 +299,51 @@ interface PatientListItem extends Patient {
       padding: 0 !important;
     }
 
-    /* Grid de pacientes */
-    .patients-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
+    /* Listado de pacientes */
+    .patients-list {
       padding: 0 16px 100px;
+      background: transparent;
     }
 
-    /* Card de paciente */
-    .patient-card {
+    .patient-list-item {
+      --background: var(--medical-bg-card);
+      --border-radius: var(--medical-radius-md);
+      --padding-start: 16px;
+      --padding-end: 12px;
+      --inner-padding-end: 0;
+      --inner-border-width: 0 0 1px 0;
+      --inner-border-color: var(--medical-border-light);
       margin: 0;
-      border-radius: var(--medical-radius-md);
-      box-shadow: var(--medical-shadow-md);
-      border: 1px solid var(--medical-border-light);
-      cursor: pointer;
       transition: all 0.2s ease;
+      box-shadow: var(--medical-shadow-sm);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-md);
+      margin-bottom: 10px;
 
       &:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--medical-shadow-lg);
-      }
-
-      ion-card-content {
-        padding: 20px;
-        text-align: center;
+        box-shadow: var(--medical-shadow-md);
       }
     }
 
     .patient-avatar {
-      width: 72px;
-      height: 72px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
-      background: var(--medical-gradient-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 12px;
-      position: relative;
+      margin: 0;
 
       &.inactive {
-        background: var(--ion-color-medium);
+        background: rgba(var(--ion-color-medium-rgb), 0.15);
       }
 
       .avatar-initials {
-        font-size: 24px;
+        font-size: 16px;
         font-weight: 600;
-        color: white;
+        color: var(--ion-color-primary);
         text-transform: uppercase;
-      }
-
-      .status-indicator {
-        position: absolute;
-        bottom: 2px;
-        right: 2px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        border: 3px solid white;
-
-        &.active {
-          background: var(--ion-color-success);
-        }
-
-        &:not(.active) {
-          background: var(--ion-color-medium);
-        }
       }
     }
 
@@ -367,63 +351,52 @@ interface PatientListItem extends Patient {
       font-size: 16px;
       font-weight: 600;
       color: var(--ion-color-dark);
-      margin: 0 0 12px;
+      margin: 0 0 6px;
     }
 
-    .patient-info {
-      .info-item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--ion-color-medium);
-        margin-bottom: 6px;
-
-        ion-icon {
-          font-size: 14px;
-        }
-
-        span {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 200px;
-        }
-      }
-    }
-
-    .card-footer {
+    .info-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid var(--medical-border-light);
+      gap: 6px;
+      font-size: 13px;
+      color: var(--ion-color-medium);
+      margin: 2px 0;
 
-      .status-badge {
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 20px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-
-        &.active {
-          background: rgba(16, 185, 129, 0.1);
-          color: var(--ion-color-success);
-        }
-
-        &.inactive {
-          background: rgba(100, 116, 139, 0.1);
-          color: var(--ion-color-medium);
-        }
+      ion-icon {
+        font-size: 14px;
       }
 
-      .arrow-icon {
+      span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 320px;
+      }
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-right: 6px;
+
+      &.active {
+        background: rgba(var(--ion-color-success-rgb), 0.12);
+        color: var(--ion-color-success);
+      }
+
+      &.inactive {
+        background: rgba(var(--ion-color-medium-rgb), 0.12);
         color: var(--ion-color-medium);
-        font-size: 18px;
       }
+    }
+
+    .arrow-icon {
+      color: var(--ion-color-medium);
+      font-size: 18px;
     }
 
     /* Empty state */
@@ -472,21 +445,19 @@ interface PatientListItem extends Patient {
     }
 
     /* Skeleton */
-    .skeleton-card {
-      .patient-avatar.skeleton {
-        background: var(--medical-border-light);
+    .patient-avatar.skeleton {
+      background: var(--medical-border-light);
 
-        ion-skeleton-text {
-          width: 100%;
-          height: 100%;
-          border-radius: 50%;
-        }
+      ion-skeleton-text {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
       }
     }
 
     /* FAB */
     ion-fab-button {
-      --background: var(--medical-gradient-primary);
+      --background: var(--ion-color-primary);
       --box-shadow: var(--medical-shadow-lg);
     }
 
@@ -523,10 +494,9 @@ interface PatientListItem extends Patient {
       }
     }
 
-    /* Responsive */
-    @media (max-width: 576px) {
-      .patients-grid {
-        grid-template-columns: 1fr;
+    @media (max-width: 768px) {
+      .status-badge {
+        display: none;
       }
     }
   `]

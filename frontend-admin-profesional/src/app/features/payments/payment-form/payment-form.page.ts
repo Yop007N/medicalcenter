@@ -314,6 +314,7 @@ export class PaymentFormPage implements OnInit {
   form: FormGroup;
   isEdit = false;
   paymentId?: number;
+  private budgetIdFromRoute?: number;
 
   constructor() {
     addIcons({ saveOutline });
@@ -333,7 +334,8 @@ export class PaymentFormPage implements OnInit {
     // Check for budget_id in query params (when coming from budget detail)
     const budgetId = this.route.snapshot.queryParamMap.get('budget_id');
     if (budgetId) {
-      this.form.patchValue({ budget_id: parseInt(budgetId, 10) });
+      this.budgetIdFromRoute = parseInt(budgetId, 10);
+      this.form.patchValue({ budget_id: this.budgetIdFromRoute });
     }
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -393,7 +395,11 @@ export class PaymentFormPage implements OnInit {
         budget_id: formValue.budget_id || undefined,
         notes: formValue.notes || undefined
       };
-      this.store.dispatch(PaymentsActions.createPayment({ payment }));
+      this.store.dispatch(PaymentsActions.createPayment({
+        payment,
+        autoProcessOnCreate: !!this.budgetIdFromRoute,
+        navigateToBudgetOnSuccess: !!this.budgetIdFromRoute
+      }));
     }
   }
 }

@@ -14,19 +14,31 @@ import { User } from '../../models';
 
 const LOG_SOURCE = 'AuthEffects';
 
-const isUser = (value: unknown): value is User => {
+const hasValidRole = (role: unknown): role is User['role'] => (
+  role === 'admin' || role === 'professional' || role === 'patient'
+);
+
+const normalizeStoredUser = (value: unknown): User | null => {
   if (!value || typeof value !== 'object') {
-    return false;
+    return null;
   }
 
-  const user = value as Partial<User>;
-  return (
-    Number.isFinite(user.id) &&
-    typeof user.email === 'string' &&
-    (user.role === 'admin' || user.role === 'professional' || user.role === 'patient') &&
-    typeof user.is_active === 'boolean' &&
-    typeof user.created_at === 'string'
-  );
+  const raw = value as Partial<User>;
+  if (!Number.isFinite(raw.id) || typeof raw.email !== 'string' || !hasValidRole(raw.role)) {
+    return null;
+  }
+
+  return {
+    id: Number(raw.id),
+    email: raw.email,
+    role: raw.role,
+    specialty: raw.specialty ?? null,
+    first_name: raw.first_name ?? '',
+    last_name: raw.last_name ?? '',
+    is_active: typeof raw.is_active === 'boolean' ? raw.is_active : true,
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : new Date().toISOString(),
+    updated_at: typeof raw.updated_at === 'string' ? raw.updated_at : undefined
+  };
 };
 
 @Injectable()
@@ -195,10 +207,11 @@ export class AuthEffects {
           this.storage.get('current_user')
         ])).pipe(
           map(([token, user]) => {
-            if (token && isUser(user)) {
+            const normalizedUser = normalizeStoredUser(user);
+            if (token && normalizedUser) {
               this.logger.info(LOG_SOURCE, 'Stored auth found', { hasToken: true, hasUser: true });
               return AuthActions.loadStoredAuthSuccess({
-                user,
+                user: normalizedUser,
                 accessToken: token
               });
             }

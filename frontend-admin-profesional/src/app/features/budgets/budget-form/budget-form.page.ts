@@ -1,7 +1,8 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, HostListener, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -30,6 +31,10 @@ import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedBudget, selectBudgetsLoading, selectBudgetsError } from '../../../store/budgets/budgets.selectors';
 import { selectAllPatients } from '../../../store/patients/patients.selectors';
 import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
+import { Patient } from '../../../models/patient.model';
+import { PatientsApiService } from '../../../core/services/patients-api.service';
+
+type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
 
 @Component({
   selector: 'app-budget-form',
@@ -104,19 +109,47 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
                   <div class="form-row">
                     <div class="form-field full-width">
                       <ion-item>
+                        <ion-input
+                          label="Buscar paciente"
+                          labelPlacement="stacked"
+                          type="search"
+                          clearInput="true"
+                          placeholder="Nombre, apellido, email o ID"
+                          [value]="patientSearchTerm"
+                          (ionInput)="onPatientSearchInput($event)"
+                        ></ion-input>
+                      </ion-item>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field full-width">
+                      <ion-item class="patient-select-item">
                         <ion-select
                           formControlName="patient_id"
                           label="Paciente *"
                           labelPlacement="stacked"
                           placeholder="Seleccione paciente"
+                          [interface]="responsiveSelectInterface"
+                          [interfaceOptions]="patientSelectInterfaceOptions"
+                          okText="Seleccionar"
+                          cancelText="Cancelar"
+                          [disabled]="filteredPatients.length === 0"
                         >
-                          @for (patient of patients$ | async; track patient.id) {
-                            <ion-select-option [value]="patient.id">
-                              {{ patient.first_name }} {{ patient.last_name }}
-                            </ion-select-option>
-                          }
+                          <ion-select-option
+                            *ngFor="let patient of filteredPatients; trackBy: trackByPatientId"
+                            [value]="patient.id"
+                          >
+                            {{ getPatientDisplayName(patient) }}
+                          </ion-select-option>
                         </ion-select>
                       </ion-item>
+                      @if (patientsLoadError) {
+                        <ion-note color="danger">{{ patientsLoadError }}</ion-note>
+                      } @else if (filteredPatients.length === 0) {
+                        <ion-note color="medium">
+                          {{ allPatients.length === 0 ? 'No hay pacientes disponibles' : 'No se encontraron pacientes con ese criterio' }}
+                        </ion-note>
+                      }
                       @if (form.get('patient_id')?.invalid && form.get('patient_id')?.touched) {
                         <ion-note color="danger">El paciente es requerido</ion-note>
                       }
@@ -148,6 +181,10 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
                           formControlName="currency"
                           label="Moneda"
                           labelPlacement="stacked"
+                          [interface]="responsiveSelectInterface"
+                          [interfaceOptions]="currencySelectInterfaceOptions"
+                          okText="Seleccionar"
+                          cancelText="Cancelar"
                         >
                           <ion-select-option value="PYG">PYG - Guaraní Paraguayo</ion-select-option>
                           <ion-select-option value="USD">USD - Dólar Estadounidense</ion-select-option>
@@ -172,7 +209,7 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
 
                 <!-- Total Card (visible on mobile at bottom, on desktop in sidebar) -->
                 <div class="total-card-mobile">
-                  <ion-card color="primary">
+                  <ion-card class="total-card">
                     <ion-card-content>
                       <div class="total-section">
                         <span>TOTAL</span>
@@ -253,7 +290,7 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
 
                 <!-- Total Card (visible on desktop only) -->
                 <div class="total-card-desktop">
-                  <ion-card color="primary">
+                  <ion-card class="total-card">
                     <ion-card-content>
                       <div class="total-section">
                         <span>TOTAL</span>
@@ -352,6 +389,19 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
       --padding-start: 0;
     }
 
+    .patient-select-item ion-select {
+      width: 100%;
+      --color: var(--ion-color-dark);
+      --placeholder-color: var(--ion-color-medium);
+    }
+
+    .patient-select-item ion-select::part(text) {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.3;
+    }
+
     ion-note {
       display: block;
       font-size: 12px;
@@ -417,16 +467,27 @@ import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
     }
 
     /* Total Section */
+    .total-card {
+      margin: 0;
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-md);
+      box-shadow: var(--medical-shadow-sm);
+      border-left: 4px solid rgba(var(--ion-color-primary-rgb), 0.45);
+      background: var(--medical-bg-card);
+      color: var(--ion-color-dark);
+    }
+
     .total-section {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 18px;
-      font-weight: bold;
+      font-size: 16px;
+      font-weight: 600;
     }
 
     .total-amount {
       font-size: 24px;
+      color: var(--ion-color-primary);
     }
 
     .total-card-desktop {
@@ -518,6 +579,8 @@ export class BudgetFormPage implements OnInit {
   private store = inject(Store);
   private route = inject(ActivatedRoute);
   private cdr = inject(ChangeDetectorRef);
+  private destroyRef = inject(DestroyRef);
+  private patientsApi = inject(PatientsApiService);
 
   budget$ = this.store.select(selectSelectedBudget);
   loading$ = this.store.select(selectBudgetsLoading);
@@ -527,6 +590,12 @@ export class BudgetFormPage implements OnInit {
   form: FormGroup;
   isEdit = false;
   budgetId?: number;
+  readonly responsiveSelectInterface: SelectOverlayInterface = 'modal';
+  private isDesktopViewport = this.checkDesktopViewport();
+  patientSearchTerm = '';
+  allPatients: Patient[] = [];
+  filteredPatients: Patient[] = [];
+  patientsLoadError: string | null = null;
 
   // Cached totals for each item and grand total
   itemTotals: number[] = [];
@@ -550,8 +619,21 @@ export class BudgetFormPage implements OnInit {
     return this.form.get('currency')?.value || 'PYG';
   }
 
+  get patientSelectInterfaceOptions(): Record<string, unknown> {
+    return this.buildResponsiveSelectOptions('Seleccionar paciente');
+  }
+
+  get currencySelectInterfaceOptions(): Record<string, unknown> {
+    return this.buildResponsiveSelectOptions('Seleccionar moneda');
+  }
+
   get items(): FormArray {
     return this.form.get('items') as FormArray;
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.isDesktopViewport = this.checkDesktopViewport();
   }
 
   getItemFormGroup(index: number): FormGroup {
@@ -559,8 +641,18 @@ export class BudgetFormPage implements OnInit {
   }
 
   ngOnInit(): void {
-    // Load patients for select
+    this.patients$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((patients) => {
+        if (Array.isArray(patients) && patients.length > 0) {
+          this.setPatientsSource(patients);
+        }
+      });
+
+    // Keep NgRx state in sync for the rest of the app.
     this.store.dispatch(PatientsActions.loadPatients());
+    // Direct API fallback for this form to avoid empty selector.
+    this.loadPatientsFromApi();
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -643,6 +735,26 @@ export class BudgetFormPage implements OnInit {
 
   trackByItemId(index: number, item: any): number {
     return item.get('_id')?.value ?? index;
+  }
+
+  trackByPatientId(index: number, patient: Patient): number {
+    return patient.id;
+  }
+
+  getPatientDisplayName(patient: Partial<Patient>): string {
+    const firstName = (patient.first_name ?? '').trim();
+    const lastName = (patient.last_name ?? '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    if (fullName) {
+      return fullName;
+    }
+
+    if (patient.email) {
+      return patient.email;
+    }
+
+    return `Paciente #${patient.id ?? '-'}`;
   }
 
   getNumber(value: any): number {
@@ -796,5 +908,87 @@ export class BudgetFormPage implements OnInit {
       this.store.dispatch(BudgetsActions.createBudget({ budget }));
     }
     console.log('=== DISPATCH DONE ===');
+  }
+
+  onPatientSearchInput(event: Event): void {
+    const customEvent = event as CustomEvent<{ value?: string | null }>;
+    this.patientSearchTerm = customEvent.detail?.value?.toString() ?? '';
+    this.applyPatientFilter();
+  }
+
+  private loadPatientsFromApi(): void {
+    this.patientsLoadError = null;
+    this.patientsApi
+      .list()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (patients) => {
+          this.setPatientsSource(patients);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          if (this.allPatients.length === 0) {
+            this.patientsLoadError = 'No se pudieron cargar los pacientes. Intenta recargar.';
+            this.filteredPatients = [];
+            this.cdr.detectChanges();
+          }
+        }
+      });
+  }
+
+  private setPatientsSource(patients: Patient[]): void {
+    const safePatients = Array.isArray(patients) ? patients : [];
+    this.allPatients = [...safePatients].sort((a, b) => {
+      const nameA = this.normalizeText(this.getPatientDisplayName(a));
+      const nameB = this.normalizeText(this.getPatientDisplayName(b));
+      return nameA.localeCompare(nameB);
+    });
+    this.applyPatientFilter();
+    this.patientsLoadError = null;
+  }
+
+  private applyPatientFilter(): void {
+    const search = this.normalizeText(this.patientSearchTerm);
+    if (!search) {
+      this.filteredPatients = this.allPatients;
+      return;
+    }
+
+    this.filteredPatients = this.allPatients.filter((patient) => {
+      const fullName = this.normalizeText(this.getPatientDisplayName(patient));
+      const email = this.normalizeText(patient.email ?? '');
+      const byId = String(patient.id).includes(search);
+      return fullName.includes(search) || email.includes(search) || byId;
+    });
+  }
+
+  private normalizeText(rawValue: string | null | undefined): string {
+    return (rawValue ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  private checkDesktopViewport(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(min-width: 992px)').matches;
+  }
+
+  private buildResponsiveSelectOptions(header: string): Record<string, unknown> {
+    if (this.isDesktopViewport) {
+      return {
+        header,
+        cssClass: 'select-modal-responsive select-modal-desktop'
+      };
+    }
+
+    return {
+      header,
+      cssClass: 'select-modal-responsive select-modal-mobile',
+      breakpoints: [0, 0.75, 1],
+      initialBreakpoint: 0.75,
+      backdropBreakpoint: 0.35,
+      handle: true
+    };
   }
 }

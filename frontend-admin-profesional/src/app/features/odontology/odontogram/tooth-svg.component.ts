@@ -43,14 +43,14 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
             <path
               [attr.d]="'M25,50 L20,75 Q30,80 40,75 L35,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <!-- Crown -->
             <rect
               x="15" y="5" width="30" height="45" rx="3"
               [attr.fill]="getCrownColor()"
-              stroke="#333"
+              stroke="#233142"
               stroke-width="1.5"
             />
             <!-- Surfaces -->
@@ -100,14 +100,14 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
             <path
               [attr.d]="'M25,48 L22,78 Q30,82 38,78 L35,48 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <!-- Crown (pointed) -->
             <path
               [attr.d]="'M15,48 L15,20 Q15,5 30,3 Q45,5 45,20 L45,48 Z'"
               [attr.fill]="getCrownColor()"
-              stroke="#333"
+              stroke="#233142"
               stroke-width="1.5"
             />
             <!-- Surfaces -->
@@ -157,20 +157,20 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
             <path
               [attr.d]="'M22,50 L18,75 Q22,78 26,75 L28,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <path
               [attr.d]="'M32,50 L34,75 Q38,78 42,75 L38,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <!-- Crown -->
             <rect
               x="12" y="5" width="36" height="45" rx="5"
               [attr.fill]="getCrownColor()"
-              stroke="#333"
+              stroke="#233142"
               stroke-width="1.5"
             />
             <!-- Surfaces -->
@@ -220,26 +220,26 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
             <path
               [attr.d]="'M18,50 L12,75 Q17,78 22,75 L25,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <path
               [attr.d]="'M27,50 L30,78 Q33,80 36,78 L33,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <path
               [attr.d]="'M35,50 L38,75 Q43,78 48,75 L42,50 Z'"
               [attr.fill]="getRootColor()"
-              stroke="#666"
+              stroke="#6e7a88"
               stroke-width="1"
             />
             <!-- Crown (larger) -->
             <rect
               x="8" y="5" width="44" height="45" rx="6"
               [attr.fill]="getCrownColor()"
-              stroke="#333"
+              stroke="#233142"
               stroke-width="1.5"
             />
             <!-- Surfaces -->
@@ -286,25 +286,25 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
 
       <!-- Status overlay for special conditions -->
       @if (tooth.status === 'missing' || tooth.status === 'extracted') {
-        <line x1="10" y1="10" x2="50" y2="70" stroke="#FF0000" stroke-width="3"/>
-        <line x1="50" y1="10" x2="10" y2="70" stroke="#FF0000" stroke-width="3"/>
+        <line x1="10" y1="10" x2="50" y2="70" stroke="#b66a6a" stroke-width="3"/>
+        <line x1="50" y1="10" x2="10" y2="70" stroke="#b66a6a" stroke-width="3"/>
       }
 
       @if (tooth.status === 'crown') {
-        <circle cx="30" cy="25" r="18" fill="none" stroke="#9C27B0" stroke-width="2" stroke-dasharray="4,2"/>
+        <circle cx="30" cy="25" r="18" fill="none" stroke="#6f8393" stroke-width="2" stroke-dasharray="4,2"/>
       }
 
       @if (tooth.status === 'implant') {
-        <rect x="25" y="50" width="10" height="25" fill="#FF9800" stroke="#E65100" stroke-width="1"/>
-        <circle cx="30" cy="55" r="3" fill="#E65100"/>
+        <rect x="25" y="50" width="10" height="25" fill="#a07b44" stroke="#8d6c3c" stroke-width="1"/>
+        <circle cx="30" cy="55" r="3" fill="#8d6c3c"/>
       }
 
       @if (tooth.status === 'root_canal') {
-        <line x1="30" y1="50" x2="30" y2="75" stroke="#795548" stroke-width="3"/>
+        <line x1="30" y1="50" x2="30" y2="75" stroke="#627381" stroke-width="3"/>
       }
 
       @if (tooth.status === 'to_extract') {
-        <text x="30" y="45" text-anchor="middle" fill="#FF5722" font-size="24" font-weight="bold">X</text>
+        <text x="30" y="45" text-anchor="middle" fill="#c07979" font-size="24" font-weight="bold">X</text>
       }
 
       <!-- Tooth number -->
@@ -315,7 +315,7 @@ type ToothShape = 'incisor' | 'canine' | 'premolar' | 'molar';
         [attr.dominant-baseline]="isUpperTooth ? 'auto' : 'hanging'"
         font-size="10"
         font-weight="bold"
-        fill="#333"
+        fill="#233142"
       >
         {{ tooth.number }}
       </text>
@@ -374,11 +374,11 @@ export class ToothSvgComponent {
   @Output() surfaceClick = new EventEmitter<{ tooth: ToothData; surface: string }>();
 
   private surfaceColors: Record<SurfaceCondition, string> = {
-    healthy: '#FFFFFF',
-    caries: '#F44336',
-    filled: '#2196F3',
-    composite: '#90CAF9',
-    amalgam: '#607D8B'
+    healthy: '#ffffff',
+    caries: '#b66a6a',
+    filled: '#3f6b84',
+    composite: '#7d8f9d',
+    amalgam: '#626d79'
   };
 
   get toothShape(): ToothShape {
@@ -393,21 +393,21 @@ export class ToothSvgComponent {
   }
 
   getCrownColor(): string {
-    if (this.tooth.status === 'healthy') return '#FFFDE7';
-    return TOOTH_STATUS_COLORS[this.tooth.status] || '#FFFDE7';
+    if (this.tooth.status === 'healthy') return '#f5f7fa';
+    return TOOTH_STATUS_COLORS[this.tooth.status] || '#f5f7fa';
   }
 
   getRootColor(): string {
     if (this.tooth.status === 'missing' || this.tooth.status === 'extracted') {
-      return '#E0E0E0';
+      return '#d8dde3';
     }
-    return '#FFF8E1';
+    return '#f2f5f8';
   }
 
   getSurfaceColor(surface: 'mesial' | 'distal' | 'oclusal' | 'vestibular' | 'lingual'): string {
     const condition = this.tooth.surfaces[surface];
-    if (!condition || condition === 'healthy') return '#FFFFFF';
-    return this.surfaceColors[condition] || '#FFFFFF';
+    if (!condition || condition === 'healthy') return '#ffffff';
+    return this.surfaceColors[condition] || '#ffffff';
   }
 
   @HostListener('click', ['$event'])

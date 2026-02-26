@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import {
@@ -188,7 +188,7 @@ import { Professional } from '../../../models';
     }
   `]
 })
-export class ProfessionalsListPage implements OnInit {
+export class ProfessionalsListPage {
   private professionalsApi = inject(ProfessionalsApiService);
 
   professionals: Professional[] = [];
@@ -199,7 +199,7 @@ export class ProfessionalsListPage implements OnInit {
     addIcons({ personCircleOutline, callOutline, mailOutline, addOutline, chevronForwardOutline });
   }
 
-  ngOnInit(): void {
+  ionViewWillEnter(): void {
     this.loadProfessionals();
   }
 

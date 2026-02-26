@@ -285,13 +285,7 @@ export class AnamnesisTabComponent implements OnInit, OnChanges {
 
   loading = false;
   saving = false;
-  anamnesis: Partial<Anamnesis> = {
-    consultation_reason: [],
-    current_illness: [],
-    medical_alerts: [],
-    medications: [],
-    habits: []
-  };
+  anamnesis: Partial<Anamnesis> = this.createEmptyAnamnesis();
 
   consultationReasons = CONSULTATION_REASONS;
   currentIllnesses = CURRENT_ILLNESSES;
@@ -320,53 +314,45 @@ export class AnamnesisTabComponent implements OnInit, OnChanges {
     this.clinicalHistoryService.getAnamnesis(this.patientId).subscribe({
       next: (anamnesis) => {
         if (anamnesis) {
-          this.anamnesis = anamnesis;
+          this.anamnesis = this.toUiAnamnesis(anamnesis as unknown as Record<string, unknown>);
         }
         this.loading = false;
       },
       error: (error) => {
         console.error('Error loading anamnesis:', error);
         this.loading = false;
-        // Initialize empty anamnesis if not found
-        this.anamnesis = {
-          patient_id: this.patientId,
-          consultation_reason: [],
-          current_illness: [],
-          medical_alerts: [],
-          medications: [],
-          habits: []
-        };
+        this.anamnesis = this.createEmptyAnamnesis();
       }
     });
   }
 
   isSelected(field: string, value: string): boolean {
-    const arr = (this.anamnesis as any)[field] as string[];
-    return arr?.includes(value) || false;
+    const arr = this.normalizeStringList((this.anamnesis as any)[field]);
+    return arr.includes(value);
   }
 
   toggleSelection(field: string, value: string): void {
-    const arr = (this.anamnesis as any)[field] as string[];
-    if (!arr) {
-      (this.anamnesis as any)[field] = [value];
-      return;
-    }
-
+    const arr = this.normalizeStringList((this.anamnesis as any)[field]);
     const index = arr.indexOf(value);
     if (index === -1) {
       arr.push(value);
     } else {
       arr.splice(index, 1);
     }
+    (this.anamnesis as any)[field] = arr;
   }
 
   save(): void {
-    this.saving = true;
-    this.anamnesis.patient_id = this.patientId;
+    if (!this.patientId) {
+      return;
+    }
 
-    this.clinicalHistoryService.saveAnamnesis(this.anamnesis).subscribe({
+    this.saving = true;
+    const payload = this.toApiPayload();
+
+    this.clinicalHistoryService.saveAnamnesis(payload).subscribe({
       next: (saved) => {
-        this.anamnesis = saved;
+        this.anamnesis = this.toUiAnamnesis(saved as unknown as Record<string, unknown>);
         this.saving = false;
         this.showToast('Anamnesis guardada exitosamente', 'success');
       },
@@ -386,5 +372,149 @@ export class AnamnesisTabComponent implements OnInit, OnChanges {
       position: 'top'
     });
     await toast.present();
+  }
+
+  private createEmptyAnamnesis(): Partial<Anamnesis> {
+    return {
+      patient_id: this.patientId,
+      consultation_reason: [],
+      consultation_reason_other: '',
+      current_illness: [],
+      current_illness_other: '',
+      medical_alerts: [],
+      medical_alerts_other: '',
+      medications: [],
+      medications_other: '',
+      habits: [],
+      habits_other: '',
+      notes: ''
+    };
+  }
+
+  private normalizeStringList(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item).trim())
+        .filter((item) => !!item);
+    }
+
+    if (typeof value === 'string') {
+      const raw = value.trim();
+      if (!raw) {
+        return [];
+      }
+
+      if ((raw.startsWith('[') && raw.endsWith(']')) || (raw.startsWith('{') && raw.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(raw.replace(/'/g, '"'));
+          if (Array.isArray(parsed)) {
+            return this.normalizeStringList(parsed);
+          }
+        } catch {
+          // Fallback to CSV parsing below
+        }
+      }
+
+      return raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => !!item);
+    }
+
+    return [];
+  }
+
+  private parseOtherTag(list: string[]): { values: string[]; other: string } {
+    let other = '';
+    const values: string[] = [];
+
+    list.forEach((item) => {
+      const lower = item.toLowerCase();
+      if (lower.startsWith('other:')) {
+        other = item.slice(6).trim();
+        return;
+      }
+
+      // Backward compatibility with legacy values like "bruxism. Otros: ATM"
+      const legacyMatch = item.match(/^(.*?)(?:\.?\s*(?:otros|other)\s*:\s*)(.+)$/i);
+      if (legacyMatch) {
+        const mainValue = legacyMatch[1].replace(/[.,;:]$/, '').trim();
+        if (mainValue) {
+          values.push(mainValue);
+        }
+        other = legacyMatch[2].trim();
+        return;
+      }
+      values.push(item);
+    });
+
+    return { values, other };
+  }
+
+  private toUiAnamnesis(source: Record<string, unknown>): Partial<Anamnesis> {
+    const consultation = this.parseOtherTag(this.normalizeStringList(source['consultation_reason']));
+    const currentIllness = this.parseOtherTag(
+      this.normalizeStringList(source['current_illness'] ?? source['other_conditions'])
+    );
+    const alerts = this.parseOtherTag(this.normalizeStringList(source['medical_alerts']));
+    const meds = this.parseOtherTag(
+      this.normalizeStringList(source['medications'] ?? source['current_medications'])
+    );
+
+    const habits = this.parseOtherTag(this.normalizeStringList(source['habits']));
+
+    const consultationOther = typeof source['consultation_reason_other'] === 'string'
+      ? source['consultation_reason_other'].trim()
+      : consultation.other;
+    const currentIllnessOther = typeof source['current_illness_other'] === 'string'
+      ? source['current_illness_other'].trim()
+      : currentIllness.other;
+    const alertsOther = typeof source['medical_alerts_other'] === 'string'
+      ? source['medical_alerts_other'].trim()
+      : (typeof source['allergies'] === 'string' ? source['allergies'].trim() : alerts.other);
+    const medicationsOther = typeof source['medications_other'] === 'string'
+      ? source['medications_other'].trim()
+      : meds.other;
+    const habitsOther = typeof source['habits_other'] === 'string'
+      ? source['habits_other'].trim()
+      : habits.other;
+
+    return {
+      patient_id: this.patientId,
+      consultation_reason: consultation.values,
+      consultation_reason_other: consultationOther,
+      current_illness: currentIllness.values,
+      current_illness_other: currentIllnessOther,
+      medical_alerts: alerts.values,
+      medical_alerts_other: alertsOther,
+      medications: meds.values,
+      medications_other: medicationsOther,
+      habits: habits.values,
+      habits_other: habitsOther,
+      notes: typeof source['notes'] === 'string' ? source['notes'] : undefined
+    };
+  }
+
+  private toApiPayload(): Record<string, unknown> {
+    const consultationReason = this.normalizeStringList(this.anamnesis.consultation_reason);
+    const currentIllness = this.normalizeStringList(this.anamnesis.current_illness);
+    const medicalAlerts = this.normalizeStringList(this.anamnesis.medical_alerts);
+    const medications = this.normalizeStringList(this.anamnesis.medications);
+    const habits = this.normalizeStringList(this.anamnesis.habits);
+
+    return {
+      patient_id: this.patientId,
+      consultation_reason: consultationReason,
+      consultation_reason_other: (this.anamnesis.consultation_reason_other ?? '').trim() || undefined,
+      current_illness: currentIllness,
+      current_illness_other: (this.anamnesis.current_illness_other ?? '').trim() || undefined,
+      medical_alerts: medicalAlerts,
+      medical_alerts_other: (this.anamnesis.medical_alerts_other ?? '').trim() || undefined,
+      medications,
+      medications_other: (this.anamnesis.medications_other ?? '').trim() || undefined,
+      habits,
+      habits_other: (this.anamnesis.habits_other ?? '').trim() || undefined,
+      notes: (this.anamnesis.notes ?? '').trim() || undefined
+    };
   }
 }

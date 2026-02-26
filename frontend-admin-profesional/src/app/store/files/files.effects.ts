@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { of } from 'rxjs';
 import { map, catchError, switchMap, tap } from 'rxjs/operators';
@@ -11,6 +12,7 @@ export class FilesEffects {
   private actions$ = inject(Actions);
   private filesApi = inject(FilesApiService);
   private notification = inject(NotificationService);
+  private router = inject(Router);
 
   loadFiles$ = createEffect(() =>
     this.actions$.pipe(
@@ -47,7 +49,8 @@ export class FilesEffects {
         this.filesApi.upload(file, metadata).pipe(
           map(uploadedFile => FilesActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(FilesActions.uploadFileFailure({
-            error: getApiErrorMessage(error, 'Error al subir archivo')
+            error: getApiErrorMessage(error, 'Error al subir archivo'),
+            patientId: metadata.patient_id
           })))
         )
       )
@@ -119,10 +122,34 @@ export class FilesEffects {
         FilesActions.deleteFileFailure,
         FilesActions.downloadFileFailure
       ),
-      tap(({ error }) => {
-        this.notification.showError(error);
+      tap((action) => {
+        if (
+          action.type === FilesActions.uploadFileFailure.type &&
+          action.patientId &&
+          this.shouldRedirectToMedicalRecord(action.error)
+        ) {
+          this.notification.showWarning('El paciente no tiene historial medico. Te redirigimos para crearlo.');
+          this.router.navigate(['/medical-records/new'], {
+            queryParams: { patient_id: action.patientId }
+          });
+          return;
+        }
+
+        this.notification.showError(action.error);
       })
     ),
     { dispatch: false }
   );
+
+  private shouldRedirectToMedicalRecord(errorMessage: string): boolean {
+    const normalized = errorMessage
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    return (
+      normalized.includes('no tiene historial medico') ||
+      normalized.includes('medical_record_id')
+    );
+  }
 }

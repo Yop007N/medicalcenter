@@ -93,8 +93,8 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         }
       }
 
-      // Don't show notification for 401 (handled by auth flow)
-      if (error.status !== 401) {
+      // Don't show notification for 401 (handled by auth flow) and expected 404 on optional resources
+      if (error.status !== 401 && !isExpectedNotFound(req.url, req.method, error.status)) {
         notification.showError(errorMessage);
       }
 
@@ -102,3 +102,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     })
   );
 };
+
+function isExpectedNotFound(url: string, method: string, status: number): boolean {
+  if (status !== 404 || method !== 'GET') {
+    return false;
+  }
+
+  // Clinical anamnesis can legitimately not exist yet; UI initializes empty form in that case
+  return /\/clinical-history\/anamnesis\/patient\/\d+/.test(url);
+}

@@ -4,9 +4,13 @@ interface ApiErrorBody {
 }
 
 interface ApiErrorLike {
+  status?: number;
   error?: ApiErrorBody | string | null;
   message?: string;
 }
+
+const isLikelyHtml = (rawValue: string): boolean =>
+  /<\s*(?:!doctype|html|head|body|title|center|h1)\b/i.test(rawValue);
 
 export const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (!error || typeof error !== 'object') {
@@ -14,9 +18,14 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
   }
 
   const apiError = error as ApiErrorLike;
+  const status = apiError.status;
+
+  if (status === 413) {
+    return 'El archivo excede el tamaño máximo permitido (64 MB).';
+  }
 
   if (typeof apiError.error === 'string' && apiError.error.trim().length > 0) {
-    return apiError.error;
+    return isLikelyHtml(apiError.error) ? fallback : apiError.error;
   }
 
   if (apiError.error && typeof apiError.error === 'object') {
@@ -30,7 +39,7 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
   }
 
   if (typeof apiError.message === 'string' && apiError.message.trim().length > 0) {
-    return apiError.message;
+    return isLikelyHtml(apiError.message) ? fallback : apiError.message;
   }
 
   return fallback;

@@ -196,17 +196,17 @@ export const TREATMENT_TYPES = [
 ];
 
 export const TOOTH_STATUS_COLORS: Record<ToothStatus, string> = {
-  healthy: '#4CAF50',
-  caries: '#F44336',
-  filled: '#2196F3',
-  crown: '#9C27B0',
-  implant: '#FF9800',
-  missing: '#9E9E9E',
-  root_canal: '#795548',
-  fractured: '#E91E63',
-  mobile: '#FFEB3B',
-  to_extract: '#FF5722',
-  extracted: '#607D8B'
+  healthy: '#4d7f66',
+  caries: '#b66a6a',
+  filled: '#3f6b84',
+  crown: '#6f8393',
+  implant: '#a07b44',
+  missing: '#8c9aa8',
+  root_canal: '#627381',
+  fractured: '#a05d5d',
+  mobile: '#ac8957',
+  to_extract: '#c07979',
+  extracted: '#626d79'
 };
 
 // ==========================================
@@ -291,7 +291,7 @@ export interface EvolutionCreate {
 export interface Anamnesis {
   id: number;
   patient_id: number;
-  professional_id: number;
+  professional_id?: number | null;
   // Motivo de consulta
   consultation_reason?: string[];
   consultation_reason_other?: string;

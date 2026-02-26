@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
-import { map, catchError, switchMap, tap } from 'rxjs/operators';
+import { EMPTY, of } from 'rxjs';
+import { map, catchError, switchMap, tap, mergeMap } from 'rxjs/operators';
 import { Payment } from '../../models/budget.model';
 import { NotificationService, PaymentsApiService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
@@ -61,9 +61,13 @@ export class PaymentsEffects {
   createPayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.createPayment),
-      switchMap(({ payment }) =>
+      switchMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess }) =>
         this.paymentsApi.create(payment).pipe(
-          map(newPayment => PaymentsActions.createPaymentSuccess({ payment: normalizePayment(newPayment) })),
+          map(newPayment => PaymentsActions.createPaymentSuccess({
+            payment: normalizePayment(newPayment),
+            autoProcessOnCreate,
+            navigateToBudgetOnSuccess
+          })),
           catchError(error => of(PaymentsActions.createPaymentFailure({
             error: getApiErrorMessage(error, 'Error al registrar pago')
           })))
@@ -72,10 +76,31 @@ export class PaymentsEffects {
     )
   );
 
+  createPaymentAutoProcess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(PaymentsActions.createPaymentSuccess),
+      mergeMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess }) => {
+        if (!autoProcessOnCreate) {
+          return EMPTY;
+        }
+
+        return of(PaymentsActions.processPayment({
+          id: payment.id,
+          budgetId: payment.budget_id,
+          redirectToBudget: navigateToBudgetOnSuccess !== false,
+          silentSuccess: true
+        }));
+      })
+    )
+  );
+
   createPaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.createPaymentSuccess),
-      tap(({ payment }) => {
+      tap(({ payment, autoProcessOnCreate }) => {
+        if (autoProcessOnCreate) {
+          return;
+        }
         this.notification.showSuccess('Pago registrado correctamente');
         this.router.navigate(['/payments', payment.id]);
       })
@@ -135,9 +160,14 @@ export class PaymentsEffects {
   processPayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.processPayment),
-      switchMap(({ id }) =>
+      switchMap(({ id, budgetId, redirectToBudget, silentSuccess }) =>
         this.paymentsApi.process(id).pipe(
-          map(payment => PaymentsActions.processPaymentSuccess({ payment: normalizePayment(payment) })),
+          map(payment => PaymentsActions.processPaymentSuccess({
+            payment: normalizePayment(payment),
+            budgetId,
+            redirectToBudget,
+            silentSuccess
+          })),
           catchError(error => of(PaymentsActions.processPaymentFailure({
             error: getApiErrorMessage(error, 'Error al procesar pago')
           })))
@@ -149,8 +179,15 @@ export class PaymentsEffects {
   processPaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.processPaymentSuccess),
-      tap(() => {
-        this.notification.showSuccess('Pago procesado correctamente');
+      tap(({ payment, budgetId, redirectToBudget, silentSuccess }) => {
+        this.notification.showSuccess(
+          silentSuccess ? 'Pago registrado y completado correctamente' : 'Pago procesado correctamente'
+        );
+
+        const targetBudgetId = budgetId ?? payment.budget_id;
+        if (redirectToBudget && targetBudgetId) {
+          this.router.navigate(['/budgets', targetBudgetId]);
+        }
       })
     ),
     { dispatch: false }

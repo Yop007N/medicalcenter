@@ -43,7 +43,7 @@ import { ModalController } from '@ionic/angular/standalone';
     }
 
     .info-modal-container {
-      background: white;
+      background: var(--medical-bg-card);
       border-radius: 20px;
       padding: 32px 24px 24px;
       max-width: 320px;
@@ -60,19 +60,19 @@ import { ModalController } from '@ionic/angular/standalone';
     .info-icon-circle {
       width: 80px;
       height: 80px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: linear-gradient(135deg, var(--ion-color-primary-tint) 0%, var(--ion-color-primary) 100%);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto;
-      box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 10px 25px -5px rgba(var(--ion-color-primary-rgb), 0.35);
     }
 
     .info-icon {
       width: 40px;
       height: 40px;
-      stroke: white;
+      stroke: var(--ion-color-primary-contrast);
       stroke-width: 3;
       stroke-linecap: round;
       stroke-linejoin: round;
@@ -91,7 +91,7 @@ import { ModalController } from '@ionic/angular/standalone';
     }
 
     .info-line {
-      stroke: white;
+      stroke: var(--ion-color-primary-contrast);
       stroke-dasharray: 14;
       stroke-dashoffset: 14;
       animation: strokeLine 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.4s forwards;
@@ -100,21 +100,21 @@ import { ModalController } from '@ionic/angular/standalone';
     .info-title {
       font-size: 20px;
       font-weight: 700;
-      color: #1f2937;
+      color: var(--ion-color-dark);
       margin: 0 0 8px 0;
     }
 
     .info-message {
       font-size: 14px;
-      color: #6b7280;
+      color: var(--ion-color-medium);
       margin: 0 0 24px 0;
       line-height: 1.5;
     }
 
     .info-btn {
-      --background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      --background: linear-gradient(135deg, var(--ion-color-primary-tint) 0%, var(--ion-color-primary) 100%);
       --border-radius: 12px;
-      --box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+      --box-shadow: 0 4px 14px 0 rgba(var(--ion-color-primary-rgb), 0.32);
       font-weight: 600;
       height: 48px;
     }

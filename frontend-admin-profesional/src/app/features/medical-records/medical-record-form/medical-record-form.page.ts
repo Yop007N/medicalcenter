@@ -28,8 +28,11 @@ import {
   selectMedicalRecordsLoading,
   selectMedicalRecordsError
 } from '../../../store/medical-records/medical-records.selectors';
-import { PatientsApiService } from '../../../core/services';
+import { AuthService, PatientsApiService, ProfessionalsApiService } from '../../../core/services';
 import { Patient } from '../../../models/patient.model';
+import { Professional } from '../../../models/professional.model';
+
+type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
 
 @Component({
   selector: 'app-medical-record-form',
@@ -90,7 +93,10 @@ import { Patient } from '../../../models/patient.model';
                           labelPlacement="stacked"
                           formControlName="patient_id"
                           placeholder="Seleccione un paciente"
-                          interface="action-sheet"
+                          [interface]="responsiveSelectInterface"
+                          [interfaceOptions]="buildResponsiveSelectOptions('Seleccionar paciente')"
+                          okText="Seleccionar"
+                          cancelText="Cancelar"
                         >
                           @for (patient of patients; track patient.id) {
                             <ion-select-option [value]="patient.id">
@@ -104,6 +110,33 @@ import { Patient } from '../../../models/patient.model';
                       }
                     </div>
                   </div>
+                  @if (isAdminMode) {
+                    <div class="form-row">
+                      <div class="form-field full-width">
+                        <ion-item>
+                          <ion-select
+                            label="Profesional responsable *"
+                            labelPlacement="stacked"
+                            formControlName="professional_id"
+                            placeholder="Seleccione un profesional"
+                            [interface]="responsiveSelectInterface"
+                            [interfaceOptions]="buildResponsiveSelectOptions('Seleccionar profesional')"
+                            okText="Seleccionar"
+                            cancelText="Cancelar"
+                          >
+                            @for (professional of professionals; track professional.id) {
+                              <ion-select-option [value]="professional.id">
+                                {{ professional.first_name }} {{ professional.last_name }} ({{ professional.specialty }})
+                              </ion-select-option>
+                            }
+                          </ion-select>
+                        </ion-item>
+                        @if (recordForm.get('professional_id')?.touched && recordForm.get('professional_id')?.errors?.['required']) {
+                          <ion-note color="danger">Debe seleccionar un profesional</ion-note>
+                        }
+                      </div>
+                    </div>
+                  }
                 </div>
               }
 
@@ -382,7 +415,9 @@ export class MedicalRecordFormPage implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
   private patientsApi = inject(PatientsApiService);
+  private professionalsApi = inject(ProfessionalsApiService);
 
   loading$ = this.store.select(selectMedicalRecordsLoading);
   error$ = this.store.select(selectMedicalRecordsError);
@@ -390,10 +425,14 @@ export class MedicalRecordFormPage implements OnInit {
 
   recordId: number | null = null;
   isEditMode = false;
+  isAdminMode = false;
   patients: Patient[] = [];
+  professionals: Professional[] = [];
+  readonly responsiveSelectInterface: SelectOverlayInterface = 'modal';
 
   recordForm: FormGroup = this.fb.group({
     patient_id: [null, [Validators.required]],
+    professional_id: [null],
     chief_complaint: [''],
     symptoms: [''],
     diagnosis: [''],
@@ -412,6 +451,19 @@ export class MedicalRecordFormPage implements OnInit {
   }
 
   ngOnInit(): void {
+    const currentUser = this.authService.currentUser;
+    this.isAdminMode = currentUser?.role === 'admin';
+
+    if (!this.isAdminMode && currentUser?.role === 'professional') {
+      this.recordForm.patchValue({ professional_id: currentUser.id });
+    }
+
+    if (this.isAdminMode) {
+      this.recordForm.get('professional_id')?.setValidators([Validators.required]);
+      this.recordForm.get('professional_id')?.updateValueAndValidity();
+      this.loadProfessionals();
+    }
+
     this.loadPatients();
 
     const idParam = this.route.snapshot.paramMap.get('id');
@@ -425,6 +477,7 @@ export class MedicalRecordFormPage implements OnInit {
         if (record) {
           this.recordForm.patchValue({
             patient_id: record.patient_id,
+            professional_id: record.professional_id,
             chief_complaint: record.chief_complaint || '',
             symptoms: record.symptoms || '',
             diagnosis: record.diagnosis || '',
@@ -459,6 +512,18 @@ export class MedicalRecordFormPage implements OnInit {
     });
   }
 
+  loadProfessionals(): void {
+    this.professionalsApi.list().subscribe({
+      next: (professionals) => {
+        this.professionals = professionals.filter((professional) => professional.is_active);
+        if (!this.recordForm.get('professional_id')?.value && this.professionals.length > 0) {
+          this.recordForm.patchValue({ professional_id: this.professionals[0].id });
+        }
+      },
+      error: (err) => console.error('Error loading professionals:', err)
+    });
+  }
+
   onSubmit(): void {
     if (this.recordForm.valid) {
       const formValue = this.recordForm.getRawValue();
@@ -486,5 +551,23 @@ export class MedicalRecordFormPage implements OnInit {
         this.recordForm.get(key)?.markAsTouched();
       });
     }
+  }
+
+  buildResponsiveSelectOptions(header: string): Record<string, unknown> {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 992px)').matches) {
+      return {
+        header,
+        cssClass: 'select-modal-responsive select-modal-desktop'
+      };
+    }
+
+    return {
+      header,
+      cssClass: 'select-modal-responsive select-modal-mobile',
+      breakpoints: [0, 0.75, 1],
+      initialBreakpoint: 0.75,
+      backdropBreakpoint: 0.35,
+      handle: true
+    };
   }
 }

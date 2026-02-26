@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { take } from 'rxjs/operators';
 import {
   IonHeader,
   IonToolbar,
@@ -26,6 +27,7 @@ import { saveOutline } from 'ionicons/icons';
 import * as ProfessionalsActions from '../../../store/professionals/professionals.actions';
 import { selectSelectedProfessional, selectProfessionalsLoading, selectProfessionalsError } from '../../../store/professionals/professionals.selectors';
 import type { Professional } from '../../../models';
+import { SpecialtiesApiService } from '../../../core/services/specialties-api.service';
 
 type ProfessionalFormPayload = Partial<Professional> & { password?: string };
 type ProfessionalWithLegacyAddress = Professional & { address?: string };
@@ -179,14 +181,9 @@ type ProfessionalWithLegacyAddress = Professional & { address?: string };
                         formControlName="specialty"
                         placeholder="Seleccione"
                       >
-                        <ion-select-option value="Odontología">Odontología</ion-select-option>
-                        <ion-select-option value="Psicología">Psicología</ion-select-option>
-                        <ion-select-option value="Psicopedagogía">Psicopedagogía</ion-select-option>
-                        <ion-select-option value="Medicina General">Medicina General</ion-select-option>
-                        <ion-select-option value="Pediatría">Pediatría</ion-select-option>
-                        <ion-select-option value="Nutrición">Nutrición</ion-select-option>
-                        <ion-select-option value="Kinesiología">Kinesiología</ion-select-option>
-                        <ion-select-option value="Fonoaudiología">Fonoaudiología</ion-select-option>
+                        @for (specialty of specialtyOptions; track specialty.key) {
+                          <ion-select-option [value]="specialty.label">{{ specialty.label }}</ion-select-option>
+                        }
                       </ion-select>
                     </ion-item>
                     @if (professionalForm.get('specialty')?.touched && professionalForm.get('specialty')?.errors?.['required']) {
@@ -390,6 +387,7 @@ export class ProfessionalFormPage implements OnInit {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private route = inject(ActivatedRoute);
+  private specialtiesApi = inject(SpecialtiesApiService);
 
   loading$ = this.store.select(selectProfessionalsLoading);
   error$ = this.store.select(selectProfessionalsError);
@@ -397,6 +395,7 @@ export class ProfessionalFormPage implements OnInit {
 
   professionalId: number | null = null;
   isEditMode = false;
+  specialtyOptions: Array<{ key: string; label: string }> = [];
 
   professionalForm: FormGroup = this.fb.group({
     first_name: ['', [Validators.required]],
@@ -418,6 +417,8 @@ export class ProfessionalFormPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadSpecialtiesCatalog();
+
     const idParam = this.route.snapshot.paramMap.get('id');
 
     if (idParam && idParam !== 'new') {
@@ -445,6 +446,7 @@ export class ProfessionalFormPage implements OnInit {
             bio: professional.bio || '',
             is_active: professional.is_active
           });
+          this.ensureSpecialtyOption(professional.specialty);
         }
       });
     }
@@ -481,5 +483,61 @@ export class ProfessionalFormPage implements OnInit {
       }
       return acc;
     }, {} as T);
+  }
+
+  private loadSpecialtiesCatalog(): void {
+    this.specialtiesApi
+      .getCatalog()
+      .pipe(take(1))
+      .subscribe({
+        next: (modules) => {
+          const options = modules.map((module) => ({
+            key: module.key,
+            label: module.label
+          }));
+          this.specialtyOptions = this.sortSpecialties(options);
+          this.ensureSpecialtyOption(this.professionalForm.get('specialty')?.value as string | null);
+        },
+        error: () => {
+          this.specialtyOptions = [];
+          this.ensureSpecialtyOption(this.professionalForm.get('specialty')?.value as string | null);
+        }
+      });
+  }
+
+  private ensureSpecialtyOption(value: string | null | undefined): void {
+    const label = (value ?? '').trim();
+    if (!label) {
+      return;
+    }
+
+    const exists = this.specialtyOptions.some(
+      (option) => this.normalizeSpecialty(option.label) === this.normalizeSpecialty(label)
+    );
+    if (exists) {
+      return;
+    }
+
+    this.specialtyOptions = this.sortSpecialties([
+      ...this.specialtyOptions,
+      {
+        key: `legacy-${this.normalizeSpecialty(label).replace(/\s+/g, '-')}`,
+        label
+      }
+    ]);
+  }
+
+  private sortSpecialties(
+    options: Array<{ key: string; label: string }>
+  ): Array<{ key: string; label: string }> {
+    return [...options].sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+  }
+
+  private normalizeSpecialty(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
   }
 }

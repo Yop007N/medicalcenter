@@ -20,8 +20,10 @@
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
 
-/* Dark Mode */
-@import '@ionic/angular/css/palettes/dark.system.css';
+/* Force light clinical theme across devices */
+:root {
+  color-scheme: light;
+}
 
 /* ============================================
    GLOBAL COMPONENT OVERRIDES
@@ -32,6 +34,8 @@ body {
   font-family: var(--ion-font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--medical-bg-light);
+  color: var(--ion-color-dark);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -47,12 +51,15 @@ h1, h2, h3, h4, h5, h6 {
 /* Toolbar */
 ion-toolbar {
   --background: var(--medical-bg-card);
+  --color: var(--ion-color-dark);
   --border-width: 0;
   --padding-start: 16px;
   --padding-end: 16px;
 
   &[color="primary"] {
-    --background: var(--medical-gradient-primary);
+    --background: var(--medical-bg-card);
+    --color: var(--ion-color-dark);
+    border-bottom: 1px solid var(--medical-border-light);
   }
 }
 
@@ -82,7 +89,7 @@ ion-content {
 ion-card {
   margin: 12px;
   border-radius: var(--medical-radius-md);
-  box-shadow: var(--medical-shadow-md);
+  box-shadow: var(--medical-shadow-sm);
   border: 1px solid var(--medical-border-light);
   background: var(--medical-bg-card);
   overflow: hidden;
@@ -201,8 +208,8 @@ ion-button {
 
 /* FAB Button */
 ion-fab-button {
-  --background: var(--medical-gradient-primary);
-  --box-shadow: var(--medical-shadow-lg);
+  --background: var(--ion-color-primary);
+  --box-shadow: var(--medical-shadow-md);
   width: 56px;
   height: 56px;
 
@@ -237,7 +244,7 @@ ion-avatar {
   --border-radius: var(--medical-radius-full);
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, var(--ion-color-primary-tint), var(--ion-color-primary));
+  background: var(--ion-color-primary-tint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -549,7 +556,7 @@ ion-refresher-content {
 
 /* Page header with gradient */
 .page-header-gradient {
-  background: var(--medical-gradient-primary);
+  background: linear-gradient(135deg, var(--ion-color-primary-shade) 0%, var(--ion-color-primary) 100%);
   color: white;
   padding: 24px 16px;
   margin: -16px -16px 16px;
@@ -659,8 +666,8 @@ ion-toast {
 }
 
 .custom-toast-success {
-  --background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --color: white;
+  --background: var(--ion-color-success);
+  --color: var(--ion-color-success-contrast);
 
   &::part(button) {
     color: white;
@@ -668,8 +675,8 @@ ion-toast {
 }
 
 .custom-toast-error {
-  --background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  --color: white;
+  --background: var(--ion-color-danger);
+  --color: var(--ion-color-danger-contrast);
 
   &::part(button) {
     color: white;
@@ -677,8 +684,8 @@ ion-toast {
 }
 
 .custom-toast-warning {
-  --background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  --color: white;
+  --background: var(--ion-color-warning);
+  --color: var(--ion-color-warning-contrast);
 
   &::part(button) {
     color: white;
@@ -686,8 +693,8 @@ ion-toast {
 }
 
 .custom-toast-info {
-  --background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --color: white;
+  --background: var(--ion-color-primary);
+  --color: var(--ion-color-primary-contrast);
 
   &::part(button) {
     color: white;
@@ -751,6 +758,49 @@ ion-toast {
   ion-backdrop {
     display: none;
   }
+}
+
+/* ============================================
+   RESPONSIVE SELECT MODALS (ion-select interface="modal")
+   ============================================ */
+
+ion-modal.select-modal-responsive {
+  --width: min(94vw, 720px);
+  --height: min(78vh, 760px);
+  --border-radius: var(--medical-radius-lg);
+  --box-shadow: var(--medical-shadow-xl);
+  --background: var(--medical-bg-card);
+  --color: var(--ion-color-dark);
+  --ion-text-color: var(--ion-color-dark);
+  --ion-item-background: var(--medical-bg-card);
+  --ion-item-color: var(--ion-color-dark);
+}
+
+ion-modal.select-modal-responsive::part(content) {
+  border: 1px solid var(--medical-border-light);
+  background: var(--medical-bg-card);
+  color: var(--ion-color-dark);
+}
+
+ion-modal.select-modal-desktop {
+  --width: min(92vw, 720px);
+  --height: min(74vh, 700px);
+}
+
+ion-modal.select-modal-mobile {
+  --width: 100%;
+  --height: 92vh;
+  --border-radius: 22px 22px 0 0;
+  --box-shadow: var(--medical-shadow-lg);
+}
+
+ion-modal.select-modal-mobile::part(content) {
+  border-radius: 22px 22px 0 0;
+}
+
+ion-modal.select-modal-responsive ion-item {
+  --background: var(--medical-bg-card);
+  --border-color: var(--medical-border-light);
 }
 
 /* ============================================

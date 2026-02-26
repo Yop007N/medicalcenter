@@ -151,7 +151,7 @@ export class SignaturePadComponent implements AfterViewInit, OnDestroy {
   @Input() saveButtonText = 'Guardar Firma';
   @Input() showCancelButton = true;
   @Input() lineWidth = 2;
-  @Input() lineColor = '#000000';
+  @Input() lineColor = '#233142';
 
   @Output() signatureSaved = new EventEmitter<string>();
   @Output() signatureCancelled = new EventEmitter<void>();

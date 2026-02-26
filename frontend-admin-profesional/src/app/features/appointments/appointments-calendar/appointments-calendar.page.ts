@@ -88,7 +88,7 @@ interface CalendarDay {
   ],
   template: `
     <ion-header>
-      <ion-toolbar color="primary">
+      <ion-toolbar>
         <ion-buttons slot="start">
           <ion-back-button defaultHref="/appointments"></ion-back-button>
         </ion-buttons>
@@ -256,7 +256,8 @@ interface CalendarDay {
       align-items: center;
       justify-content: center;
       padding: 8px 16px;
-      background: var(--ion-color-light);
+      background: var(--medical-bg-card);
+      border-bottom: 1px solid var(--medical-border-light);
 
       h2 {
         margin: 0 16px;
@@ -347,13 +348,14 @@ interface CalendarDay {
       justify-content: flex-start;
       padding: 4px;
       border-radius: 8px;
-      background: var(--ion-color-light);
+      background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
       cursor: pointer;
       transition: all 0.2s;
       min-height: 50px;
 
       &:hover {
-        background: var(--ion-color-light-shade);
+        background: var(--medical-bg-hover);
       }
 
       &.other-month {
@@ -361,7 +363,8 @@ interface CalendarDay {
       }
 
       &.today {
-        background: var(--ion-color-primary-tint);
+        background: rgba(var(--ion-color-primary-rgb), 0.12);
+        border-color: rgba(var(--ion-color-primary-rgb), 0.36);
 
         .day-number {
           color: var(--ion-color-primary);
@@ -370,7 +373,7 @@ interface CalendarDay {
       }
 
       &.has-appointments {
-        border: 2px solid var(--ion-color-primary);
+        border-color: rgba(var(--ion-color-primary-rgb), 0.42);
       }
 
       .day-number {
@@ -438,17 +441,28 @@ interface CalendarDay {
       flex-wrap: wrap;
 
       ion-chip {
-        --background: transparent;
+        --background: var(--medical-bg-card);
+      }
 
-        &[color="success"] { --color: var(--ion-color-success); border: 1px solid var(--ion-color-success); }
-        &[color="warning"] { --color: var(--ion-color-warning); border: 1px solid var(--ion-color-warning); }
-        &[color="danger"] { --color: var(--ion-color-danger); border: 1px solid var(--ion-color-danger); }
+      ion-chip[color="success"] {
+        --color: var(--ion-color-success);
+        border: 1px solid rgba(var(--ion-color-success-rgb), 0.32);
+      }
+
+      ion-chip[color="warning"] {
+        --color: var(--ion-color-warning);
+        border: 1px solid rgba(var(--ion-color-warning-rgb), 0.32);
+      }
+
+      ion-chip[color="danger"] {
+        --color: var(--ion-color-danger);
+        border: 1px solid rgba(var(--ion-color-danger-rgb), 0.32);
       }
     }
 
     /* FAB */
     ion-fab-button {
-      --background: var(--medical-gradient-primary);
+      --background: var(--ion-color-primary);
       --box-shadow: var(--medical-shadow-lg);
     }
 

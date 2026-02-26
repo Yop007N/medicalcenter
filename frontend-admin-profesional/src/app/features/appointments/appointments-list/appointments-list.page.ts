@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   IonHeader,
   IonToolbar,
@@ -67,7 +68,7 @@ import { Appointment } from '../../../models';
   ],
   template: `
     <ion-header class="ion-no-border">
-      <ion-toolbar color="primary">
+      <ion-toolbar>
         <ion-buttons slot="start">
           <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
         </ion-buttons>
@@ -122,6 +123,12 @@ import { Appointment } from '../../../models';
           </ion-segment-button>
           <ion-segment-button value="completed">
             <ion-label>Completadas</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="cancelled">
+            <ion-label>Canceladas</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="no_show">
+            <ion-label>No asistió</ion-label>
           </ion-segment-button>
         </ion-segment>
       </div>
@@ -237,45 +244,48 @@ import { Appointment } from '../../../models';
 
     /* Header */
     .page-header {
-      background: var(--medical-gradient-primary);
-      padding: 24px 20px;
-      margin: -16px -16px 0;
+      background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-md);
+      box-shadow: var(--medical-shadow-sm);
+      padding: 20px;
+      margin: 16px 16px 0;
     }
 
     .header-content {
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .header-icon {
       width: 56px;
       height: 56px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 16px;
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      border-radius: var(--medical-radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
 
       ion-icon {
         font-size: 28px;
-        color: white;
+        color: var(--ion-color-primary);
       }
     }
 
     .header-info {
       h1 {
-        font-size: 36px;
+        font-size: 32px;
         font-weight: 700;
-        color: white;
+        color: var(--ion-color-dark);
         margin: 0;
         line-height: 1;
       }
 
       p {
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
+        color: var(--ion-color-medium);
         margin: 4px 0 0;
       }
     }
@@ -290,10 +300,11 @@ import { Appointment } from '../../../models';
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
+      background: var(--medical-bg-hover);
+      border: 1px solid var(--medical-border-light);
+      border-radius: var(--medical-radius-full);
       font-size: 12px;
-      color: white;
+      color: var(--ion-color-dark);
       font-weight: 500;
 
       ion-icon {
@@ -301,10 +312,18 @@ import { Appointment } from '../../../models';
       }
     }
 
+    .stat-chip.pending ion-icon {
+      color: var(--ion-color-warning);
+    }
+
+    .stat-chip.confirmed ion-icon {
+      color: var(--ion-color-primary);
+    }
+
     /* Filter */
     .filter-container {
       padding: 16px;
-      margin-top: 16px;
+      margin-top: 8px;
     }
 
     ion-segment {
@@ -363,9 +382,10 @@ import { Appointment } from '../../../models';
       justify-content: center;
       width: 48px;
       height: 48px;
-      background: var(--medical-gradient-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
+      border: 1px solid rgba(var(--ion-color-primary-rgb), 0.24);
       border-radius: 10px;
-      color: white;
+      color: var(--ion-color-primary);
 
       .day {
         font-size: 18px;
@@ -376,7 +396,7 @@ import { Appointment } from '../../../models';
       .month {
         font-size: 10px;
         text-transform: uppercase;
-        opacity: 0.9;
+        opacity: 0.75;
       }
     }
 
@@ -415,27 +435,27 @@ import { Appointment } from '../../../models';
       letter-spacing: 0.3px;
 
       &[data-status="pending"] {
-        background: rgba(245, 158, 11, 0.1);
+        background: rgba(var(--ion-color-warning-rgb), 0.14);
         color: var(--ion-color-warning-shade);
       }
 
       &[data-status="confirmed"] {
-        background: rgba(8, 145, 178, 0.1);
+        background: rgba(var(--ion-color-primary-rgb), 0.14);
         color: var(--ion-color-primary);
       }
 
       &[data-status="completed"] {
-        background: rgba(16, 185, 129, 0.1);
+        background: rgba(var(--ion-color-success-rgb), 0.14);
         color: var(--ion-color-success);
       }
 
       &[data-status="cancelled"] {
-        background: rgba(239, 68, 68, 0.1);
+        background: rgba(var(--ion-color-danger-rgb), 0.14);
         color: var(--ion-color-danger);
       }
 
       &[data-status="no_show"] {
-        background: rgba(100, 116, 139, 0.1);
+        background: rgba(var(--ion-color-medium-rgb), 0.14);
         color: var(--ion-color-medium);
       }
     }
@@ -456,7 +476,8 @@ import { Appointment } from '../../../models';
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: var(--medical-gradient-purple);
+      background: rgba(var(--ion-color-secondary-rgb), 0.16);
+      border: 1px solid rgba(var(--ion-color-secondary-rgb), 0.24);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -464,7 +485,7 @@ import { Appointment } from '../../../models';
       span {
         font-size: 16px;
         font-weight: 600;
-        color: white;
+        color: var(--ion-color-secondary-shade);
         text-transform: uppercase;
       }
     }
@@ -577,7 +598,7 @@ import { Appointment } from '../../../models';
 
     /* FAB */
     ion-fab-button {
-      --background: var(--medical-gradient-primary);
+      --background: var(--ion-color-primary);
       --box-shadow: var(--medical-shadow-lg);
     }
 
@@ -617,12 +638,22 @@ import { Appointment } from '../../../models';
 })
 export class AppointmentsListPage implements OnInit {
   private appointmentsApi = inject(AppointmentsApiService);
+  private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   appointments: Appointment[] = [];
   filteredAppointments: Appointment[] = [];
   loading = true;
   errorMessage: string | null = null;
   selectedFilter = 'all';
+  private readonly allowedFilters = new Set([
+    'all',
+    'pending',
+    'confirmed',
+    'completed',
+    'cancelled',
+    'no_show'
+  ]);
 
   constructor() {
     addIcons({
@@ -641,6 +672,16 @@ export class AppointmentsListPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const requestedStatus = params.get('status');
+        this.selectedFilter = requestedStatus && this.allowedFilters.has(requestedStatus)
+          ? requestedStatus
+          : 'all';
+        this.filterAppointments();
+      });
+
     this.loadAppointments();
   }
 

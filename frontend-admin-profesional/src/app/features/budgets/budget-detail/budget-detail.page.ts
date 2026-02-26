@@ -1,6 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -42,6 +43,7 @@ import * as BudgetsActions from '../../../store/budgets/budgets.actions';
 import { selectSelectedBudget, selectBudgetsLoading, selectBudgetsError } from '../../../store/budgets/budgets.selectors';
 import { BudgetStatus } from '../../../models/budget.model';
 import { PaymentsApiService } from '../../../core/services';
+import { PatientsApiService } from '../../../core/services/patients-api.service';
 
 @Component({
   selector: 'app-budget-detail',
@@ -129,13 +131,15 @@ import { PaymentsApiService } from '../../../core/services';
                 </ion-card-header>
                 <ion-card-content>
                   <div class="info-grid">
-                    <div class="info-item" [routerLink]="budget.patient ? ['/patients', budget.patient.id] : null" [class.clickable]="budget.patient">
+                    <div class="info-item" [routerLink]="budget.patient_id ? ['/patients', budget.patient_id] : null" [class.clickable]="!!budget.patient_id">
                       <ion-icon name="person-outline" color="primary"></ion-icon>
                       <div class="info-content">
                         <span class="info-label">Paciente</span>
                         <span class="info-value">
                           @if (budget.patient) {
                             {{ budget.patient.first_name }} {{ budget.patient.last_name }}
+                          } @else if (resolvedPatientName) {
+                            {{ resolvedPatientName }}
                           } @else {
                             Paciente #{{ budget.patient_id }}
                           }
@@ -570,6 +574,8 @@ export class BudgetDetailPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertController = inject(AlertController);
   private paymentsApi = inject(PaymentsApiService);
+  private patientsApi = inject(PatientsApiService);
+  private destroyRef = inject(DestroyRef);
 
   budget$ = this.store.select(selectSelectedBudget);
   loading$ = this.store.select(selectBudgetsLoading);
@@ -577,6 +583,8 @@ export class BudgetDetailPage implements OnInit {
 
   payments: any[] = [];
   budgetId: number | null = null;
+  resolvedPatientName: string | null = null;
+  private resolvedPatientId: number | null = null;
 
   constructor() {
     addIcons({
@@ -601,6 +609,18 @@ export class BudgetDetailPage implements OnInit {
       this.store.dispatch(BudgetsActions.loadBudget({ id: this.budgetId }));
       this.loadPayments();
     }
+
+    this.budget$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((budget) => this.resolvePatientName(budget));
+  }
+
+  ionViewWillEnter(): void {
+    if (!this.budgetId) {
+      return;
+    }
+    this.store.dispatch(BudgetsActions.loadBudget({ id: this.budgetId }));
+    this.loadPayments();
   }
 
   loadPayments(): void {
@@ -626,6 +646,39 @@ export class BudgetDetailPage implements OnInit {
     if (!budget.total_amount || budget.total_amount === 0) return 0;
     const percentage = ((budget.total_paid || 0) / budget.total_amount) * 100;
     return Math.min(Math.round(percentage), 100);
+  }
+
+  private resolvePatientName(budget: any): void {
+    if (!budget || !budget.patient_id) {
+      this.resolvedPatientName = null;
+      this.resolvedPatientId = null;
+      return;
+    }
+
+    if (budget.patient) {
+      const patientName = `${budget.patient.first_name ?? ''} ${budget.patient.last_name ?? ''}`.trim();
+      this.resolvedPatientName = patientName || `Paciente #${budget.patient_id}`;
+      this.resolvedPatientId = budget.patient_id;
+      return;
+    }
+
+    if (this.resolvedPatientId === budget.patient_id && this.resolvedPatientName) {
+      return;
+    }
+
+    this.resolvedPatientId = budget.patient_id;
+    this.patientsApi
+      .getById(budget.patient_id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (patient) => {
+          const patientName = `${patient.first_name ?? ''} ${patient.last_name ?? ''}`.trim();
+          this.resolvedPatientName = patientName || patient.email || `Paciente #${budget.patient_id}`;
+        },
+        error: () => {
+          this.resolvedPatientName = `Paciente #${budget.patient_id}`;
+        }
+      });
   }
 
   getPaymentStatusColor(status: string): string {

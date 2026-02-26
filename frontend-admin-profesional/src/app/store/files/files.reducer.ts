@@ -2,6 +2,20 @@ import { createReducer, on } from '@ngrx/store';
 import { MedicalFile } from '../../models/file.model';
 import * as FilesActions from './files.actions';
 
+const deduplicateById = (files: MedicalFile[]): MedicalFile[] => {
+  const byId = new Map<number, MedicalFile>();
+  files.forEach((file) => {
+    byId.set(file.id, file);
+  });
+  return Array.from(byId.values());
+};
+
+const upsertFile = (files: MedicalFile[], incomingFile: MedicalFile): MedicalFile[] => {
+  const byId = new Map<number, MedicalFile>(files.map((file) => [file.id, file]));
+  byId.set(incomingFile.id, incomingFile);
+  return Array.from(byId.values());
+};
+
 export interface FilesState {
   files: MedicalFile[];
   selectedFile: MedicalFile | null;
@@ -29,7 +43,7 @@ export const filesReducer = createReducer(
   })),
   on(FilesActions.loadFilesSuccess, (state, { files }) => ({
     ...state,
-    files,
+    files: deduplicateById(files),
     loading: false
   })),
   on(FilesActions.loadFilesFailure, (state, { error }) => ({
@@ -63,7 +77,7 @@ export const filesReducer = createReducer(
   })),
   on(FilesActions.uploadFileSuccess, (state, { file }) => ({
     ...state,
-    files: [...state.files, file],
+    files: upsertFile(state.files, file),
     uploading: false
   })),
   on(FilesActions.uploadFileFailure, (state, { error }) => ({
