@@ -6,13 +6,14 @@ Patient CRUD Tests
 import pytest
 from datetime import date
 from app.models.patient import Patient
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.extensions import db
 
 
 class TestListPatients:
     """Test list patients endpoint"""
 
-    def test_list_patients_success(self, client, auth_headers, app):
+    def test_list_patients_success(self, client, admin_auth_headers, app):
         """Test listing all patients"""
         with app.app_context():
             patient = Patient(
@@ -27,13 +28,13 @@ class TestListPatients:
             db.session.add(patient)
             db.session.commit()
 
-        response = client.get('/api/patients', headers=auth_headers)
+        response = client.get('/api/patients', headers=admin_auth_headers)
 
         assert response.status_code == 200
         data = response.json
         assert isinstance(data, list)
 
-    def test_list_patients_with_search(self, client, auth_headers, app):
+    def test_list_patients_with_search(self, client, admin_auth_headers, app):
         """Test listing patients with search query"""
         with app.app_context():
             patient = Patient(
@@ -47,13 +48,13 @@ class TestListPatients:
             db.session.add(patient)
             db.session.commit()
 
-        response = client.get('/api/patients?q=SearchMe', headers=auth_headers)
+        response = client.get('/api/patients?q=SearchMe', headers=admin_auth_headers)
 
         assert response.status_code == 200
         data = response.json
         assert isinstance(data, list)
 
-    def test_list_patients_payload_includes_frontend_defaults(self, client, auth_headers, app):
+    def test_list_patients_payload_includes_frontend_defaults(self, client, admin_auth_headers, app):
         """Test list payload exposes frontend expected fields."""
         with app.app_context():
             patient = Patient(
@@ -66,7 +67,7 @@ class TestListPatients:
             db.session.add(patient)
             db.session.commit()
 
-        response = client.get('/api/patients', headers=auth_headers)
+        response = client.get('/api/patients', headers=admin_auth_headers)
 
         assert response.status_code == 200
         data = response.json
@@ -83,11 +84,57 @@ class TestListPatients:
         response = client.get('/api/patients')
         assert response.status_code == 401
 
+    def test_professional_list_patients_only_in_assigned_scope(
+        self,
+        client,
+        auth_headers,
+        app,
+        sample_professional,
+    ):
+        """Test professional list returns only explicitly assigned patients."""
+        with app.app_context():
+            linked_patient = Patient(
+                email='linked@test.com',
+                first_name='Linked',
+                last_name='Patient',
+                role='patient',
+            )
+            linked_patient.set_password('Patient123')
+
+            unlinked_patient = Patient(
+                email='unlinked@test.com',
+                first_name='Unlinked',
+                last_name='Patient',
+                role='patient',
+            )
+            unlinked_patient.set_password('Patient123')
+
+            db.session.add(linked_patient)
+            db.session.add(unlinked_patient)
+            db.session.commit()
+
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=sample_professional.id,
+                    patient_id=linked_patient.id,
+                )
+            )
+            db.session.commit()
+            linked_id = linked_patient.id
+            unlinked_id = unlinked_patient.id
+
+        response = client.get('/api/patients', headers=auth_headers)
+
+        assert response.status_code == 200
+        listed_ids = {item['id'] for item in response.json}
+        assert linked_id in listed_ids
+        assert unlinked_id not in listed_ids
+
 
 class TestGetPatient:
     """Test get patient endpoint"""
 
-    def test_get_patient_success(self, client, auth_headers, app):
+    def test_get_patient_success(self, client, admin_auth_headers, app):
         """Test getting a patient by ID"""
         with app.app_context():
             patient = Patient(
@@ -103,16 +150,16 @@ class TestGetPatient:
             db.session.commit()
             patient_id = patient.id
 
-        response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
+        response = client.get(f'/api/patients/{patient_id}', headers=admin_auth_headers)
 
         assert response.status_code == 200
         data = response.json
         assert data['email'] == 'getpat@test.com'
         assert data['blood_type'] == 'O+'
 
-    def test_get_patient_not_found(self, client, auth_headers):
+    def test_get_patient_not_found(self, client, admin_auth_headers):
         """Test getting non-existent patient"""
-        response = client.get('/api/patients/99999', headers=auth_headers)
+        response = client.get('/api/patients/99999', headers=admin_auth_headers)
         assert response.status_code == 404
 
     def test_get_patient_unauthorized(self, client, app):
@@ -152,6 +199,28 @@ class TestCreatePatient:
         data = response.json
         assert data['email'] == 'newpat@test.com'
         assert data['blood_type'] == 'A+'
+
+    def test_create_patient_assigns_to_current_professional(self, client, auth_headers, app, sample_professional):
+        """Test professional-created patient is assigned to professional scope."""
+        response = client.post('/api/patients', headers=auth_headers, json={
+            'email': 'scoped-patient@test.com',
+            'password': 'Patient123',
+            'first_name': 'Scoped',
+            'last_name': 'Patient'
+        })
+        assert response.status_code == 201
+        patient_id = response.json['id']
+
+        with app.app_context():
+            assignment = ProfessionalPatientAssignment.query.filter_by(
+                professional_id=sample_professional.id,
+                patient_id=patient_id,
+            ).first()
+            assert assignment is not None
+
+        scoped_list_response = client.get('/api/patients?q=scoped-patient@test.com', headers=auth_headers)
+        assert scoped_list_response.status_code == 200
+        assert any(item['id'] == patient_id for item in scoped_list_response.json)
 
     def test_create_patient_duplicate_email(self, client, auth_headers, app):
         """Test creating patient with duplicate email"""
@@ -209,7 +278,7 @@ class TestCreatePatient:
 class TestUpdatePatient:
     """Test update patient endpoint"""
 
-    def test_update_patient_success(self, client, auth_headers, app):
+    def test_update_patient_success(self, client, admin_auth_headers, app):
         """Test updating a patient"""
         with app.app_context():
             patient = Patient(
@@ -224,7 +293,7 @@ class TestUpdatePatient:
             db.session.commit()
             patient_id = patient.id
 
-        response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+        response = client.put(f'/api/patients/{patient_id}', headers=admin_auth_headers, json={
             'phone': '222-2222',
             'blood_type': 'B-',
             'allergies': 'Peanuts'
@@ -236,9 +305,9 @@ class TestUpdatePatient:
         assert data['blood_type'] == 'B-'
         assert data['allergies'] == 'Peanuts'
 
-    def test_update_patient_not_found(self, client, auth_headers):
+    def test_update_patient_not_found(self, client, admin_auth_headers):
         """Test updating non-existent patient"""
-        response = client.put('/api/patients/99999', headers=auth_headers, json={
+        response = client.put('/api/patients/99999', headers=admin_auth_headers, json={
             'phone': '333-3333'
         })
 
@@ -264,7 +333,7 @@ class TestUpdatePatient:
 
         assert response.status_code == 401
 
-    def test_update_patient_invalid_date_format(self, client, auth_headers, app):
+    def test_update_patient_invalid_date_format(self, client, admin_auth_headers, app):
         """Test update rejects invalid date format."""
         with app.app_context():
             patient = Patient(
@@ -278,13 +347,13 @@ class TestUpdatePatient:
             db.session.commit()
             patient_id = patient.id
 
-        response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+        response = client.put(f'/api/patients/{patient_id}', headers=admin_auth_headers, json={
             'date_of_birth': '20/01/1990'
         })
 
         assert response.status_code == 400
 
-    def test_update_patient_is_active_flag(self, client, auth_headers, app):
+    def test_update_patient_is_active_flag(self, client, admin_auth_headers, app):
         """Test update supports is_active for frontend compatibility."""
         with app.app_context():
             patient = Patient(
@@ -299,7 +368,7 @@ class TestUpdatePatient:
             db.session.commit()
             patient_id = patient.id
 
-        response = client.put(f'/api/patients/{patient_id}', headers=auth_headers, json={
+        response = client.put(f'/api/patients/{patient_id}', headers=admin_auth_headers, json={
             'is_active': False
         })
 
@@ -310,7 +379,7 @@ class TestUpdatePatient:
 class TestDeletePatient:
     """Test delete patient endpoint"""
 
-    def test_delete_patient_success(self, client, auth_headers, app):
+    def test_delete_patient_success(self, client, admin_auth_headers, app):
         """Test deleting a patient"""
         with app.app_context():
             patient = Patient(
@@ -324,13 +393,13 @@ class TestDeletePatient:
             db.session.commit()
             patient_id = patient.id
 
-        response = client.delete(f'/api/patients/{patient_id}', headers=auth_headers)
+        response = client.delete(f'/api/patients/{patient_id}', headers=admin_auth_headers)
 
         assert response.status_code == 200
 
-    def test_delete_patient_not_found(self, client, auth_headers):
+    def test_delete_patient_not_found(self, client, admin_auth_headers):
         """Test deleting non-existent patient"""
-        response = client.delete('/api/patients/99999', headers=auth_headers)
+        response = client.delete('/api/patients/99999', headers=admin_auth_headers)
         assert response.status_code == 404
 
     def test_delete_patient_unauthorized(self, client, app):
@@ -457,8 +526,8 @@ class TestPatientSecurity:
         assert response.status_code == 200
         assert response.json['id'] == patient_id
 
-    def test_professional_can_access_any_patient(self, client, auth_headers, app):
-        """Test that a professional can access any patient"""
+    def test_professional_cannot_access_unlinked_patient(self, client, auth_headers, app):
+        """Test that a professional cannot access patients outside explicit scope."""
         with app.app_context():
             patient = Patient(
                 email='anypat@test.com',
@@ -470,6 +539,30 @@ class TestPatientSecurity:
             db.session.add(patient)
             db.session.commit()
             patient_id = patient.id
+
+        response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
+        assert response.status_code == 403
+
+    def test_professional_can_access_assigned_patient(self, client, auth_headers, app, sample_professional):
+        """Test that a professional can access explicitly assigned patient."""
+        with app.app_context():
+            patient = Patient(
+                email='assignedpat@test.com',
+                first_name='Assigned',
+                last_name='Patient',
+                role='patient'
+            )
+            patient.set_password('Patient123')
+            db.session.add(patient)
+            db.session.commit()
+            patient_id = patient.id
+
+            assignment = ProfessionalPatientAssignment(
+                professional_id=sample_professional.id,
+                patient_id=patient_id,
+            )
+            db.session.add(assignment)
+            db.session.commit()
 
         response = client.get(f'/api/patients/{patient_id}', headers=auth_headers)
         assert response.status_code == 200

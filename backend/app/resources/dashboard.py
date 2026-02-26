@@ -5,7 +5,7 @@ Provides metrics and KPIs for the medical services platform
 """
 
 from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.resources.domain_errors import message_response
 from app.services.dashboard_service import DashboardService
 
@@ -27,7 +27,7 @@ def get_overview():
         JSON with overall system statistics
     """
     try:
-        return jsonify(DashboardService.get_overview()), 200
+        return jsonify(DashboardService.get_overview(get_jwt_identity())), 200
     except Exception:
         return _internal_error_response()
 
@@ -102,6 +102,6 @@ def get_recent_activity():
         JSON with recent activity feed
     """
     try:
-        return jsonify(DashboardService.get_recent_activity()), 200
+        return jsonify(DashboardService.get_recent_activity(get_jwt_identity())), 200
     except Exception:
         return _internal_error_response()

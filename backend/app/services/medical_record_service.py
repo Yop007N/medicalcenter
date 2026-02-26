@@ -4,6 +4,8 @@ Medical Record Service - Business logic for medical records
 """
 
 from app.models.medical_record import MedicalRecord
+from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.extensions import db
 from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
@@ -71,13 +73,45 @@ class MedicalRecordService:
         return record
 
     @staticmethod
-    def create_medical_record(data, professional_id):
+    def create_medical_record(data, current_user_id):
         """Create new medical record."""
         if 'patient_id' not in data:
             raise ValidationError('Missing required fields')
 
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        patient_id = data['patient_id']
+
+        if current_user.role == 'professional':
+            has_scope = AccessScopeService.professional_can_access_patient(current_user.id, patient_id)
+            if not has_scope:
+                # First clinical contact: if patient has no owner yet, auto-assign to this professional.
+                has_any_assignment = ProfessionalPatientAssignment.query.filter_by(
+                    patient_id=patient_id
+                ).first() is not None
+                if has_any_assignment:
+                    raise AccessDeniedError('Professional can only create records for linked patients')
+
+                db.session.add(
+                    ProfessionalPatientAssignment(
+                        professional_id=current_user.id,
+                        patient_id=patient_id,
+                    )
+                )
+            professional_id = current_user.id
+        elif current_user.role == 'admin':
+            AccessScopeService.ensure_patient_access_scope(current_user.id, patient_id)
+            professional_id = data.get('professional_id')
+            if not professional_id:
+                raise ValidationError('professional_id is required for admin')
+
+            professional = Professional.query.get(professional_id)
+            if not professional:
+                raise ValidationError('Professional not found')
+        else:
+            raise AccessDeniedError('Unauthorized')
+
         record = MedicalRecord(
-            patient_id=data['patient_id'],
+            patient_id=patient_id,
             professional_id=professional_id,
             appointment_id=data.get('appointment_id'),
             chief_complaint=data.get('chief_complaint'),

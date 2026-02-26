@@ -6,6 +6,7 @@ RBAC logic.
 """
 
 from app.services.access_scope_service import AccessScopeService
+from app.models.user import User
 
 
 class PatientAccessService:

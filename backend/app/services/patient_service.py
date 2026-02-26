@@ -7,7 +7,10 @@ from app.extensions import db
 from app.models.appointment import Appointment
 from app.models.budget import Budget
 from app.models.medical_record import MedicalRecord
+from app.models.odontogram import Odontogram
 from app.models.patient import Patient
+from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.models.user import User
 from app.services.access_scope_service import AccessScopeService
 from app.services.auth_service import AuthService
@@ -46,6 +49,34 @@ class PatientService:
             raise AccessDeniedError('Unauthorized')
 
     @staticmethod
+    def _assign_patient_to_professional(patient_id, professional_id):
+        """Create explicit professional-patient assignment when missing."""
+        if not professional_id:
+            return
+
+        try:
+            professional_id = int(professional_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError('Assigned professional id is invalid') from exc
+
+        professional = Professional.query.get(professional_id)
+        if not professional:
+            raise ValidationError('Assigned professional not found')
+
+        existing_assignment = ProfessionalPatientAssignment.query.filter_by(
+            professional_id=professional.id,
+            patient_id=patient_id,
+        ).first()
+        if existing_assignment:
+            return
+
+        assignment = ProfessionalPatientAssignment(
+            professional_id=professional.id,
+            patient_id=patient_id,
+        )
+        db.session.add(assignment)
+
+    @staticmethod
     def list_patients(current_user_id, search=None):
         """List patients with optional free-text search."""
         current_user = User.query.get(current_user_id)
@@ -79,7 +110,7 @@ class PatientService:
         return patient
 
     @staticmethod
-    def create_patient(data):
+    def create_patient(data, current_user_id=None):
         """Create patient with auth/password validation."""
         required_fields = ['email', 'password', 'first_name', 'last_name']
         is_valid, missing_fields = validate_required_fields(data, required_fields)
@@ -110,9 +141,27 @@ class PatientService:
         )
         patient.set_password(data['password'])
 
-        db.session.add(patient)
-        db.session.commit()
-        return patient
+        try:
+            db.session.add(patient)
+            db.session.flush()
+
+            assigned_professional_id = data.get('professional_id')
+            if assigned_professional_id is None and current_user_id is not None:
+                creator = User.query.get(int(current_user_id))
+                if creator and creator.role == 'professional':
+                    assigned_professional_id = creator.id
+
+            if assigned_professional_id is not None:
+                PatientService._assign_patient_to_professional(
+                    patient_id=patient.id,
+                    professional_id=assigned_professional_id,
+                )
+
+            db.session.commit()
+            return patient
+        except Exception:
+            db.session.rollback()
+            raise
 
     @staticmethod
     def update_patient(patient_id, current_user_id, data):
@@ -147,9 +196,17 @@ class PatientService:
         return patient
 
     @staticmethod
-    def delete_patient(patient_id):
-        """Delete patient."""
+    def delete_patient(patient_id, current_user_id):
+        """Delete patient with actor scope checks."""
         patient = PatientService._ensure_patient_exists(patient_id)
+
+        current_user = User.query.get(current_user_id)
+        if not current_user or current_user.role not in ['admin', 'professional']:
+            raise AccessDeniedError('Unauthorized')
+
+        if current_user.role == 'professional':
+            PatientService._ensure_access(current_user_id, patient_id)
+
         db.session.delete(patient)
         db.session.commit()
 
@@ -186,3 +243,18 @@ class PatientService:
         return Budget.query.filter_by(patient_id=patient_id).order_by(
             Budget.created_at.desc()
         ).all()
+
+    @staticmethod
+    def get_patient_odontogram(patient_id, current_user_id):
+        """Get active odontogram for patient within access scope."""
+        patient = PatientService._ensure_patient_exists(patient_id)
+        PatientService._ensure_access(current_user_id, patient.id)
+
+        odontogram = Odontogram.query.filter_by(
+            patient_id=patient.id,
+            is_active=True,
+        ).first()
+        if not odontogram:
+            raise ResourceNotFoundError('No active odontogram found for this patient')
+
+        return odontogram

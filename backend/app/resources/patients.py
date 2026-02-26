@@ -143,6 +143,9 @@ def create_patient():
               type: string
             medical_history:
               type: string
+            professional_id:
+              type: integer
+              description: Opcional (admin), asigna paciente al profesional indicado.
     responses:
       201:
         description: Paciente creado exitosamente
@@ -152,8 +155,9 @@ def create_patient():
         description: Requiere rol de profesional
     """
     data = request.get_json() or {}
+    current_user_id = int(get_jwt_identity())
     try:
-        patient = PatientService.create_patient(data)
+        patient = PatientService.create_patient(data, current_user_id=current_user_id)
         return jsonify(serialize_patient(patient)), 201
     except ValidationError as exc:
         return domain_error_response(exc)
@@ -245,9 +249,12 @@ def delete_patient(patient_id):
         description: Requiere rol de profesional
     """
     try:
-        PatientService.delete_patient(patient_id)
+        PatientService.delete_patient(
+            patient_id=patient_id,
+            current_user_id=int(get_jwt_identity()),
+        )
         return jsonify({'msg': 'Patient deleted'}), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -395,5 +402,44 @@ def get_patient_budgets(patient_id):
     try:
         budgets = PatientService.get_patient_budgets(patient_id, current_user_id)
         return jsonify(budgets_schema.dump(budgets)), 200
+    except (ResourceNotFoundError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
+
+
+@blueprint.route('/<int:patient_id>/odontogram', methods=['GET'])
+@jwt_required()
+def get_patient_odontogram(patient_id):
+    """Get patient's active odontogram
+    ---
+    tags:
+      - Patients
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: patient_id
+        type: integer
+        required: true
+        description: ID del paciente
+    responses:
+      200:
+        description: Odontograma activo del paciente
+      404:
+        description: Odontograma no encontrado
+      403:
+        description: No autorizado
+    """
+    from app.schemas.odontogram_schema import OdontogramSchema, ToothSchema
+
+    odontogram_schema = OdontogramSchema()
+    tooth_schema = ToothSchema(many=True)
+    current_user_id = int(get_jwt_identity())
+    try:
+        odontogram = PatientService.get_patient_odontogram(patient_id, current_user_id)
+        payload = odontogram_schema.dump(odontogram)
+        payload['teeth'] = tooth_schema.dump(
+            odontogram.teeth.order_by('tooth_number').all()
+        )
+        return jsonify(payload), 200
     except (ResourceNotFoundError, AccessDeniedError) as exc:
         return domain_error_response(exc)

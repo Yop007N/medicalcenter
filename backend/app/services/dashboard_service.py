@@ -14,6 +14,7 @@ from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
 from app.models.payment import Payment
 from app.models.professional import Professional
+from app.services.access_scope_service import AccessScopeService
 
 
 class DashboardService:
@@ -27,37 +28,109 @@ class DashboardService:
         return func.to_char(date_column, 'YYYY-MM')
 
     @staticmethod
-    def get_overview():
-        """Get global platform overview."""
-        total_patients = Patient.query.filter_by(is_active=True).count()
-        total_professionals = Professional.query.filter_by(is_active=True).count()
-        total_appointments = Appointment.query.count()
-        total_medical_records = MedicalRecord.query.count()
+    def get_overview(current_user_id=None):
+        """Get platform overview scoped by actor."""
+        user = None
+        if current_user_id is not None:
+            user = AccessScopeService.get_user_or_raise(current_user_id)
 
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        new_patients = Patient.query.filter(Patient.created_at >= thirty_days_ago).count()
-        recent_appointments = Appointment.query.filter(
-            Appointment.created_at >= thirty_days_ago
-        ).count()
 
-        appointment_status = (
-            db.session.query(
-                Appointment.status,
-                func.count(Appointment.id).label('count'),
+        if not user or user.role == 'admin':
+            total_patients = Patient.query.filter_by(is_active=True).count()
+            total_professionals = Professional.query.filter_by(is_active=True).count()
+            total_appointments = Appointment.query.count()
+            total_medical_records = MedicalRecord.query.count()
+
+            new_patients = Patient.query.filter(Patient.created_at >= thirty_days_ago).count()
+            recent_appointments = Appointment.query.filter(
+                Appointment.created_at >= thirty_days_ago
+            ).count()
+
+            appointment_status = (
+                db.session.query(
+                    Appointment.status,
+                    func.count(Appointment.id).label('count'),
+                )
+                .group_by(Appointment.status)
+                .all()
             )
-            .group_by(Appointment.status)
-            .all()
-        )
-        status_distribution = {status: count for status, count in appointment_status}
+            status_distribution = {status: count for status, count in appointment_status}
 
-        total_budgets = Budget.query.count()
-        total_payments = Payment.query.count()
-        total_revenue = (
-            db.session.query(func.sum(Payment.amount))
-            .filter(Payment.payment_status == 'completed')
-            .scalar()
-            or Decimal('0.00')
-        )
+            total_budgets = Budget.query.count()
+            total_payments = Payment.query.count()
+            total_revenue = (
+                db.session.query(func.sum(Payment.amount))
+                .filter(Payment.payment_status == 'completed')
+                .scalar()
+                or Decimal('0.00')
+            )
+        else:
+            if user.role == 'professional':
+                scoped_patient_ids = list(AccessScopeService.get_professional_patient_ids(user.id))
+                patient_query = Patient.query.filter(
+                    Patient.id.in_(scoped_patient_ids)
+                ) if scoped_patient_ids else Patient.query.filter(Patient.id == -1)
+                appointment_query = Appointment.query.filter(
+                    Appointment.professional_id == user.id
+                )
+                medical_record_query = MedicalRecord.query.filter(
+                    MedicalRecord.professional_id == user.id
+                )
+                budget_query = Budget.query.filter(Budget.created_by == user.id)
+                payment_query = (
+                    Payment.query.join(Budget, Payment.budget_id == Budget.id)
+                    .filter(Budget.created_by == user.id)
+                )
+                total_professionals = 1
+            elif user.role == 'patient':
+                patient_query = Patient.query.filter(Patient.id == user.id)
+                appointment_query = Appointment.query.filter(Appointment.patient_id == user.id)
+                medical_record_query = MedicalRecord.query.filter(MedicalRecord.patient_id == user.id)
+                budget_query = Budget.query.filter(Budget.patient_id == user.id)
+                payment_query = (
+                    Payment.query.join(Budget, Payment.budget_id == Budget.id)
+                    .filter(Budget.patient_id == user.id)
+                )
+                total_professionals = (
+                    db.session.query(func.count(func.distinct(Appointment.professional_id)))
+                    .filter(Appointment.patient_id == user.id)
+                    .scalar()
+                    or 0
+                )
+            else:
+                patient_query = Patient.query.filter(Patient.id == -1)
+                appointment_query = Appointment.query.filter(Appointment.id == -1)
+                medical_record_query = MedicalRecord.query.filter(MedicalRecord.id == -1)
+                budget_query = Budget.query.filter(Budget.id == -1)
+                payment_query = Payment.query.filter(Payment.id == -1)
+                total_professionals = 0
+
+            total_patients = patient_query.filter(Patient.is_active.is_(True)).count()
+            total_appointments = appointment_query.count()
+            total_medical_records = medical_record_query.count()
+            total_budgets = budget_query.count()
+            total_payments = payment_query.count()
+            new_patients = patient_query.filter(Patient.created_at >= thirty_days_ago).count()
+            recent_appointments = appointment_query.filter(
+                Appointment.created_at >= thirty_days_ago
+            ).count()
+
+            appointment_status = (
+                appointment_query.with_entities(
+                    Appointment.status,
+                    func.count(Appointment.id).label('count'),
+                )
+                .group_by(Appointment.status)
+                .all()
+            )
+            status_distribution = {status: count for status, count in appointment_status}
+            total_revenue = (
+                payment_query.filter(Payment.payment_status == 'completed')
+                .with_entities(func.sum(Payment.amount))
+                .scalar()
+                or Decimal('0.00')
+            )
 
         return {
             'totals': {
@@ -339,9 +412,34 @@ class DashboardService:
         }
 
     @staticmethod
-    def get_recent_activity():
+    def get_recent_activity(current_user_id=None):
         """Get recent activity feed across appointments/payments/files."""
-        recent_appointments = Appointment.query.order_by(
+        user = None
+        if current_user_id is not None:
+            user = AccessScopeService.get_user_or_raise(current_user_id)
+
+        appointment_query = Appointment.query
+        payment_query = Payment.query
+        file_query = File.query
+
+        if user and user.role == 'professional':
+            appointment_query = appointment_query.filter(Appointment.professional_id == user.id)
+            payment_query = payment_query.join(Budget, Payment.budget_id == Budget.id).filter(
+                Budget.created_by == user.id
+            )
+            file_query = file_query.join(
+                MedicalRecord, File.medical_record_id == MedicalRecord.id
+            ).filter(MedicalRecord.professional_id == user.id)
+        elif user and user.role == 'patient':
+            appointment_query = appointment_query.filter(Appointment.patient_id == user.id)
+            payment_query = payment_query.join(Budget, Payment.budget_id == Budget.id).filter(
+                Budget.patient_id == user.id
+            )
+            file_query = file_query.join(
+                MedicalRecord, File.medical_record_id == MedicalRecord.id
+            ).filter(MedicalRecord.patient_id == user.id)
+
+        recent_appointments = appointment_query.order_by(
             Appointment.created_at.desc()
         ).limit(10).all()
         appointments_data = [
@@ -356,7 +454,7 @@ class DashboardService:
             for apt in recent_appointments
         ]
 
-        recent_payments = Payment.query.order_by(Payment.created_at.desc()).limit(10).all()
+        recent_payments = payment_query.order_by(Payment.created_at.desc()).limit(10).all()
         payments_data = [
             {
                 'id': pmt.id,
@@ -368,7 +466,7 @@ class DashboardService:
             for pmt in recent_payments
         ]
 
-        recent_files = File.query.order_by(File.created_at.desc()).limit(10).all()
+        recent_files = file_query.order_by(File.created_at.desc()).limit(10).all()
         files_data = [
             {
                 'id': file.id,

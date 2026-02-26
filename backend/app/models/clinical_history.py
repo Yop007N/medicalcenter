@@ -49,22 +49,26 @@ class Anamnesis(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, unique=True)
     professional_id = db.Column(db.Integer, db.ForeignKey('professionals.id'))
 
-    # Consultation reason
-    consultation_reason = db.Column(db.String(200))
+    # Canonical anamnesis contract (checkbox lists + free text "other")
+    consultation_reason_items = db.Column(db.JSON)  # e.g., ["pain", "cleaning"]
+    consultation_reason_other = db.Column(db.Text)
 
-    # Medical alerts (JSON array of conditions)
+    current_illness = db.Column(db.JSON)  # e.g., ["gingivitis", "bruxism"]
+    current_illness_other = db.Column(db.Text)
+
     medical_alerts = db.Column(db.JSON)  # e.g., ["hypertension", "diabetes"]
+    medical_alerts_other = db.Column(db.Text)
 
-    # Current medications (JSON array)
-    current_medications = db.Column(db.JSON)  # e.g., ["aspirin", "metformin"]
+    medications = db.Column(db.JSON)  # e.g., ["antibiotics", "anticoagulants"]
+    medications_other = db.Column(db.Text)
 
-    # Habits (JSON object)
-    habits = db.Column(db.JSON)  # e.g., {"smoking": true, "alcohol": false}
+    habits = db.Column(db.JSON)  # e.g., ["smoking", "alcohol"]
+    habits_other = db.Column(db.Text)
 
-    # Allergies
+    # Legacy fields kept for backward compatibility
+    consultation_reason = db.Column(db.String(200))
+    current_medications = db.Column(db.JSON)
     allergies = db.Column(db.Text)
-
-    # Other medical conditions
     other_conditions = db.Column(db.Text)
 
     # Pregnancy (for female patients)

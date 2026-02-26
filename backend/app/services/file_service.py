@@ -111,6 +111,9 @@ class FileService:
             )
             if latest_record:
                 return latest_record.id
+            raise ValidationError(
+                'El paciente no tiene historial médico. Crea un historial o indica medical_record_id.'
+            )
 
         raise ValidationError('medical_record_id is required')
 

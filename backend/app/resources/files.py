@@ -14,8 +14,16 @@ blueprint = Blueprint('files', __name__, url_prefix='/api/files')
 def serialize_file(file_record):
     """Serialize file record with frontend-compatible aliases."""
     patient_id = None
+    patient_payload = None
     if file_record.medical_record:
         patient_id = file_record.medical_record.patient_id
+        patient = getattr(file_record.medical_record, 'patient', None)
+        if patient:
+            patient_payload = {
+                'id': patient.id,
+                'first_name': patient.first_name,
+                'last_name': patient.last_name,
+            }
 
     created_at = file_record.created_at.isoformat() if file_record.created_at else None
     file_type = file_record.file_type or 'other'
@@ -33,7 +41,8 @@ def serialize_file(file_record):
         'medical_record_id': file_record.medical_record_id,
         'is_private': False,
         'created_at': created_at,
-        'upload_date': created_at
+        'upload_date': created_at,
+        'patient': patient_payload,
     }
 
 

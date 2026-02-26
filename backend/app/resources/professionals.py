@@ -7,12 +7,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.schemas.professional_schema import ProfessionalSchema
-from app.extensions import cache
 from app.resources.domain_errors import domain_error_response
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.professional_service import ProfessionalService
 from app.utils.decorators import admin_required
-from app.utils.constants import CACHE_TTL_SHORT
 
 blueprint = Blueprint('professionals', __name__, url_prefix='/api/professionals')
 
@@ -34,9 +32,8 @@ def serialize_professional(professional):
 
 @blueprint.route('', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=CACHE_TTL_SHORT, query_string=True)
 def list_professionals():
-    """List all professionals (cached for 5 minutes)
+    """List all professionals
     ---
     tags:
       - Professionals
@@ -49,7 +46,7 @@ def list_professionals():
         description: Filtrar por especialidad médica
     responses:
       200:
-        description: Lista de profesionales (cacheada 5 minutos)
+        description: Lista de profesionales
         schema:
           type: array
           items:
@@ -147,7 +144,6 @@ def create_professional():
     data = request.get_json() or {}
     try:
         professional = ProfessionalService.create_professional(data)
-        cache.delete_memoized(list_professionals)
         return jsonify(serialize_professional(professional)), 201
     except ValidationError as exc:
         return domain_error_response(exc)
@@ -200,7 +196,6 @@ def update_professional(professional_id):
             current_user_id=current_user_id,
             data=data,
         )
-        cache.delete_memoized(list_professionals)
         return jsonify(serialize_professional(professional)), 200
     except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
         return domain_error_response(exc)
@@ -230,7 +225,6 @@ def delete_professional(professional_id):
     """
     try:
         ProfessionalService.delete_professional(professional_id)
-        cache.delete_memoized(list_professionals)
         return jsonify({'msg': 'Professional deleted'}), 200
     except ResourceNotFoundError as exc:
         return domain_error_response(exc)
@@ -266,4 +260,55 @@ def get_professional_appointments(professional_id):
         appointments = ProfessionalService.get_professional_appointments(professional_id)
         return jsonify(appointments_schema.dump(appointments)), 200
     except ResourceNotFoundError as exc:
+        return domain_error_response(exc)
+
+
+@blueprint.route('/available-slots', methods=['GET'])
+@jwt_required()
+def list_available_slots():
+    """List professionals with nearest available slots
+    ---
+    tags:
+      - Professionals
+    security:
+      - Bearer: []
+    parameters:
+      - in: query
+        name: specialty
+        type: string
+        description: Filtrar por especialidad
+      - in: query
+        name: date_from
+        type: string
+        format: date-time
+        description: Buscar disponibilidad desde esta fecha/hora
+      - in: query
+        name: days
+        type: integer
+        default: 7
+        description: Ventana de dias para busqueda (max 30)
+      - in: query
+        name: slots_per_professional
+        type: integer
+        default: 6
+        description: Slots maximos por profesional (max 24)
+    responses:
+      200:
+        description: Lista de profesionales con horarios disponibles
+      400:
+        description: Parametros invalidos
+      401:
+        description: No autenticado
+    """
+    try:
+        current_user_id = int(get_jwt_identity())
+        slots = ProfessionalService.list_professionals_with_availability(
+            current_user_id=current_user_id,
+            specialty=request.args.get('specialty'),
+            date_from=request.args.get('date_from'),
+            days=request.args.get('days', default=7, type=int),
+            slots_per_professional=request.args.get('slots_per_professional', default=6, type=int),
+        )
+        return jsonify(slots), 200
+    except (ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)

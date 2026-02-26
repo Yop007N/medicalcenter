@@ -18,6 +18,7 @@ from app.models.clinical_history import (
     Prescription,
 )
 from app.models.patient import Patient
+from app.models.professional import Professional
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.patient_access_service import PatientAccessService
 from app.utils.helpers import validate_required_fields
@@ -63,6 +64,35 @@ class _ClinicalHistoryBaseService:
             except ValueError:
                 raise ValidationError(f'Invalid date format for {field_name}. Use YYYY-MM-DD')
         raise ValidationError(f'Invalid value for {field_name}')
+
+    @staticmethod
+    def _resolve_professional_id(current_user_id, provided_professional_id=None):
+        """
+        Resolve a valid professional_id for records that reference professionals.
+        - If current user is a professional, use own id.
+        - Else, use provided professional_id when valid.
+        - Else, return None for resources where professional context is optional.
+        """
+        current_professional = Professional.query.get(current_user_id)
+        if current_professional:
+            return current_user_id
+
+        if provided_professional_id in (None, ''):
+            return None
+
+        try:
+            provided_professional_id = int(provided_professional_id)
+        except (TypeError, ValueError):
+            raise ValidationError('professional_id must be an integer')
+
+        if provided_professional_id <= 0:
+            raise ValidationError('professional_id must be a positive integer')
+
+        professional = Professional.query.get(provided_professional_id)
+        if not professional:
+            raise ResourceNotFoundError('Professional not found')
+
+        return provided_professional_id
 
 
 class EvolutionService(_ClinicalHistoryBaseService):
@@ -204,6 +234,131 @@ class EvolutionService(_ClinicalHistoryBaseService):
 class AnamnesisService(_ClinicalHistoryBaseService):
     """Business logic for anamnesis records."""
 
+    @staticmethod
+    def _normalize_string_list(value):
+        if value in (None, ''):
+            return []
+
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if str(item).strip()]
+
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+
+            if (raw.startswith('[') and raw.endswith(']')) or (raw.startswith('{') and raw.endswith('}')):
+                try:
+                    parsed = json.loads(raw.replace("'", '"'))
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    pass
+
+            return [item.strip() for item in raw.split(',') if item.strip()]
+
+        return [str(value).strip()] if str(value).strip() else []
+
+    @staticmethod
+    def _normalize_optional_text(value):
+        if value in (None, ''):
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @staticmethod
+    def _split_legacy_other(values):
+        clean_values = []
+        other = None
+
+        for raw_item in values:
+            item = str(raw_item).strip()
+            if not item:
+                continue
+
+            lowered = item.lower()
+            if lowered.startswith('other:') or lowered.startswith('otros:'):
+                extracted = item.split(':', 1)[1].strip()
+                if extracted:
+                    other = extracted
+                continue
+
+            legacy_match = item.replace('Otros:', 'other:').replace('OTROS:', 'other:')
+            if 'other:' in legacy_match:
+                left, right = legacy_match.split('other:', 1)
+                left = left.strip().rstrip('.,;:')
+                right = right.strip()
+                if left:
+                    clean_values.append(left)
+                if right:
+                    other = right
+                continue
+
+            clean_values.append(item)
+
+        return clean_values, other
+
+    @classmethod
+    def _normalize_habits_payload(cls, data):
+        raw_habits = data.get('habits')
+        explicit_other = cls._normalize_optional_text(data.get('habits_other'))
+
+        if isinstance(raw_habits, dict):
+            habits = [
+                str(key).strip()
+                for key, enabled in raw_habits.items()
+                if key != '_other' and bool(enabled) and str(key).strip()
+            ]
+            return habits, explicit_other or cls._normalize_optional_text(raw_habits.get('_other'))
+
+        habits = cls._normalize_string_list(raw_habits)
+        habits, implicit_other = cls._split_legacy_other(habits)
+        return habits, explicit_other or implicit_other
+
+    @classmethod
+    def _extract_consultation_payload(cls, data):
+        values = cls._normalize_string_list(data.get('consultation_reason'))
+        values, implicit_other = cls._split_legacy_other(values)
+        return values, cls._normalize_optional_text(data.get('consultation_reason_other')) or implicit_other
+
+    @classmethod
+    def _extract_current_illness_payload(cls, data):
+        if 'current_illness' in data:
+            values = cls._normalize_string_list(data.get('current_illness'))
+            values, implicit_other = cls._split_legacy_other(values)
+            other = cls._normalize_optional_text(data.get('current_illness_other')) or implicit_other
+            return values, other
+
+        legacy_other_conditions = cls._normalize_string_list(data.get('other_conditions'))
+        legacy_other_conditions, implicit_other = cls._split_legacy_other(legacy_other_conditions)
+        return legacy_other_conditions, cls._normalize_optional_text(data.get('current_illness_other')) or implicit_other
+
+    @classmethod
+    def _extract_medical_alerts_payload(cls, data):
+        alerts = cls._normalize_string_list(data.get('medical_alerts'))
+        alerts, implicit_other = cls._split_legacy_other(alerts)
+        other = cls._normalize_optional_text(data.get('medical_alerts_other'))
+        if not other:
+            other = cls._normalize_optional_text(data.get('allergies'))
+        return alerts, other or implicit_other
+
+    @classmethod
+    def _extract_medications_payload(cls, data):
+        raw = data.get('medications') if 'medications' in data else data.get('current_medications')
+        values = cls._normalize_string_list(raw)
+        values, implicit_other = cls._split_legacy_other(values)
+        return values, cls._normalize_optional_text(data.get('medications_other')) or implicit_other
+
+    @staticmethod
+    def _to_legacy_text(values, other=None, max_length=None):
+        merged = ', '.join(values or [])
+        if other:
+            merged = f'{merged}. Otros: {other}' if merged else f'Otros: {other}'
+        merged = merged or None
+        if merged and max_length and len(merged) > max_length:
+            return merged[:max_length]
+        return merged
+
     @classmethod
     def get_patient_anamnesis(cls, current_user_id, patient_id):
         current_user_id = cls._normalize_user_id(current_user_id)
@@ -218,54 +373,77 @@ class AnamnesisService(_ClinicalHistoryBaseService):
     def create_or_update_anamnesis(cls, current_user_id, data):
         current_user_id = cls._normalize_user_id(current_user_id)
         patient_id = data.get('patient_id')
-        if not patient_id:
+        if patient_id in (None, ''):
             raise ValidationError('patient_id is required')
+        try:
+            patient_id = int(patient_id)
+        except (TypeError, ValueError):
+            raise ValidationError('patient_id must be an integer')
 
         cls._get_patient_or_404(patient_id)
         cls._ensure_patient_access(current_user_id, patient_id)
 
         anamnesis = Anamnesis.query.filter_by(patient_id=patient_id).first()
+        is_new = anamnesis is None
+        professional_id = cls._resolve_professional_id(current_user_id, data.get('professional_id'))
         parsed_last_dental_visit = (
             cls._parse_optional_date(data.get('last_dental_visit'), 'last_dental_visit')
             if 'last_dental_visit' in data
             else None
         )
 
-        if anamnesis:
-            update_fields = [
-                'consultation_reason',
-                'medical_alerts',
-                'current_medications',
-                'habits',
-                'allergies',
-                'other_conditions',
-                'is_pregnant',
-                'pregnancy_weeks',
-                'notes',
-            ]
-            for field in update_fields:
-                if field in data:
-                    setattr(anamnesis, field, data[field])
+        if is_new:
+            anamnesis = Anamnesis(patient_id=patient_id)
 
-            if 'last_dental_visit' in data:
-                anamnesis.last_dental_visit = parsed_last_dental_visit
-            anamnesis.professional_id = current_user_id
-        else:
-            anamnesis = Anamnesis(
-                patient_id=patient_id,
-                professional_id=current_user_id,
-                consultation_reason=data.get('consultation_reason'),
-                medical_alerts=data.get('medical_alerts'),
-                current_medications=data.get('current_medications'),
-                habits=data.get('habits'),
-                allergies=data.get('allergies'),
-                other_conditions=data.get('other_conditions'),
-                is_pregnant=data.get('is_pregnant', False),
-                pregnancy_weeks=data.get('pregnancy_weeks'),
-                last_dental_visit=parsed_last_dental_visit,
-                notes=data.get('notes'),
+        if professional_id is not None:
+            anamnesis.professional_id = professional_id
+
+        if is_new or any(field in data for field in ('consultation_reason', 'consultation_reason_other')):
+            consultation_reason, consultation_reason_other = cls._extract_consultation_payload(data)
+            anamnesis.consultation_reason_items = consultation_reason
+            anamnesis.consultation_reason_other = consultation_reason_other
+            anamnesis.consultation_reason = cls._to_legacy_text(
+                consultation_reason,
+                consultation_reason_other,
+                max_length=200,
             )
-            db.session.add(anamnesis)
+
+        if is_new or any(field in data for field in ('current_illness', 'current_illness_other', 'other_conditions')):
+            current_illness, current_illness_other = cls._extract_current_illness_payload(data)
+            anamnesis.current_illness = current_illness
+            anamnesis.current_illness_other = current_illness_other
+            anamnesis.other_conditions = cls._to_legacy_text(current_illness, current_illness_other)
+
+        if is_new or any(field in data for field in ('medical_alerts', 'medical_alerts_other', 'allergies')):
+            medical_alerts, medical_alerts_other = cls._extract_medical_alerts_payload(data)
+            anamnesis.medical_alerts = medical_alerts
+            anamnesis.medical_alerts_other = medical_alerts_other
+            anamnesis.allergies = cls._normalize_optional_text(data.get('allergies')) or medical_alerts_other
+
+        if is_new or any(field in data for field in ('medications', 'medications_other', 'current_medications')):
+            medications, medications_other = cls._extract_medications_payload(data)
+            anamnesis.medications = medications
+            anamnesis.medications_other = medications_other
+            anamnesis.current_medications = medications
+
+        if is_new or any(field in data for field in ('habits', 'habits_other')):
+            habits, habits_other = cls._normalize_habits_payload(data)
+            anamnesis.habits = habits
+            anamnesis.habits_other = habits_other
+
+        if 'is_pregnant' in data:
+            anamnesis.is_pregnant = bool(data.get('is_pregnant'))
+        elif anamnesis.is_pregnant is None:
+            anamnesis.is_pregnant = False
+
+        if 'pregnancy_weeks' in data:
+            anamnesis.pregnancy_weeks = data.get('pregnancy_weeks')
+
+        if 'last_dental_visit' in data:
+            anamnesis.last_dental_visit = parsed_last_dental_visit
+
+        if 'notes' in data:
+            anamnesis.notes = cls._normalize_optional_text(data.get('notes'))
 
         db.session.add(anamnesis)
         db.session.commit()

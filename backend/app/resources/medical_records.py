@@ -145,6 +145,9 @@ def create_medical_record():
             patient_id:
               type: integer
               example: 1
+            professional_id:
+              type: integer
+              description: Required only when current actor is admin
             appointment_id:
               type: integer
             chief_complaint:
@@ -184,7 +187,7 @@ def create_medical_record():
     try:
         record = MedicalRecordService.create_medical_record(data, current_user_id)
         return jsonify(medical_record_schema.dump(record)), 201
-    except ValidationError as exc:
+    except (ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 

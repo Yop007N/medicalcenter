@@ -70,12 +70,21 @@ class AnamnesisSchema(Schema):
     patient_id = fields.Int(required=True)
     professional_id = fields.Int()
 
-    consultation_reason = fields.Str()
-    medical_alerts = fields.List(fields.Str())
-    current_medications = fields.List(fields.Str())
-    habits = fields.Dict()
-    allergies = fields.Str()
-    other_conditions = fields.Str()
+    consultation_reason = fields.Method('get_consultation_reason')
+    consultation_reason_other = fields.Str()
+    current_illness = fields.Method('get_current_illness')
+    current_illness_other = fields.Str()
+    medical_alerts = fields.Method('get_medical_alerts')
+    medical_alerts_other = fields.Str()
+    medications = fields.Method('get_medications')
+    medications_other = fields.Str()
+    habits = fields.Method('get_habits')
+    habits_other = fields.Str()
+
+    # Legacy fields (kept as dump_only for transitional compatibility)
+    current_medications = fields.List(fields.Str(), dump_only=True)
+    allergies = fields.Str(dump_only=True)
+    other_conditions = fields.Str(dump_only=True)
 
     is_pregnant = fields.Bool()
     pregnancy_weeks = fields.Int()
@@ -91,6 +100,36 @@ class AnamnesisSchema(Schema):
 
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
+
+    @staticmethod
+    def _normalize_list(value):
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            return [item.strip() for item in raw.split(',') if item.strip()]
+        if isinstance(value, dict):
+            return [str(key).strip() for key, enabled in value.items() if key != '_other' and enabled]
+        return [str(value).strip()] if str(value).strip() else []
+
+    def get_consultation_reason(self, obj):
+        return self._normalize_list(obj.consultation_reason_items or obj.consultation_reason)
+
+    def get_current_illness(self, obj):
+        return self._normalize_list(obj.current_illness or obj.other_conditions)
+
+    def get_medical_alerts(self, obj):
+        return self._normalize_list(obj.medical_alerts)
+
+    def get_medications(self, obj):
+        return self._normalize_list(obj.medications or obj.current_medications)
+
+    def get_habits(self, obj):
+        return self._normalize_list(obj.habits)
 
 
 class PeriodontalRecordSchema(Schema):

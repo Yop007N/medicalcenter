@@ -4,6 +4,7 @@
 from app.extensions import db
 from app.models.odontogram import Odontogram, Tooth
 from app.models.patient import Patient
+from app.models.professional import Professional
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.utils.helpers import validate_required_fields
 
@@ -74,6 +75,32 @@ class OdontogramService:
         if not patient:
             raise ResourceNotFoundError('Patient not found')
 
+        current_professional = Professional.query.get(current_user_id)
+        provided_professional_id = data.get('professional_id')
+
+        if provided_professional_id is not None:
+            try:
+                provided_professional_id = int(provided_professional_id)
+            except (TypeError, ValueError):
+                raise ValidationError('professional_id must be an integer')
+            if provided_professional_id <= 0:
+                raise ValidationError('professional_id must be a positive integer')
+
+        if current_professional:
+            # Professional users must create records under their own professional identity.
+            professional_id = current_user_id
+            if provided_professional_id and provided_professional_id != professional_id:
+                raise ValidationError('professional users cannot override professional_id')
+        else:
+            # Admin users need an explicit professional context.
+            professional_id = provided_professional_id
+            if not professional_id:
+                raise ValidationError('professional_id is required for non-professional users')
+
+        professional = Professional.query.get(professional_id)
+        if not professional:
+            raise ResourceNotFoundError('Professional not found')
+
         previous = Odontogram.query.filter_by(
             patient_id=data['patient_id'],
             is_active=True,
@@ -83,7 +110,7 @@ class OdontogramService:
 
         odontogram = Odontogram(
             patient_id=data['patient_id'],
-            professional_id=current_user_id,
+            professional_id=professional_id,
             notes=data.get('notes'),
             is_active=True,
         )
