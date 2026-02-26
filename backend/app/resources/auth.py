@@ -133,6 +133,7 @@ def logout():
 
 
 @blueprint.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
 	"""Register a new user. Expects JSON with email, password, first_name, last_name, role.
 	---
