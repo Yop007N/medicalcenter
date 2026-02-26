@@ -116,10 +116,10 @@ type ApiErrorShape = {
       }
 
       .refresh-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -132,7 +132,7 @@ type ApiErrorShape = {
       }
 
       .metric {
-        color: #0f172a;
+        color: var(--ms-text-strong);
         font-size: 1.2rem;
         font-weight: 700;
         margin: 0;
@@ -154,7 +154,7 @@ type ApiErrorShape = {
 
       .simple-list li {
         align-items: center;
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         display: flex;
         font-size: 0.8rem;
         justify-content: space-between;
@@ -162,10 +162,10 @@ type ApiErrorShape = {
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
         border-radius: 8px;
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.82rem;
         margin-bottom: 0.75rem;
         padding: 0.55rem 0.7rem;

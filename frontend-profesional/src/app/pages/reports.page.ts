@@ -169,7 +169,7 @@ type ApiErrorShape = {
       }
 
       .toolbar label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
@@ -177,17 +177,17 @@ type ApiErrorShape = {
       }
 
       input[type='date'] {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -207,10 +207,10 @@ type ApiErrorShape = {
       }
 
       .export-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.75rem;
         font-weight: 600;
@@ -218,7 +218,7 @@ type ApiErrorShape = {
       }
 
       .export-button:disabled {
-        background: #93c5fd;
+        background: var(--ms-primary-soft-border);
         cursor: not-allowed;
       }
 
@@ -228,7 +228,7 @@ type ApiErrorShape = {
       }
 
       .metric {
-        color: #0f172a;
+        color: var(--ms-text-strong);
         font-size: 1.2rem;
         font-weight: 700;
         margin: 0;
@@ -246,7 +246,7 @@ type ApiErrorShape = {
 
       .status-list li {
         align-items: center;
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         display: flex;
         font-size: 0.82rem;
         justify-content: space-between;
@@ -267,19 +267,19 @@ type ApiErrorShape = {
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
 
       .muted {
-        color: #98a2b3;
+        color: var(--ms-text-muted);
       }
     `
   ]

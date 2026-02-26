@@ -93,44 +93,44 @@ type ApiErrorShape = {
       }
 
       .field-label {
-        color: #344054;
+        color: var(--ms-text-primary);
         font-size: 0.82rem;
         font-weight: 600;
       }
 
       .field-input {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.9rem;
         padding: 0.65rem 0.75rem;
       }
 
       .field-input:focus {
-        border-color: #1d4ed8;
+        border-color: var(--ms-primary);
         box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
         outline: none;
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.76rem;
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
         border-radius: 8px;
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.82rem;
         margin-top: 1rem;
         padding: 0.6rem 0.7rem;
       }
 
       .submit-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.86rem;
         font-weight: 600;
@@ -139,7 +139,7 @@ type ApiErrorShape = {
       }
 
       .submit-button:disabled {
-        background: #93c5fd;
+        background: var(--ms-primary-soft-border);
         cursor: not-allowed;
       }
     `

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
 import { AuthService } from './auth.service';
 import { SessionUser } from './session-store.service';
+import { SpecialtyAccessService } from './specialty-access.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +10,8 @@ import { SessionUser } from './session-store.service';
 export class AuthGuard implements CanActivate {
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private specialtyAccess: SpecialtyAccessService
   ) {}
 
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
@@ -46,20 +48,6 @@ export class AuthGuard implements CanActivate {
     if (user.role !== 'professional') {
       return false;
     }
-
-    const current = this.normalize(user.specialty);
-    if (!current) {
-      return false;
-    }
-
-    return specialties.some((candidate) => current.includes(this.normalize(candidate)));
-  }
-
-  private normalize(value: string | null | undefined): string {
-    return (value ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
+    return this.specialtyAccess.hasSpecialtyAccess(user.specialty, specialties);
   }
 }

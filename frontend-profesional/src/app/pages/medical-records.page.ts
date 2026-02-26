@@ -167,7 +167,7 @@ type FormMode = 'create' | 'edit';
       .search-input,
       input,
       textarea {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
@@ -179,10 +179,10 @@ type FormMode = 'create' | 'edit';
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -206,7 +206,7 @@ type FormMode = 'create' | 'edit';
       }
 
       .form-grid label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
@@ -223,10 +223,10 @@ type FormMode = 'create' | 'edit';
       }
 
       .primary-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -234,10 +234,10 @@ type FormMode = 'create' | 'edit';
       }
 
       .secondary-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -262,14 +262,14 @@ type FormMode = 'create' | 'edit';
 
       .table th,
       .table td {
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
       }
 
       .table th {
-        color: #475467;
+        color: var(--ms-text-secondary);
         font-weight: 600;
       }
 
@@ -279,10 +279,10 @@ type FormMode = 'create' | 'edit';
       }
 
       .table-action {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.74rem;
         font-weight: 600;
@@ -290,8 +290,8 @@ type FormMode = 'create' | 'edit';
       }
 
       .table-action.danger {
-        border-color: #fecdca;
-        color: #b42318;
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .error-box,
@@ -303,19 +303,19 @@ type FormMode = 'create' | 'edit';
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.78rem;
         margin: 0;
       }

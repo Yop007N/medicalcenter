@@ -3,6 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
+import { MentalHealthModule, SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import {
   InterventionSession,
   MentalHealthService,
@@ -20,8 +21,6 @@ type ApiErrorShape = {
   };
 };
 
-type MentalModule = 'psychology' | 'psychopedagogy';
-
 @Component({
   selector: 'app-mental-health-page',
   standalone: true,
@@ -31,19 +30,30 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       <h1>Salud Mental</h1>
       <p>Gestion operativa de evaluaciones y sesiones de psicologia y psicopedagogia.</p>
 
-      <div class="module-switch">
-        <button type="button" class="switch-button" [class.active]="activeModule === 'psychology'" (click)="setModule('psychology')">
-          Psicologia
-        </button>
-        <button
-          type="button"
-          class="switch-button"
-          [class.active]="activeModule === 'psychopedagogy'"
-          (click)="setModule('psychopedagogy')"
-        >
-          Psicopedagogia
-        </button>
-      </div>
+      @if (allowedModules.length > 1) {
+        <div class="module-switch">
+          @if (canUsePsychology) {
+            <button
+              type="button"
+              class="switch-button"
+              [class.active]="activeModule === 'psychology'"
+              (click)="setModule('psychology')"
+            >
+              Psicologia
+            </button>
+          }
+          @if (canUsePsychopedagogy) {
+            <button
+              type="button"
+              class="switch-button"
+              [class.active]="activeModule === 'psychopedagogy'"
+              (click)="setModule('psychopedagogy')"
+            >
+              Psicopedagogia
+            </button>
+          }
+        </div>
+      }
 
       <div class="toolbar">
         <input
@@ -283,10 +293,10 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .switch-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -294,9 +304,9 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .switch-button.active {
-        background: #eff8ff;
-        border-color: #84caff;
-        color: #175cd3;
+        background: var(--ms-primary-soft-bg);
+        border-color: var(--ms-primary-soft-border);
+        color: var(--ms-primary);
       }
 
       .toolbar {
@@ -310,7 +320,7 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       input,
       textarea,
       select {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
@@ -322,10 +332,10 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -349,7 +359,7 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .form-grid label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
@@ -366,10 +376,10 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .primary-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -393,7 +403,7 @@ type MentalModule = 'psychology' | 'psychopedagogy';
 
       .table th,
       .table td {
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
@@ -401,7 +411,7 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .table th {
-        color: #475467;
+        color: var(--ms-text-secondary);
         font-weight: 600;
       }
 
@@ -411,10 +421,10 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .table-action {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.74rem;
         font-weight: 600;
@@ -422,13 +432,13 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .table-action.secondary {
-        border-color: #d1e9ff;
-        color: #175cd3;
+        border-color: var(--ms-primary-soft-border);
+        color: var(--ms-primary);
       }
 
       .table-action.danger {
-        border-color: #fecdca;
-        color: #b42318;
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .table-action:disabled {
@@ -445,19 +455,19 @@ type MentalModule = 'psychology' | 'psychopedagogy';
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.78rem;
         margin: 0;
       }
@@ -471,9 +481,11 @@ type MentalModule = 'psychology' | 'psychopedagogy';
 export class MentalHealthPage implements OnInit {
   private readonly mentalHealthService = inject(MentalHealthService);
   private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  activeModule: MentalModule = 'psychology';
+  activeModule: MentalHealthModule = 'psychology';
+  allowedModules: MentalHealthModule[] = [];
   professionalId: number | null = null;
   activePatientId: number | undefined;
 
@@ -521,13 +533,24 @@ export class MentalHealthPage implements OnInit {
     return this.activeModule === 'psychology' ? this.psychologySessions : this.psychopedagogySessions;
   }
 
+  get canUsePsychology(): boolean {
+    return this.allowedModules.includes('psychology');
+  }
+
+  get canUsePsychopedagogy(): boolean {
+    return this.allowedModules.includes('psychopedagogy');
+  }
+
   ngOnInit(): void {
     this.resolveProfessionalContext();
     this.applyModuleValidators();
     this.loadEvaluations();
   }
 
-  setModule(module: MentalModule): void {
+  setModule(module: MentalHealthModule): void {
+    if (!this.allowedModules.includes(module)) {
+      return;
+    }
     if (this.activeModule === module) {
       return;
     }
@@ -886,11 +909,19 @@ export class MentalHealthPage implements OnInit {
   private resolveProfessionalContext(): void {
     const currentUser = this.authService.currentUserValue;
     if (currentUser?.id) {
+      this.allowedModules = this.specialtyAccess.getMentalHealthModules(currentUser.specialty);
+      if (this.allowedModules.length === 0) {
+        this.errorMessage = 'Tu especialidad no tiene acceso al modulo de salud mental.';
+        this.professionalId = null;
+        return;
+      }
+      this.activeModule = this.specialtyAccess.getDefaultMentalHealthModule(currentUser.specialty);
       this.professionalId = currentUser.id;
       this.evaluationForm.patchValue({ patient_id: 1 });
       this.sessionForm.patchValue({ patient_id: 1 });
       return;
     }
+    this.allowedModules = [];
     this.professionalId = null;
   }
 

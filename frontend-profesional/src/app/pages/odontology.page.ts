@@ -303,7 +303,7 @@ type ApiErrorShape = {
       input,
       textarea,
       select {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
@@ -315,10 +315,10 @@ type ApiErrorShape = {
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -337,7 +337,7 @@ type ApiErrorShape = {
       }
 
       .form-grid label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
@@ -354,10 +354,10 @@ type ApiErrorShape = {
       }
 
       .primary-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -386,19 +386,19 @@ type ApiErrorShape = {
 
       .table th,
       .table td {
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
       }
 
       .table th {
-        color: #475467;
+        color: var(--ms-text-secondary);
         font-weight: 600;
       }
 
       .selected-row {
-        background: #eff8ff;
+        background: var(--ms-primary-soft-bg);
       }
 
       .row-actions {
@@ -408,10 +408,10 @@ type ApiErrorShape = {
       }
 
       .table-action {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.74rem;
         font-weight: 600;
@@ -419,13 +419,13 @@ type ApiErrorShape = {
       }
 
       .table-action.secondary {
-        border-color: #84caff;
-        color: #175cd3;
+        border-color: var(--ms-primary-soft-border);
+        color: var(--ms-primary);
       }
 
       .table-action.danger {
-        border-color: #fecdca;
-        color: #b42318;
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .table-action:disabled {
@@ -442,15 +442,15 @@ type ApiErrorShape = {
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
     `
   ]

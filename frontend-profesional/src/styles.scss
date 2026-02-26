@@ -1,11 +1,53 @@
 /* Global styles */
 @import './styles/variables';
 @import './styles/mixins';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+
+  --ms-primary: #3f6b84;
+  --ms-primary-rgb: 63, 107, 132;
+  --ms-success: #4d7f66;
+  --ms-warning: #a07b44;
+  --ms-danger: #b66a6a;
+
+  --ms-bg-page: #f2f5f8;
+  --ms-bg-card: #ffffff;
+  --ms-bg-soft: #edf2f6;
+
+  --ms-border: #d7e0e9;
+
+  --ms-text-strong: #1f2937;
+  --ms-text-primary: #233142;
+  --ms-text-secondary: #6e7a88;
+  --ms-text-muted: #7d8895;
+
+  --ms-primary-soft-bg: rgba(var(--ms-primary-rgb), 0.12);
+  --ms-primary-soft-border: rgba(var(--ms-primary-rgb), 0.28);
+  --ms-success-soft-bg: rgba(77, 127, 102, 0.12);
+  --ms-success-soft-border: rgba(77, 127, 102, 0.28);
+  --ms-warning-soft-bg: rgba(160, 123, 68, 0.14);
+  --ms-danger-soft-bg: rgba(182, 106, 106, 0.12);
+  --ms-danger-soft-border: rgba(182, 106, 106, 0.28);
+
+  --ms-radius: 12px;
+  --ms-shadow: 0 8px 20px -12px rgb(35 49 66 / 0.16);
+}
 
 html, body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--ms-bg-page);
+  color: var(--ms-text-primary);
 }
 
-/* Material theme customization will be added here */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--ms-primary);
+}

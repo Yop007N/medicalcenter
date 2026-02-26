@@ -1,5 +1,10 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/auth/auth.guard';
+import {
+  ODONTOLOGY_SPECIALTIES,
+  PSYCHOLOGY_SPECIALTIES,
+  PSYCHOPEDAGOGY_SPECIALTIES
+} from './core/auth/specialty-access.service';
 
 export const routes: Routes = [
   {
@@ -16,12 +21,6 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
     loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage)
-  },
-  {
-    path: 'professionals',
-    canActivate: [AuthGuard],
-    data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/professionals.page').then((m) => m.ProfessionalsPage)
   },
   {
     path: 'patients',
@@ -46,7 +45,7 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
     data: {
       roles: ['professional'],
-      specialties: ['odontologia', 'odontology', 'ortodoncia', 'odontopediatria']
+      specialties: ODONTOLOGY_SPECIALTIES
     },
     loadComponent: () => import('./pages/odontology.page').then((m) => m.OdontologyPage)
   },
@@ -55,33 +54,15 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
     data: {
       roles: ['professional'],
-      specialties: ['psicologia', 'psychology', 'psicopedagogia', 'psychopedagogy', 'psiquiatria']
+      specialties: [...PSYCHOLOGY_SPECIALTIES, ...PSYCHOPEDAGOGY_SPECIALTIES]
     },
     loadComponent: () => import('./pages/mental-health.page').then((m) => m.MentalHealthPage)
   },
   {
-    path: 'budgets',
+    path: 'specialties/:specialtyKey',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/budgets.page').then((m) => m.BudgetsPage)
-  },
-  {
-    path: 'files',
-    canActivate: [AuthGuard],
-    data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/files.page').then((m) => m.FilesPage)
-  },
-  {
-    path: 'payments',
-    canActivate: [AuthGuard],
-    data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/payments.page').then((m) => m.PaymentsPage)
-  },
-  {
-    path: 'reports',
-    canActivate: [AuthGuard],
-    data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/reports.page').then((m) => m.ReportsPage)
+    loadComponent: () => import('./pages/specialty-module.page').then((m) => m.SpecialtyModulePage)
   },
   {
     path: '**',

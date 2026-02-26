@@ -1,20 +1,20 @@
 export const pageShellStyles = `
   .page {
-    background: #ffffff;
-    border: 1px solid #e4e7ec;
+    background: var(--ms-bg-card);
+    border: 1px solid var(--ms-border);
     border-radius: 12px;
     padding: 1.25rem;
   }
 
   h1 {
-    color: #111827;
+    color: var(--ms-text-strong);
     font-size: 1.2rem;
     font-weight: 700;
     margin: 0 0 0.65rem;
   }
 
   p {
-    color: #475467;
+    color: var(--ms-text-secondary);
     margin: 0 0 1rem;
   }
 
@@ -25,21 +25,21 @@ export const pageShellStyles = `
   }
 
   .card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--ms-bg-soft);
+    border: 1px solid var(--ms-border);
     border-radius: 10px;
     padding: 0.9rem;
   }
 
   .card-title {
-    color: #1f2937;
+    color: var(--ms-text-strong);
     font-size: 0.85rem;
     font-weight: 600;
     margin: 0 0 0.2rem;
   }
 
   .card-text {
-    color: #667085;
+    color: var(--ms-text-muted);
     font-size: 0.82rem;
     margin: 0;
   }

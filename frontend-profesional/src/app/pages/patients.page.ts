@@ -27,7 +27,7 @@ type PatientFormMode = 'create' | 'edit';
   template: `
     <section class="page">
       <h1>Pacientes</h1>
-      <p>Gestion de perfiles, contacto y seguimiento clinico.</p>
+      <p>Gestion de perfiles, contacto y seguimiento clinico de pacientes asignados a tu cuenta profesional.</p>
 
       <div class="toolbar">
         <input
@@ -81,6 +81,7 @@ type PatientFormMode = 'create' | 'edit';
             <label>
               Password
               <input type="password" formControlName="password" placeholder="********" />
+              <small class="input-hint">Minimo 8 caracteres, con mayuscula, minuscula y numero.</small>
             </label>
 
             <label>
@@ -224,7 +225,7 @@ type PatientFormMode = 'create' | 'edit';
       .search-input,
       input,
       textarea {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
@@ -236,10 +237,10 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -264,11 +265,17 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .form-grid label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
         gap: 0.3rem;
+      }
+
+      .input-hint {
+        color: var(--ms-text-secondary);
+        font-size: 0.72rem;
+        font-weight: 500;
       }
 
       .full-row {
@@ -281,10 +288,10 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .primary-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -292,10 +299,10 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .secondary-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -334,14 +341,14 @@ type PatientFormMode = 'create' | 'edit';
 
       .table th,
       .table td {
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
       }
 
       .table th {
-        color: #475467;
+        color: var(--ms-text-secondary);
         font-weight: 600;
       }
 
@@ -351,10 +358,10 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .table-action {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.74rem;
         font-weight: 600;
@@ -370,13 +377,13 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .status-active {
-        background: #ecfdf3;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        color: var(--ms-success);
       }
 
       .status-inactive {
-        background: #fef3f2;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        color: var(--ms-danger);
       }
 
       .error-box,
@@ -388,19 +395,19 @@ type PatientFormMode = 'create' | 'edit';
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.78rem;
         margin: 0;
       }
@@ -414,6 +421,7 @@ type PatientFormMode = 'create' | 'edit';
 export class PatientsPage implements OnInit {
   private readonly patientService = inject(PatientService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
   patients: Patient[] = [];
   selectedPatient: Patient | null = null;
@@ -432,7 +440,7 @@ export class PatientsPage implements OnInit {
     first_name: ['', [Validators.required]],
     last_name: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.minLength(8)]],
+    password: ['', [Validators.minLength(8), Validators.pattern(this.passwordPattern)]],
     date_of_birth: [''],
     phone: [''],
     address: [''],
@@ -491,7 +499,11 @@ export class PatientsPage implements OnInit {
       allergies: '',
       medical_history: ''
     });
-    this.patientForm.controls.password.setValidators([Validators.required, Validators.minLength(8)]);
+    this.patientForm.controls.password.setValidators([
+      Validators.required,
+      Validators.minLength(8),
+      Validators.pattern(this.passwordPattern)
+    ]);
     this.patientForm.controls.password.updateValueAndValidity();
   }
 
@@ -528,7 +540,10 @@ export class PatientsPage implements OnInit {
     this.fieldError = null;
     this.selectedPatient = patient;
     this.patientForm.controls.password.clearValidators();
-    this.patientForm.controls.password.setValidators([Validators.minLength(8)]);
+    this.patientForm.controls.password.setValidators([
+      Validators.minLength(8),
+      Validators.pattern(this.passwordPattern)
+    ]);
     this.patientForm.controls.password.updateValueAndValidity();
     this.patientForm.patchValue({
       first_name: patient.first_name || '',
@@ -549,6 +564,10 @@ export class PatientsPage implements OnInit {
   submitForm(): void {
     if (this.patientForm.invalid) {
       this.patientForm.markAllAsTouched();
+      if (this.passwordControl.invalid) {
+        this.fieldError = 'Password invalida: minimo 8 caracteres, mayuscula, minuscula y numero.';
+        return;
+      }
       this.fieldError = 'Revisa los campos requeridos y el formato del formulario.';
       return;
     }
@@ -670,5 +689,9 @@ export class PatientsPage implements OnInit {
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {
     return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private get passwordControl() {
+    return this.patientForm.controls.password;
   }
 }

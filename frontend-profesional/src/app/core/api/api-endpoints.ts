@@ -83,5 +83,12 @@ export const API_ENDPOINTS = {
     upload: 'files/upload',
     byId: (id: number) => `files/${id}`,
     download: (id: number) => `files/${id}/download`
+  },
+  specialties: {
+    catalog: 'specialties/catalog',
+    myModule: 'specialties/my-module',
+    myModuleOverview: 'specialties/my-module/overview',
+    encounters: 'specialties/encounters',
+    encounterById: (id: number) => `specialties/encounters/${id}`
   }
 } as const;

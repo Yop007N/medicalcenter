@@ -1,9 +1,18 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs/operators';
+import { combineLatest, of } from 'rxjs';
+import { catchError, map, shareReplay, switchMap } from 'rxjs/operators';
 import { AuthService } from './core/auth/auth.service';
+import { SessionUser } from './core/auth/session-store.service';
+import { SpecialtyAccessService, SpecialtyModuleDefinition } from './core/auth/specialty-access.service';
+import { SpecialtyModuleService } from './core/services/specialty-module.service';
 import { LoadingBarComponent } from './shared/components/loading-bar/loading-bar.component';
+
+type NavItem = {
+  path: string;
+  label: string;
+};
 
 @Component({
   selector: 'app-root',
@@ -14,59 +23,59 @@ import { LoadingBarComponent } from './shared/components/loading-bar/loading-bar
 })
 export class AppComponent {
   private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
+  private readonly specialtyModuleService = inject(SpecialtyModuleService);
   private readonly router = inject(Router);
 
   readonly currentUser$ = this.authService.currentUser$;
   readonly isAuthenticated$ = this.currentUser$.pipe(map((user) => Boolean(user)));
 
-  navItems = [
-    { path: '/dashboard', label: 'Dashboard' },
-    { path: '/professionals', label: 'Profesionales' },
-    { path: '/patients', label: 'Pacientes' },
-    { path: '/appointments', label: 'Citas' },
-    { path: '/medical-records', label: 'Registros' },
-    {
-      path: '/odontology',
-      label: 'Odontologia',
-      specialties: ['odontologia', 'odontology', 'ortodoncia', 'odontopediatria']
-    },
-    {
-      path: '/mental-health',
-      label: 'Salud Mental',
-      specialties: ['psicologia', 'psychology', 'psicopedagogia', 'psychopedagogy', 'psiquiatria']
-    },
-    { path: '/budgets', label: 'Presupuestos' },
-    { path: '/files', label: 'Archivos' },
-    { path: '/payments', label: 'Pagos' },
-    { path: '/reports', label: 'Reportes' }
-  ];
+  readonly specialtyModule$ = this.currentUser$.pipe(
+    switchMap((user) => {
+      if (!user || user.role !== 'professional') {
+        return of(null as SpecialtyModuleDefinition | null);
+      }
+      return this.specialtyModuleService.getMyModule().pipe(
+        map((payload) => payload.module),
+        catchError(() => of(this.specialtyAccess.resolveSpecialtyModule(user.specialty)))
+      );
+    }),
+    shareReplay(1)
+  );
 
-  readonly visibleNavItems$ = this.currentUser$.pipe(
-    map((user) => {
+  readonly visibleNavItems$ = combineLatest([this.currentUser$, this.specialtyModule$]).pipe(
+    map(([user, specialtyModule]) => {
       if (!user) {
         return [];
       }
-      return this.navItems.filter((item) => this.hasNavAccess(user.specialty, item.specialties));
+      return this.buildNavItems(user, specialtyModule);
     })
   );
 
-  private hasNavAccess(specialty: string | null | undefined, allowed: string[] | undefined): boolean {
-    if (!allowed || allowed.length === 0) {
-      return true;
+  private buildNavItems(
+    user: SessionUser,
+    specialtyModule: SpecialtyModuleDefinition | null
+  ): NavItem[] {
+    const items: NavItem[] = [];
+    if (user.role !== 'professional') {
+      return items;
     }
-    const normalizedSpecialty = this.normalize(specialty);
-    if (!normalizedSpecialty) {
-      return false;
-    }
-    return allowed.some((candidate) => normalizedSpecialty.includes(this.normalize(candidate)));
-  }
 
-  private normalize(value: string | null | undefined): string {
-    return (value ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
+    if (specialtyModule) {
+      items.push({
+        path: specialtyModule.route,
+        label: specialtyModule.label
+      });
+    }
+
+    items.push(
+      { path: '/dashboard', label: 'Dashboard' },
+      { path: '/patients', label: 'Pacientes' },
+      { path: '/appointments', label: 'Citas' },
+      { path: '/medical-records', label: 'Registros' }
+    );
+
+    return items;
   }
 
   logout(): void {

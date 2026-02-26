@@ -228,7 +228,7 @@ type AppointmentStatus = Appointment['status'];
       input,
       textarea,
       select {
-        border: 1px solid #d0d5dd;
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
         padding: 0.45rem 0.6rem;
@@ -240,10 +240,10 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .toolbar-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.82rem;
         font-weight: 600;
@@ -267,7 +267,7 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .form-grid label {
-        color: #344054;
+        color: var(--ms-text-primary);
         display: grid;
         font-size: 0.78rem;
         font-weight: 600;
@@ -285,10 +285,10 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .primary-button {
-        background: #1d4ed8;
+        background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
-        color: #ffffff;
+        color: var(--ms-bg-card);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -296,10 +296,10 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .secondary-button {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.8rem;
         font-weight: 600;
@@ -324,7 +324,7 @@ type AppointmentStatus = Appointment['status'];
 
       .table th,
       .table td {
-        border-bottom: 1px solid #eaecf0;
+        border-bottom: 1px solid var(--ms-border);
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
@@ -332,7 +332,7 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .table th {
-        color: #475467;
+        color: var(--ms-text-secondary);
         font-weight: 600;
       }
 
@@ -346,24 +346,24 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .status-scheduled {
-        background: #eff8ff;
-        color: #175cd3;
+        background: var(--ms-primary-soft-bg);
+        color: var(--ms-primary);
       }
 
       .status-confirmed {
-        background: #ecfdf3;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        color: var(--ms-success);
       }
 
       .status-completed {
-        background: #f0f9ff;
-        color: #0c4a6e;
+        background: var(--ms-primary-soft-bg);
+        color: var(--ms-primary);
       }
 
       .status-cancelled,
       .status-no_show {
-        background: #fef3f2;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        color: var(--ms-danger);
       }
 
       .row-actions {
@@ -372,10 +372,10 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .table-action {
-        background: #ffffff;
-        border: 1px solid #d0d5dd;
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border);
         border-radius: 8px;
-        color: #344054;
+        color: var(--ms-text-primary);
         cursor: pointer;
         font-size: 0.74rem;
         font-weight: 600;
@@ -383,8 +383,8 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .table-action.secondary {
-        border-color: #cbd5e1;
-        color: #334155;
+        border-color: var(--ms-border);
+        color: var(--ms-text-muted);
       }
 
       .table-action:disabled {
@@ -401,25 +401,25 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .error-box {
-        background: #fef3f2;
-        border: 1px solid #fecdca;
-        color: #b42318;
+        background: var(--ms-danger-soft-bg);
+        border: 1px solid var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .success-box {
-        background: #ecfdf3;
-        border: 1px solid #abefc6;
-        color: #067647;
+        background: var(--ms-success-soft-bg);
+        border: 1px solid var(--ms-success-soft-border);
+        color: var(--ms-success);
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ms-danger);
         font-size: 0.78rem;
         margin: 0;
       }
 
       .muted {
-        color: #98a2b3;
+        color: var(--ms-text-muted);
       }
 
       .empty {
