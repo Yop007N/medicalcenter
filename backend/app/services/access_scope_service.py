@@ -8,6 +8,7 @@ from app.models.appointment import Appointment
 from app.models.budget import Budget
 from app.models.medical_record import MedicalRecord
 from app.models.odontogram import DentalTreatment, Odontogram
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.models.psychology import PsychologicalEvaluation
 from app.models.psychopedagogy import PsychopedagogicalEvaluation
 from app.models.user import User
@@ -108,6 +109,11 @@ class AccessScopeService:
             return set()
 
         patient_ids = set()
+
+        assigned_rows = db.session.query(ProfessionalPatientAssignment.patient_id).filter(
+            ProfessionalPatientAssignment.professional_id == professional_id
+        ).distinct().all()
+        patient_ids.update(value for (value,) in assigned_rows if value is not None)
 
         query_specs = [
             (Appointment, Appointment.patient_id, Appointment.professional_id == professional_id),

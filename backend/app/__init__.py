@@ -110,7 +110,8 @@ def create_app(config_name='development'):
             {"name": "Dental Treatments", "description": "Tratamientos odontológicos"},
             {"name": "Psychopedagogy", "description": "Evaluaciones psicopedagógicas e intervenciones"},
             {"name": "Psychology", "description": "Evaluaciones psicológicas y sesiones terapéuticas"},
-            {"name": "Clinical History", "description": "Historia clínica odontológica: evoluciones, anamnesis, periodontograma, documentos, recetas y consentimientos"}
+            {"name": "Clinical History", "description": "Historia clínica odontológica: evoluciones, anamnesis, periodontograma, documentos, recetas y consentimientos"},
+            {"name": "Specialties", "description": "Catálogo de módulos por especialidad y vista operativa por actor"}
         ]
     }
 
@@ -144,7 +145,7 @@ def register_blueprints(app):
     from app.resources import budgets, payments, sync, dashboard, audit
     from app.resources import odontograms, dental_treatments
     from app.resources import psychopedagogy, psychology, reports, logs
-    from app.resources import clinical_history
+    from app.resources import clinical_history, specialties
 
     # Register all blueprints
     app.register_blueprint(auth.blueprint)
@@ -168,6 +169,7 @@ def register_blueprints(app):
     app.register_blueprint(psychopedagogy.blueprint)
     app.register_blueprint(psychology.blueprint)
     app.register_blueprint(clinical_history.blueprint)
+    app.register_blueprint(specialties.blueprint)
 
 
 def register_health_check(app):
