@@ -63,7 +63,8 @@ class AppointmentRepository:
     @classmethod
     def find_conflict(cls, professional_id, appointment_date, exclude_id=None):
         """Detect active slot conflict for a professional."""
-        query = Appointment.query.filter(
+        # Optimization: Use with_entities to fetch only ID, avoiding joined loads
+        query = Appointment.query.with_entities(Appointment.id).filter(
             Appointment.professional_id == professional_id,
             Appointment.appointment_date == appointment_date,
             Appointment.status.in_(cls.ACTIVE_CONFLICT_STATUSES),
