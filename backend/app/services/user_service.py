@@ -6,6 +6,7 @@ User Service - Business logic for user management
 from app.models.user import User
 from app.extensions import db
 from app.services.auth_service import AuthService
+from app.utils.validators import validate_email
 from sqlalchemy.exc import IntegrityError
 
 
@@ -62,6 +63,9 @@ class UserService:
         if not all([email, password, first_name, last_name, role]):
             raise ValueError('Missing required user fields')
 
+        if not validate_email(email):
+            raise ValueError('Invalid email format')
+
         # Validate password strength
         AuthService.validate_password(password)
 
@@ -91,6 +95,8 @@ class UserService:
         # Update allowed fields
         for field in ('email', 'first_name', 'last_name', 'role'):
             if field in data:
+                if field == 'email' and not validate_email(data[field]):
+                    raise ValueError('Invalid email format')
                 setattr(user, field, data[field])
 
         # Handle password separately

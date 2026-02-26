@@ -14,6 +14,7 @@ from app.services.auth_service import AuthService
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.patient_access_service import PatientAccessService
 from app.utils.helpers import sanitize_search_input, validate_required_fields
+from app.utils.validators import validate_email
 
 
 class PatientService:
@@ -85,6 +86,9 @@ class PatientService:
         is_valid, missing_fields = validate_required_fields(data, required_fields)
         if not is_valid:
             raise ValidationError('Missing required fields', {'missing_fields': missing_fields})
+
+        if not validate_email(data['email']):
+            raise ValidationError('Invalid email format')
 
         try:
             AuthService.validate_password(data['password'])
