@@ -23,5 +23,5 @@ RUN mkdir -p storage/files storage/metadata storage/cache
 
 EXPOSE 5000
 
-# Run development server with hot reload
-CMD ["python", "run.py"]
+# Apply migrations on startup, then run development server.
+CMD ["sh", "-c", "flask db upgrade && python run.py"]
