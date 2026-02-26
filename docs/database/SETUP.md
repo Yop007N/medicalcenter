@@ -41,6 +41,21 @@ python init_db.py
 flask db upgrade
 ```
 
+## 4.1) Poblar datos clinicos realistas (recomendado para UI/E2E)
+Despues de migrar, cargar datos relacionales (profesionales por especialidad, pacientes asignados, citas, historiales, presupuestos, pagos, archivos y encuentros por modulo):
+
+```bash
+cd backend
+python seed_realistic_data.py
+```
+
+Notas:
+- El seed es idempotente: puede correrse mas de una vez sin duplicar registros sembrados.
+- Conserva credenciales base:
+  - `admin@medical.com / admin123`
+  - `doctor@medical.com / doctor123`
+  - `patient@medical.com / patient123`
+
 ## 5) Verificacion rapida
 - `GET http://localhost:5000/health`
 - Login: `POST http://localhost:5000/api/auth/login`
