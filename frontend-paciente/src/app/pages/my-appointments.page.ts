@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
-import { IonicModule } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
+import { IonicModule } from '@ionic/angular';
 import {
   CreatePatientAppointmentPayload,
   PatientApiService,
   PatientAppointment,
-  ProfessionalDirectoryItem
+  ProfessionalAvailabilityItem
 } from '../core/services/patient-api.service';
+import { UiDialogService } from '../core/services/ui-dialog.service';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -33,9 +34,29 @@ type ApiErrorShape = {
     </ion-header>
 
     <ion-content class="page-content">
-      <section class="panel">
+      <section class="panel hero-panel">
         <h2 class="panel-title">Agenda personal</h2>
-        <p class="panel-text">Consulta tu historial de turnos y próximos encuentros.</p>
+        <p class="panel-text">Agenda solo en horarios disponibles, cercanos y confirmables.</p>
+
+        <div class="summary-grid">
+          <article>
+            <strong>{{ appointments.length }}</strong>
+            <span>Total</span>
+          </article>
+          <article>
+            <strong>{{ upcomingCount }}</strong>
+            <span>Proximos</span>
+          </article>
+          <article>
+            <strong>{{ completedCount }}</strong>
+            <span>Completados</span>
+          </article>
+          <article>
+            <strong>{{ cancelledCount }}</strong>
+            <span>Cancelados</span>
+          </article>
+        </div>
+
         <ion-segment [(ngModel)]="selectedFilter" (ionChange)="applyFilter()" class="filter-segment">
           <ion-segment-button value="all">Todos</ion-segment-button>
           <ion-segment-button value="upcoming">Proximos</ion-segment-button>
@@ -46,63 +67,99 @@ type ApiErrorShape = {
 
       <section class="panel">
         <h3 class="panel-title">Solicitar nuevo turno</h3>
-        <p class="panel-text">Selecciona profesional y fecha para registrar tu solicitud.</p>
+        <p class="panel-text">Selecciona profesional y horario libre mas cercano.</p>
 
-        <ion-item>
-          <ion-label position="stacked">Profesional</ion-label>
-          <ion-select
-            interface="popover"
-            placeholder="Selecciona un profesional"
-            [(ngModel)]="bookingProfessionalId"
-            [disabled]="professionalLoading || booking"
-          >
-            @for (professional of professionals; track professional.id) {
-              <ion-select-option [value]="professional.id">
-                {{ professional.first_name }} {{ professional.last_name }}
-                @if (professional.specialty) { - {{ professional.specialty }} }
-              </ion-select-option>
+        <ion-searchbar
+          [(ngModel)]="professionalQuery"
+          (ionInput)="applyProfessionalFilters()"
+          placeholder="Buscar profesional por nombre o especialidad"
+          class="compact-search"
+        ></ion-searchbar>
+
+        <div class="booking-filters">
+          <ion-item>
+            <ion-label position="stacked">Especialidad</ion-label>
+            <ion-select interface="popover" [(ngModel)]="specialtyFilter" (ionChange)="reloadAvailability()">
+              <ion-select-option value="all">Todas</ion-select-option>
+              @for (specialty of specialtyOptions; track specialty) {
+                <ion-select-option [value]="specialty">{{ specialty }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Buscar desde</ion-label>
+            <ion-input type="date" [(ngModel)]="slotSearchDate" (ionBlur)="reloadAvailability()"></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="item-actions">
+          <ion-button size="small" fill="outline" (click)="reloadAvailability()">
+            Actualizar disponibilidad
+          </ion-button>
+        </div>
+
+        <div class="professional-picker">
+          @if (professionalLoading) {
+            <p class="panel-text">Buscando horarios disponibles...</p>
+          } @else if (filteredProfessionals.length === 0) {
+            <p class="panel-text">
+              No hay profesionales con horarios libres para ese criterio cercano.
+            </p>
+          } @else {
+            @for (professional of filteredProfessionals; track professional.id) {
+              <article class="professional-option" [class.active]="professional.id === bookingProfessionalId">
+                <header>
+                  <strong>{{ professional.first_name }} {{ professional.last_name }}</strong>
+                  <span>{{ professional.specialty || 'Especialidad general' }}</span>
+                </header>
+                <p class="slot-hint">
+                  Proximo horario: {{ professional.next_available_slot | date:'dd/MM/yyyy HH:mm' }}
+                </p>
+                <div class="slot-grid">
+                  @for (slot of professional.available_slots; track slot) {
+                    <button
+                      type="button"
+                      class="slot-chip"
+                      [class.selected]="isSelectedSlot(professional.id, slot)"
+                      (click)="selectSlot(professional, slot)"
+                    >
+                      {{ slot | date:'dd/MM HH:mm' }}
+                    </button>
+                  }
+                </div>
+              </article>
             }
-          </ion-select>
-        </ion-item>
-
-        <ion-item>
-          <ion-label position="stacked">Fecha y hora</ion-label>
-          <ion-input
-            type="datetime-local"
-            [(ngModel)]="bookingDate"
-            [disabled]="booking"
-          ></ion-input>
-        </ion-item>
+          }
+        </div>
 
         <ion-item>
           <ion-label position="stacked">Tipo de cita</ion-label>
-          <ion-input
-            maxlength="80"
-            [(ngModel)]="bookingType"
-            [disabled]="booking"
-          ></ion-input>
+          <ion-input maxlength="80" [(ngModel)]="bookingType" [disabled]="booking"></ion-input>
         </ion-item>
 
         <ion-item>
           <ion-label position="stacked">Motivo</ion-label>
-          <ion-input
-            maxlength="180"
+          <ion-textarea
+            autoGrow="true"
+            maxlength="220"
             [(ngModel)]="bookingReason"
             [disabled]="booking"
-          ></ion-input>
+            placeholder="Describe brevemente el motivo de tu consulta"
+          ></ion-textarea>
         </ion-item>
+
+        @if (selectedSlotLabel) {
+          <p class="panel-text selected-professional">
+            Slot seleccionado: <strong>{{ selectedSlotLabel }}</strong>
+          </p>
+        }
 
         <div class="item-actions">
           <ion-button size="small" (click)="createAppointment()" [disabled]="!canCreateAppointment() || booking">
             @if (booking) { Solicitando... } @else { Solicitar turno }
           </ion-button>
         </div>
-
-        @if (professionalLoading) {
-          <p class="panel-text">Cargando profesionales...</p>
-        } @else if (professionals.length === 0) {
-          <p class="panel-text">No hay profesionales disponibles para agendar.</p>
-        }
       </section>
 
       <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
@@ -141,9 +198,14 @@ type ApiErrorShape = {
                   {{ appointment.appointment_type || 'Consulta general' }}
                   <br />
                   Profesional: {{ appointment.professional?.first_name }} {{ appointment.professional?.last_name }}
+                  @if (appointment.professional?.specialty) {
+                    ({{ appointment.professional?.specialty }})
+                  }
                 </p>
                 <div class="item-actions">
-                  <span class="status-chip" [class]="'status-' + appointment.status">{{ appointment.status }}</span>
+                  <span class="status-chip" [class]="'status-' + appointment.status">
+                    {{ toStatusLabel(appointment.status) }}
+                  </span>
                   @if (canCancel(appointment)) {
                     <ion-button
                       size="small"
@@ -166,8 +228,128 @@ type ApiErrorShape = {
   styles: [
     pageShellStyles,
     `
+      .hero-panel {
+        background: linear-gradient(
+          140deg,
+          rgba(var(--ion-color-primary-rgb), 0.14) 0%,
+          rgba(var(--ion-color-primary-rgb), 0.06) 100%
+        );
+      }
+
+      .summary-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 12px;
+      }
+
+      .summary-grid article {
+        background: var(--patient-surface);
+        border: 1px solid var(--patient-border);
+        border-radius: 10px;
+        display: grid;
+        gap: 2px;
+        min-height: 72px;
+        padding: 10px;
+      }
+
+      .summary-grid strong {
+        color: var(--ion-color-dark);
+        font-size: 1.05rem;
+      }
+
+      .summary-grid span {
+        color: var(--ion-color-medium);
+        font-size: 0.74rem;
+      }
+
       .filter-segment {
         margin-top: 10px;
+      }
+
+      .compact-search {
+        --background: var(--patient-surface);
+        --box-shadow: none;
+        --border-radius: 10px;
+        --placeholder-color: var(--ion-color-medium);
+        margin-bottom: 8px;
+      }
+
+      .booking-filters {
+        display: grid;
+        gap: 8px;
+      }
+
+      .professional-picker {
+        border: 1px solid var(--patient-border);
+        border-radius: 12px;
+        display: grid;
+        gap: 8px;
+        margin-bottom: 10px;
+        max-height: 320px;
+        overflow: auto;
+        padding: 8px;
+      }
+
+      .professional-option {
+        background: var(--patient-surface-soft);
+        border: 1px solid transparent;
+        border-radius: 10px;
+        display: grid;
+        gap: 6px;
+        padding: 10px;
+      }
+
+      .professional-option header {
+        display: grid;
+        gap: 2px;
+      }
+
+      .professional-option strong {
+        color: var(--ion-color-dark);
+        font-size: 0.84rem;
+      }
+
+      .professional-option span {
+        color: var(--ion-color-medium);
+        font-size: 0.74rem;
+      }
+
+      .professional-option.active {
+        background: rgba(var(--ion-color-primary-rgb), 0.12);
+        border-color: rgba(var(--ion-color-primary-rgb), 0.35);
+      }
+
+      .slot-hint {
+        color: var(--ion-color-medium);
+        font-size: 0.74rem;
+        margin: 0;
+      }
+
+      .slot-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .slot-chip {
+        background: var(--patient-surface);
+        border: 1px solid var(--patient-border);
+        border-radius: 999px;
+        color: var(--ion-color-dark);
+        font-size: 0.73rem;
+        padding: 4px 10px;
+      }
+
+      .slot-chip.selected {
+        background: rgba(var(--ion-color-primary-rgb), 0.16);
+        border-color: rgba(var(--ion-color-primary-rgb), 0.45);
+        color: var(--ion-color-primary-shade);
+        font-weight: 700;
+      }
+
+      .selected-professional {
+        margin-top: 2px;
       }
 
       .item-actions {
@@ -178,29 +360,27 @@ type ApiErrorShape = {
         margin-top: 8px;
       }
 
-      .success-box {
-        background: #ecfdf5;
-        border: 1px solid #86efac;
-        border-radius: 10px;
-        color: #166534;
-        font-size: 0.82rem;
-        margin: 12px;
-        padding: 10px;
-      }
+      @media (min-width: 768px) {
+        .summary-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
 
-      .status-pending {
-        background: #fef3c7;
-        color: #92400e;
+        .booking-filters {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
       }
     `
   ]
 })
 export class MyAppointmentsPage implements OnInit {
   private readonly patientApi = inject(PatientApiService);
+  private readonly uiDialog = inject(UiDialogService);
 
   appointments: PatientAppointment[] = [];
   filteredAppointments: PatientAppointment[] = [];
-  professionals: ProfessionalDirectoryItem[] = [];
+  professionals: ProfessionalAvailabilityItem[] = [];
+  filteredProfessionals: ProfessionalAvailabilityItem[] = [];
+  specialtyOptions: string[] = [];
   loading = false;
   professionalLoading = false;
   booking = false;
@@ -212,14 +392,34 @@ export class MyAppointmentsPage implements OnInit {
   bookingDate = '';
   bookingType = 'Consulta general';
   bookingReason = '';
+  professionalQuery = '';
+  specialtyFilter = 'all';
+  slotSearchDate = '';
+
+  upcomingCount = 0;
+  completedCount = 0;
+  cancelledCount = 0;
+
+  get selectedSlotLabel(): string | null {
+    if (!this.bookingProfessionalId || !this.bookingDate) {
+      return null;
+    }
+    const professional = this.professionals.find((item) => item.id === this.bookingProfessionalId);
+    if (!professional) {
+      return null;
+    }
+    return `${professional.first_name} ${professional.last_name} - ${this.formatSlot(this.bookingDate)}`;
+  }
 
   ngOnInit(): void {
+    this.slotSearchDate = this.toDateInput(new Date());
     this.loadAppointments();
-    this.loadProfessionals();
+    this.loadAvailableProfessionals();
   }
 
   refresh(event: CustomEvent): void {
     this.loadAppointments(() => event.detail.complete());
+    this.loadAvailableProfessionals();
   }
 
   private loadAppointments(onComplete?: () => void): void {
@@ -229,6 +429,7 @@ export class MyAppointmentsPage implements OnInit {
     this.patientApi.getMyAppointments().subscribe({
       next: (appointments) => {
         this.appointments = this.sortAppointments(appointments);
+        this.recalculateCounters();
         this.applyFilter();
         this.loading = false;
         onComplete?.();
@@ -241,25 +442,80 @@ export class MyAppointmentsPage implements OnInit {
     });
   }
 
-  private loadProfessionals(): void {
-    this.professionalLoading = true;
+  reloadAvailability(): void {
+    this.loadAvailableProfessionals();
+  }
 
-    this.patientApi.listProfessionals().subscribe({
-      next: (professionals) => {
-        this.professionals = [...professionals].sort((a, b) =>
-          `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
-        );
-        this.professionalLoading = false;
-      },
-      error: (error: unknown) => {
-        this.errorMessage = this.resolveErrorMessage(error);
-        this.professionalLoading = false;
-      }
-    });
+  private loadAvailableProfessionals(): void {
+    this.professionalLoading = true;
+    const specialty =
+      this.specialtyFilter === 'all' ? undefined : this.specialtyFilter;
+    const normalizedDate = this.slotSearchDate?.trim() || this.toDateInput(new Date());
+    this.slotSearchDate = normalizedDate;
+
+    this.patientApi
+      .listAvailableProfessionals({
+        specialty,
+        date_from: `${normalizedDate}T00:00:00`,
+        days: 7,
+        slots_per_professional: 6
+      })
+      .subscribe({
+        next: (professionals) => {
+          this.professionals = [...professionals].sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+          );
+          this.specialtyOptions = this.buildSpecialtyOptions(this.professionals);
+          this.applyProfessionalFilters();
+          this.professionalLoading = false;
+        },
+        error: (error: unknown) => {
+          this.errorMessage = this.resolveErrorMessage(error);
+          this.professionalLoading = false;
+        }
+      });
   }
 
   canCreateAppointment(): boolean {
     return Boolean(this.bookingProfessionalId) && Boolean(this.bookingDate);
+  }
+
+  isSelectedSlot(professionalId: number, slot: string): boolean {
+    return professionalId === this.bookingProfessionalId && slot === this.bookingDate;
+  }
+
+  selectSlot(professional: ProfessionalAvailabilityItem, slot: string): void {
+    this.bookingProfessionalId = professional.id;
+    this.bookingDate = slot;
+  }
+
+  applyProfessionalFilters(): void {
+    const normalizedQuery = this.professionalQuery.trim().toLowerCase();
+    this.filteredProfessionals = this.professionals.filter((professional) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const professionalText = `${professional.first_name} ${professional.last_name} ${professional.specialty ?? ''}`
+        .toLowerCase()
+        .trim();
+      return professionalText.includes(normalizedQuery);
+    });
+
+    if (this.bookingProfessionalId) {
+      const selectedProfessional = this.filteredProfessionals.find(
+        (professional) => professional.id === this.bookingProfessionalId
+      );
+      if (!selectedProfessional) {
+        this.bookingProfessionalId = null;
+        this.bookingDate = '';
+        return;
+      }
+
+      if (!selectedProfessional.available_slots.includes(this.bookingDate)) {
+        this.bookingDate = selectedProfessional.available_slots[0] ?? '';
+      }
+    }
   }
 
   createAppointment(): void {
@@ -281,32 +537,25 @@ export class MyAppointmentsPage implements OnInit {
     this.patientApi.createMyAppointment(payload).subscribe({
       next: (appointment) => {
         this.appointments = this.sortAppointments([appointment, ...this.appointments]);
+        this.recalculateCounters();
         this.selectedFilter = 'upcoming';
         this.applyFilter();
         this.successMessage = `Turno #${appointment.id} solicitado correctamente.`;
+        this.bookingDate = '';
         this.bookingReason = '';
         this.booking = false;
+        this.loadAvailableProfessionals();
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
         this.booking = false;
+        this.loadAvailableProfessionals();
       }
     });
   }
 
-  private resolveErrorMessage(error: unknown): string {
-    if (this.isApiErrorShape(error)) {
-      const message = error.error?.msg ?? error.error?.message ?? error.error?.error;
-      if (typeof message === 'string' && message.trim()) {
-        return message;
-      }
-    }
-
-    return 'No se pudieron cargar tus turnos.';
-  }
-
   applyFilter(): void {
-    const now = new Date().getTime();
+    const now = Date.now();
 
     if (this.selectedFilter === 'all') {
       this.filteredAppointments = [...this.appointments];
@@ -338,11 +587,16 @@ export class MyAppointmentsPage implements OnInit {
     return ['pending', 'scheduled', 'confirmed'].includes(appointment.status);
   }
 
-  cancelAppointment(appointment: PatientAppointment): void {
-    const reason = window.prompt(
-      `Motivo de cancelacion para el turno #${appointment.id} (opcional):`,
-      ''
-    );
+  async cancelAppointment(appointment: PatientAppointment): Promise<void> {
+    const reason = await this.uiDialog.promptText({
+      header: 'Cancelar turno',
+      message: `Turno #${appointment.id}: indica un motivo opcional`,
+      placeholder: 'Motivo de cancelacion',
+      confirmText: 'Confirmar cancelacion',
+      cancelText: 'Volver',
+      multiline: true,
+      maxLength: 220
+    });
     if (reason === null) {
       return;
     }
@@ -355,15 +609,75 @@ export class MyAppointmentsPage implements OnInit {
         this.appointments = this.appointments.map((item) =>
           item.id === appointment.id ? { ...item, status: 'cancelled' } : item
         );
+        this.recalculateCounters();
         this.applyFilter();
         this.successMessage = `Turno #${appointment.id} cancelado.`;
         this.cancellingIds.delete(appointment.id);
+        this.loadAvailableProfessionals();
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
         this.cancellingIds.delete(appointment.id);
       }
     });
+  }
+
+  toStatusLabel(status: PatientAppointment['status']): string {
+    const labels: Record<PatientAppointment['status'], string> = {
+      pending: 'Pendiente',
+      scheduled: 'Agendado',
+      confirmed: 'Confirmado',
+      completed: 'Completado',
+      cancelled: 'Cancelado',
+      no_show: 'No asistio'
+    };
+    return labels[status] ?? status;
+  }
+
+  private buildSpecialtyOptions(professionals: ProfessionalAvailabilityItem[]): string[] {
+    const specialties = professionals
+      .map((professional) => (professional.specialty ?? '').trim())
+      .filter((specialty) => specialty.length > 0);
+    return [...new Set(specialties)].sort((a, b) => a.localeCompare(b));
+  }
+
+  private recalculateCounters(): void {
+    const now = Date.now();
+    this.upcomingCount = this.appointments.filter((appointment) => {
+      const appointmentTime = new Date(appointment.appointment_date).getTime();
+      return ['pending', 'scheduled', 'confirmed'].includes(appointment.status) && appointmentTime >= now;
+    }).length;
+    this.completedCount = this.appointments.filter((appointment) => appointment.status === 'completed').length;
+    this.cancelledCount = this.appointments.filter(
+      (appointment) => appointment.status === 'cancelled' || appointment.status === 'no_show'
+    ).length;
+  }
+
+  private toDateInput(date: Date): string {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+
+  private formatSlot(slotIso: string): string {
+    const date = new Date(slotIso);
+    return date.toLocaleString('es-PY', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    if (this.isApiErrorShape(error)) {
+      const message = error.error?.msg ?? error.error?.message ?? error.error?.error;
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+    }
+
+    return 'No se pudieron cargar tus turnos.';
   }
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {

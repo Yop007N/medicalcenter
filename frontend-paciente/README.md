@@ -24,14 +24,16 @@ npm run ionic:build
 ## Estado actual
 - Flujo funcional inicial para actor Paciente implementado:
   - Login por JWT (`/auth/login`)
-  - Dashboard paciente (`/dashboard`)
-  - Mis turnos (`/my-appointments`)
-  - Mis presupuestos (`/my-budgets`)
-  - Mi historia clinica (`/my-history`)
+  - Dashboard paciente (`/dashboard`) con accesos rápidos e indicadores
+  - Plan de cuidado (`/my-care-plan`) con indicaciones, medicacion y tratamientos
+  - Mis turnos (`/my-appointments`) con agenda por disponibilidad real y proximos slots libres
+  - Mis presupuestos (`/my-budgets`) con resumen financiero y moneda local
+  - Mi historia clinica (`/my-history`) con seccion de odontograma del paciente
   - Mi perfil (`/my-profile`)
 - Menu lateral con sesion activa y cierre de sesion.
 - Interceptor de auth + guard de rutas protegidas.
 - Sincronizacion base (`sync/push`, `sync/pull`, `sync/status`) con cola local.
+- Service worker habilitado en build de produccion (`ngsw-config.json`).
 
 ## Estructura principal
 - `src/app/core`: auth, sync, offline, guard e interceptor.
@@ -43,4 +45,5 @@ npm run ionic:build
 Para desarrollo local sin proxy, ajustar `environment.ts` segun tu backend.
 
 ## Nota operativa
-La paridad funcional total de Paciente aun requiere modulos adicionales (historia clinica, documentos y consentimientos), pero el canal ya no esta en estado shell.
+Este canal ya opera con flujo clínico y administrativo real para paciente.
+Pendientes recomendados: tests E2E dedicados del canal paciente y empaquetado APK con Capacitor (`ionic build` + `npx cap sync android`).

@@ -43,6 +43,12 @@ export interface ProfessionalDirectoryItem {
   email?: string;
 }
 
+export interface ProfessionalAvailabilityItem extends ProfessionalDirectoryItem {
+  next_available_slot: string;
+  available_slots: string[];
+  available_count: number;
+}
+
 export interface CreatePatientAppointmentPayload {
   professional_id: number;
   appointment_date: string;
@@ -51,16 +57,74 @@ export interface CreatePatientAppointmentPayload {
   duration_minutes?: number;
 }
 
+export interface PatientOdontogramTooth {
+  id: number;
+  odontogram_id: number;
+  tooth_number: number;
+  tooth_type?: string | null;
+  status?: string | null;
+  mesial?: string | null;
+  distal?: string | null;
+  oclusal?: string | null;
+  vestibular?: string | null;
+  lingual?: string | null;
+  notes?: string | null;
+  planned_treatment?: string | null;
+  treatment_priority?: string | null;
+}
+
+export interface PatientOdontogram {
+  id: number;
+  patient_id: number;
+  professional_id: number;
+  notes?: string | null;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  teeth: PatientOdontogramTooth[];
+  professional?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    specialty?: string | null;
+  };
+}
+
 export interface PatientBudget {
   id: number;
   title: string;
   description?: string | null;
   status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
   total_amount: number;
+  currency?: string | null;
   total_paid?: number;
   payments_count?: number;
   valid_until?: string | null;
   created_at: string;
+}
+
+export interface PatientMedicalRecord {
+  id: number;
+  patient_id: number;
+  professional_id: number;
+  record_date: string;
+  chief_complaint?: string | null;
+  symptoms?: string | null;
+  diagnosis?: string | null;
+  treatment?: string | null;
+  prescriptions?: string | null;
+  notes?: string | null;
+  blood_pressure?: string | null;
+  heart_rate?: number | null;
+  temperature?: number | null;
+  weight?: number | null;
+  height?: number | null;
+  professional?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    specialty?: string | null;
+  };
 }
 
 export interface ClinicalCounts {
@@ -161,6 +225,23 @@ export class PatientApiService {
     });
   }
 
+  listAvailableProfessionals(params?: {
+    specialty?: string;
+    date_from?: string;
+    days?: number;
+    slots_per_professional?: number;
+  }): Observable<ProfessionalAvailabilityItem[]> {
+    return this.apiClient.get<ProfessionalAvailabilityItem[]>(
+      API_ENDPOINTS.professionals.availableSlots,
+      {
+        specialty: params?.specialty,
+        date_from: params?.date_from,
+        days: params?.days,
+        slots_per_professional: params?.slots_per_professional
+      }
+    );
+  }
+
   createMyAppointment(payload: CreatePatientAppointmentPayload): Observable<PatientAppointment> {
     return this.resolvePatientId().pipe(
       switchMap((patientId) =>
@@ -186,6 +267,22 @@ export class PatientApiService {
     return this.resolvePatientId().pipe(
       switchMap((patientId) =>
         this.apiClient.get<PatientBudget[]>(API_ENDPOINTS.patients.budgets(patientId))
+      )
+    );
+  }
+
+  getMyMedicalRecords(): Observable<PatientMedicalRecord[]> {
+    return this.resolvePatientId().pipe(
+      switchMap((patientId) =>
+        this.apiClient.get<PatientMedicalRecord[]>(API_ENDPOINTS.patients.medicalHistory(patientId))
+      )
+    );
+  }
+
+  getMyOdontogram(): Observable<PatientOdontogram> {
+    return this.resolvePatientId().pipe(
+      switchMap((patientId) =>
+        this.apiClient.get<PatientOdontogram>(API_ENDPOINTS.patients.odontogram(patientId))
       )
     );
   }

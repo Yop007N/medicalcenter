@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { ServiceWorkerModule } from '@angular/service-worker';
 import {
   HTTP_INTERCEPTORS,
   HttpClientModule
@@ -11,6 +12,7 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
+import { environment } from '../environments/environment';
 
 @NgModule({
   declarations: [AppComponent],
@@ -20,6 +22,10 @@ import { AuthInterceptor } from './core/interceptors/auth.interceptor';
     IonicModule.forRoot(),
     RouterModule.forRoot(routes, {
       scrollPositionRestoration: 'enabled'
+    }),
+    ServiceWorkerModule.register('ngsw-worker.js', {
+      enabled: environment.production,
+      registrationStrategy: 'registerWhenStable:30000'
     })
   ],
   providers: [

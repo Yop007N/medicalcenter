@@ -36,6 +36,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/my-history.page').then((m) => m.MyHistoryPage)
   },
   {
+    path: 'my-care-plan',
+    canActivate: [authGuard],
+    data: { roles: ['patient'] },
+    loadComponent: () => import('./pages/my-care-plan.page').then((m) => m.MyCarePlanPage)
+  },
+  {
     path: 'my-profile',
     canActivate: [authGuard],
     data: { roles: ['patient'] },

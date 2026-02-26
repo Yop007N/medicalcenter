@@ -21,84 +21,169 @@ type ApiErrorShape = {
   template: `
     <ion-header translucent="true">
       <ion-toolbar color="primary">
-        <ion-title>Paciente - Iniciar sesion</ion-title>
+        <ion-title>Portal Paciente</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="ion-padding">
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>Bienvenido</ion-card-title>
-          <ion-card-subtitle>Acceso al canal de autogestion del paciente</ion-card-subtitle>
-        </ion-card-header>
+    <ion-content class="login-content">
+      <section class="login-shell">
+        <div class="brand-panel">
+          <span class="brand-kicker">Medical Services</span>
+          <h1>Tu salud, en un solo lugar</h1>
+          <p>Consulta turnos, indicaciones clínicas, documentos y consentimiento informado.</p>
+          <ul>
+            <li>Agenda y seguimiento de tratamientos</li>
+            <li>Historial clínico siempre disponible</li>
+            <li>Presupuestos y estado administrativo</li>
+          </ul>
+        </div>
 
-        <ion-card-content>
-          @if (errorMessage) {
-            <div class="error-box" role="alert">{{ errorMessage }}</div>
-          }
+        <ion-card class="login-card">
+          <ion-card-header>
+            <ion-card-title>Iniciar sesión</ion-card-title>
+            <ion-card-subtitle>Acceso al canal de autogestión del paciente</ion-card-subtitle>
+          </ion-card-header>
 
-          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-            <ion-item lines="full">
-              <ion-label position="stacked">Correo</ion-label>
-              <ion-input
-                type="email"
-                formControlName="email"
-                autocomplete="username"
-                placeholder="patient@medical.com"
-              ></ion-input>
-            </ion-item>
-            @if (emailControl.touched && emailControl.invalid) {
-              <small class="field-error">Ingresa un correo valido.</small>
+          <ion-card-content>
+            @if (errorMessage) {
+              <div class="error-box" role="alert">{{ errorMessage }}</div>
             }
 
-            <ion-item lines="full" class="ion-margin-top">
-              <ion-label position="stacked">Password</ion-label>
-              <ion-input
-                type="password"
-                formControlName="password"
-                autocomplete="current-password"
-                placeholder="Tu password"
-              ></ion-input>
-            </ion-item>
-            @if (passwordControl.touched && passwordControl.invalid) {
-              <small class="field-error">La password es obligatoria.</small>
-            }
-
-            <ion-button
-              type="submit"
-              expand="block"
-              class="ion-margin-top"
-              [disabled]="loginForm.invalid || isSubmitting"
-            >
-              @if (isSubmitting) {
-                Iniciando...
-              } @else {
-                Iniciar sesion
+            <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+              <ion-item lines="full">
+                <ion-label position="stacked">Correo</ion-label>
+                <ion-input
+                  type="email"
+                  formControlName="email"
+                  autocomplete="username"
+                  placeholder="patient@medical.com"
+                ></ion-input>
+              </ion-item>
+              @if (emailControl.touched && emailControl.invalid) {
+                <small class="field-error">Ingresa un correo válido.</small>
               }
-            </ion-button>
-          </form>
-        </ion-card-content>
-      </ion-card>
+
+              <ion-item lines="full" class="ion-margin-top">
+                <ion-label position="stacked">Password</ion-label>
+                <ion-input
+                  type="password"
+                  formControlName="password"
+                  autocomplete="current-password"
+                  placeholder="Tu password"
+                ></ion-input>
+              </ion-item>
+              @if (passwordControl.touched && passwordControl.invalid) {
+                <small class="field-error">La password es obligatoria.</small>
+              }
+
+              <ion-button
+                type="submit"
+                expand="block"
+                class="ion-margin-top"
+                [disabled]="loginForm.invalid || isSubmitting"
+              >
+                @if (isSubmitting) {
+                  Iniciando...
+                } @else {
+                  Iniciar sesión
+                }
+              </ion-button>
+            </form>
+          </ion-card-content>
+        </ion-card>
+      </section>
     </ion-content>
   `,
   styles: [
     `
+      .login-content {
+        --background: var(--patient-bg);
+      }
+
+      .login-shell {
+        display: grid;
+        gap: 14px;
+        margin: 0 auto;
+        max-width: 980px;
+        padding: 20px 14px 28px;
+      }
+
+      .brand-panel {
+        background: linear-gradient(
+          145deg,
+          rgba(var(--ion-color-primary-rgb), 0.14) 0%,
+          rgba(var(--ion-color-secondary-rgb), 0.08) 100%
+        );
+        border: 1px solid rgba(var(--ion-color-primary-rgb), 0.22);
+        border-radius: var(--patient-radius);
+        color: var(--ion-color-dark);
+        padding: 18px 16px;
+      }
+
+      .brand-kicker {
+        color: var(--ion-color-primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .brand-panel h1 {
+        font-size: 1.34rem;
+        line-height: 1.2;
+        margin: 8px 0 8px;
+      }
+
+      .brand-panel p {
+        color: var(--ion-color-medium);
+        font-size: 0.84rem;
+        margin: 0 0 10px;
+      }
+
+      .brand-panel ul {
+        color: var(--ion-color-dark);
+        display: grid;
+        font-size: 0.78rem;
+        gap: 6px;
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .login-card {
+        margin: 0;
+      }
+
       .error-box {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
+        background: rgba(var(--ion-color-danger-rgb), 0.12);
+        border: 1px solid rgba(var(--ion-color-danger-rgb), 0.3);
         border-radius: 10px;
-        color: #b91c1c;
+        color: var(--ion-color-danger);
         font-size: 0.82rem;
         margin-bottom: 0.7rem;
         padding: 0.65rem 0.75rem;
       }
 
       .field-error {
-        color: #b42318;
+        color: var(--ion-color-danger);
         display: block;
         font-size: 0.75rem;
         margin-left: 16px;
         margin-top: 4px;
+      }
+
+      @media (min-width: 900px) {
+        .login-shell {
+          align-items: stretch;
+          gap: 18px;
+          grid-template-columns: 1.1fr 1fr;
+          min-height: calc(100vh - 100px);
+          padding-top: 34px;
+        }
+
+        .brand-panel,
+        .login-card {
+          align-self: center;
+        }
       }
     `
   ]

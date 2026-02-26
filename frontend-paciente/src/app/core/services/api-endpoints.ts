@@ -5,14 +5,17 @@ export const API_ENDPOINTS = {
   patients: {
     byId: (id: number) => `patients/${id}`,
     appointments: (id: number) => `patients/${id}/appointments`,
-    budgets: (id: number) => `patients/${id}/budgets`
+    budgets: (id: number) => `patients/${id}/budgets`,
+    medicalHistory: (id: number) => `patients/${id}/medical-history`,
+    odontogram: (id: number) => `patients/${id}/odontogram`
   },
   appointments: {
     base: 'appointments',
     byId: (id: number) => `appointments/${id}`
   },
   professionals: {
-    base: 'professionals'
+    base: 'professionals',
+    availableSlots: 'professionals/available-slots'
   },
   budgets: {
     accept: (id: number) => `budgets/${id}/accept`

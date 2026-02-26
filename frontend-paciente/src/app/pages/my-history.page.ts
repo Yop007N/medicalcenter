@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { IonicModule } from '@ionic/angular';
@@ -8,13 +9,16 @@ import {
   ClinicalSummary,
   InformedConsentItem,
   PatientApiService,
-  PatientDocumentItem
+  PatientDocumentItem,
+  PatientOdontogram,
+  PatientOdontogramTooth
 } from '../core/services/patient-api.service';
+import { UiDialogService } from '../core/services/ui-dialog.service';
 import { OfflineService } from '../core/services/offline.service';
 import { SyncService } from '../core/services/sync.service';
 import { pageShellStyles } from './page-shell.styles';
 
-type SegmentView = 'summary' | 'timeline' | 'documents' | 'consents';
+type SegmentView = 'summary' | 'timeline' | 'documents' | 'consents' | 'odontogram';
 
 type ApiErrorShape = {
   error?: {
@@ -46,7 +50,7 @@ type SectionResult<T> = {
     <ion-content class="page-content">
       <section class="panel">
         <h2 class="panel-title">Historia y consentimientos</h2>
-        <p class="panel-text">Consulta resumen clinico, eventos, documentos y consentimientos.</p>
+        <p class="panel-text">Consulta resumen clinico, eventos, documentos, consentimientos y odontograma.</p>
       </section>
 
       <section class="panel connectivity-panel">
@@ -69,6 +73,7 @@ type SectionResult<T> = {
         <ion-segment-button value="timeline">Timeline</ion-segment-button>
         <ion-segment-button value="documents">Documentos</ion-segment-button>
         <ion-segment-button value="consents">Consentimientos</ion-segment-button>
+        <ion-segment-button value="odontogram">Odontograma</ion-segment-button>
       </ion-segment>
 
       <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
@@ -247,6 +252,71 @@ type SectionResult<T> = {
           }
         }
       }
+
+      @if (!loading && activeView === 'odontogram') {
+        @if (!odontogram) {
+          <section class="panel">
+            <h3 class="panel-title">Odontograma</h3>
+            <p class="panel-text">Todavia no hay odontograma activo para este paciente.</p>
+          </section>
+        } @else {
+          <section class="panel">
+            <h3 class="panel-title">Odontograma activo</h3>
+            <p class="panel-text">
+              Ultima actualizacion:
+              <strong>{{ (odontogram.updated_at || odontogram.created_at) | date:'medium' }}</strong>
+            </p>
+            <div class="summary-grid">
+              <article>
+                <strong>{{ countTeethByStatus('healthy') }}</strong>
+                <span>Sanos</span>
+              </article>
+              <article>
+                <strong>{{ countTeethByStatus('caries') }}</strong>
+                <span>Caries</span>
+              </article>
+              <article>
+                <strong>{{ countTeethByStatus('filled') }}</strong>
+                <span>Restaurados</span>
+              </article>
+              <article>
+                <strong>{{ countTeethByStatus('missing') + countTeethByStatus('extracted') }}</strong>
+                <span>Ausentes</span>
+              </article>
+            </div>
+          </section>
+
+          @if (odontogramTeeth.length === 0) {
+            <section class="panel">
+              <p class="panel-text">El odontograma aun no tiene piezas dentales cargadas.</p>
+            </section>
+          } @else {
+            <ion-list inset="true">
+              @for (tooth of odontogramTeeth; track tooth.id) {
+                <ion-item>
+                  <ion-label>
+                    <h2>Diente {{ tooth.tooth_number }}</h2>
+                    <p>
+                      Estado: {{ toToothStatusLabel(tooth.status) }}
+                      @if (tooth.planned_treatment) {
+                        <br />
+                        Plan: {{ tooth.planned_treatment }}
+                      }
+                      @if (tooth.notes) {
+                        <br />
+                        Nota: {{ tooth.notes }}
+                      }
+                    </p>
+                  </ion-label>
+                  <ion-chip [class]="'tooth-' + (tooth.status || 'healthy')">
+                    {{ toToothStatusLabel(tooth.status) }}
+                  </ion-chip>
+                </ion-item>
+              }
+            </ion-list>
+          }
+        }
+      }
     </ion-content>
   `,
   styles: [
@@ -262,23 +332,23 @@ type SectionResult<T> = {
       }
 
       .warning-box {
-        background: #fffbeb;
-        border: 1px solid #fde68a;
+        background: rgba(var(--ion-color-warning-rgb), 0.14);
+        border: 1px solid rgba(var(--ion-color-warning-rgb), 0.35);
         border-radius: 10px;
-        color: #92400e;
+        color: var(--ion-color-warning-shade);
         font-size: 0.82rem;
         margin: 12px;
         padding: 10px;
       }
 
       .status-pending {
-        background: #fef3c7;
-        color: #92400e;
+        background: rgba(var(--ion-color-warning-rgb), 0.14);
+        color: var(--ion-color-warning-shade);
       }
 
       .status-signed {
-        background: #dcfce7;
-        color: #166534;
+        background: rgba(var(--ion-color-success-rgb), 0.14);
+        color: var(--ion-color-success);
       }
 
       .loading-panel {
@@ -295,8 +365,8 @@ type SectionResult<T> = {
       }
 
       .summary-grid article {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: var(--patient-surface-soft);
+        border: 1px solid var(--patient-border);
         border-radius: 10px;
         display: flex;
         flex-direction: column;
@@ -305,24 +375,24 @@ type SectionResult<T> = {
       }
 
       .summary-grid strong {
-        color: #0f172a;
+        color: var(--ion-color-dark);
         font-size: 1.05rem;
       }
 
       .summary-grid span {
-        color: #475569;
+        color: var(--ion-color-medium);
         font-size: 0.75rem;
       }
 
       .sub-title {
-        color: #334155;
+        color: var(--ion-color-medium);
         font-size: 0.85rem;
         font-weight: 700;
         margin: 12px 0 6px;
       }
 
       .simple-list {
-        color: #1e293b;
+        color: var(--ion-color-dark);
         font-size: 0.82rem;
         margin: 0;
         padding-left: 18px;
@@ -342,6 +412,37 @@ type SectionResult<T> = {
         margin-top: 8px;
       }
 
+      ion-chip[class^='tooth-'] {
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .tooth-healthy {
+        background: rgba(var(--ion-color-success-rgb), 0.16);
+        color: var(--ion-color-success-shade);
+      }
+
+      .tooth-caries,
+      .tooth-to_extract,
+      .tooth-fractured {
+        background: rgba(var(--ion-color-danger-rgb), 0.16);
+        color: var(--ion-color-danger-shade);
+      }
+
+      .tooth-filled,
+      .tooth-crown,
+      .tooth-root_canal {
+        background: rgba(var(--ion-color-primary-rgb), 0.16);
+        color: var(--ion-color-primary-shade);
+      }
+
+      .tooth-missing,
+      .tooth-extracted {
+        background: rgba(var(--ion-color-medium-rgb), 0.16);
+        color: var(--ion-color-medium-shade);
+      }
+
       @media (max-width: 420px) {
         .summary-grid {
           grid-template-columns: 1fr;
@@ -352,6 +453,7 @@ type SectionResult<T> = {
 })
 export class MyHistoryPage implements OnInit {
   private readonly patientApi = inject(PatientApiService);
+  private readonly uiDialog = inject(UiDialogService);
   private readonly offlineService = inject(OfflineService);
   private readonly syncService = inject(SyncService);
 
@@ -367,6 +469,8 @@ export class MyHistoryPage implements OnInit {
   timeline: ClinicalHistoryEvent[] = [];
   documents: PatientDocumentItem[] = [];
   consents: InformedConsentItem[] = [];
+  odontogram: PatientOdontogram | null = null;
+  odontogramTeeth: PatientOdontogramTooth[] = [];
 
   processingConsentIds = new Set<number>();
 
@@ -409,14 +513,44 @@ export class MyHistoryPage implements OnInit {
     }, 700);
   }
 
-  signConsent(consent: InformedConsentItem): void {
+  countTeethByStatus(status: string): number {
+    return this.odontogramTeeth.filter((tooth) => (tooth.status ?? 'healthy') === status).length;
+  }
+
+  toToothStatusLabel(status?: string | null): string {
+    const labels: Record<string, string> = {
+      healthy: 'Sano',
+      caries: 'Caries',
+      filled: 'Restaurado',
+      crown: 'Corona',
+      implant: 'Implante',
+      missing: 'Ausente',
+      root_canal: 'Endodoncia',
+      fractured: 'Fracturado',
+      mobile: 'Movil',
+      to_extract: 'A extraer',
+      extracted: 'Extraido'
+    };
+    return labels[status ?? 'healthy'] ?? status ?? 'Sano';
+  }
+
+  async signConsent(consent: InformedConsentItem): Promise<void> {
     if (!this.isOnline) {
       this.warningMessage = 'No puedes firmar consentimientos mientras estas offline.';
       return;
     }
 
     const defaultSignature = `signed-by-patient-${new Date().toISOString()}`;
-    const signature = window.prompt('Ingresa tu firma para aprobar este consentimiento', defaultSignature);
+    const signature = await this.uiDialog.promptText({
+      header: 'Firmar consentimiento',
+      message: consent.title,
+      placeholder: 'Escribe tu firma',
+      value: defaultSignature,
+      confirmText: 'Firmar',
+      cancelText: 'Cancelar',
+      required: true,
+      maxLength: 255
+    });
 
     if (signature === null) {
       return;
@@ -443,18 +577,29 @@ export class MyHistoryPage implements OnInit {
     });
   }
 
-  rejectConsent(consent: InformedConsentItem): void {
+  async rejectConsent(consent: InformedConsentItem): Promise<void> {
     if (!this.isOnline) {
       this.warningMessage = 'No puedes rechazar consentimientos mientras estas offline.';
       return;
     }
 
-    const reason = window.prompt('Ingresa el motivo de rechazo (opcional)') ?? undefined;
+    const reason = await this.uiDialog.promptText({
+      header: 'Rechazar consentimiento',
+      message: consent.title,
+      placeholder: 'Motivo de rechazo (opcional)',
+      confirmText: 'Rechazar',
+      cancelText: 'Volver',
+      multiline: true,
+      maxLength: 255
+    });
+    if (reason === null) {
+      return;
+    }
 
     this.processingConsentIds.add(consent.id);
     this.errorMessage = null;
 
-    this.patientApi.rejectConsent(consent.id, reason).subscribe({
+    this.patientApi.rejectConsent(consent.id, reason.trim() || undefined).subscribe({
       next: (updatedConsent) => {
         this.updateConsentItem(updatedConsent);
         this.processingConsentIds.delete(consent.id);
@@ -514,18 +659,26 @@ export class MyHistoryPage implements OnInit {
         this.patientApi.getMyConsents(),
         [] as InformedConsentItem[],
         'No se pudo cargar la seccion de consentimientos.'
+      ),
+      odontogram: this.withOptionalSectionFallback(
+        this.patientApi.getMyOdontogram(),
+        null,
+        'No se pudo cargar la seccion de odontograma.'
       )
     }).subscribe({
-      next: ({ summary, timeline, documents, consents }) => {
+      next: ({ summary, timeline, documents, consents, odontogram }) => {
         this.summary = summary.data;
         this.timeline = timeline.data;
         this.documents = documents.data;
         this.consents = consents.data;
+        this.odontogram = odontogram.data;
+        this.odontogramTeeth = [...(this.odontogram?.teeth ?? [])].sort(
+          (a, b) => a.tooth_number - b.tooth_number
+        );
         this.pendingChangesCount = this.syncService.getPendingChanges().length;
 
-        const warnings = [summary.warning, timeline.warning, documents.warning, consents.warning].filter(
-          (message): message is string => !!message
-        );
+        const warnings = [summary.warning, timeline.warning, documents.warning, consents.warning, odontogram.warning]
+          .filter((message): message is string => !!message);
         if (warnings.length > 0) {
           this.warningMessage = warnings[0];
           if (warnings.length > 1) {
@@ -533,7 +686,13 @@ export class MyHistoryPage implements OnInit {
           }
         }
 
-        if (!this.summary && this.timeline.length === 0 && this.documents.length === 0 && this.consents.length === 0) {
+        if (
+          !this.summary
+          && this.timeline.length === 0
+          && this.documents.length === 0
+          && this.consents.length === 0
+          && !this.odontogram
+        ) {
           this.errorMessage = 'No se encontro informacion clinica disponible para este paciente.';
         }
 
@@ -552,6 +711,26 @@ export class MyHistoryPage implements OnInit {
     return source$.pipe(
       map((data: T): SectionResult<T> => ({ data, warning: null })),
       catchError((error: unknown) => {
+        const message = this.resolveErrorMessage(error) || warning;
+        return of({
+          data: fallback,
+          warning: message
+        } as SectionResult<T>);
+      })
+    );
+  }
+
+  private withOptionalSectionFallback<T>(
+    source$: Observable<T>,
+    fallback: T,
+    warning: string
+  ): Observable<SectionResult<T>> {
+    return source$.pipe(
+      map((data: T): SectionResult<T> => ({ data, warning: null })),
+      catchError((error: unknown) => {
+        if (this.isNotFoundError(error)) {
+          return of({ data: fallback, warning: null } as SectionResult<T>);
+        }
         const message = this.resolveErrorMessage(error) || warning;
         return of({
           data: fallback,
@@ -593,5 +772,9 @@ export class MyHistoryPage implements OnInit {
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {
     return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status === 404;
   }
 }
