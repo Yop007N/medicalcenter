@@ -2,7 +2,8 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { map } from 'rxjs/operators';
+import { combineLatest, of } from 'rxjs';
+import { catchError, distinctUntilChanged, map, shareReplay, switchMap } from 'rxjs/operators';
 import {
   IonSplitPane,
   IonMenu,
@@ -43,7 +44,13 @@ import * as AuthActions from '../../store/auth/auth.actions';
 import { PwaUpdateService } from '../../core/services/pwa-update.service';
 import { ConnectivityService } from '../../core/services/connectivity.service';
 import { PushNotificationsService } from '../../core/services/push-notifications.service';
+import { AuthService } from '../../core/services/auth.service';
+import {
+  SpecialtiesApiService,
+  SpecialtyModuleDefinition
+} from '../../core/services/specialties-api.service';
 import { OfflineIndicatorComponent } from '../../shared/components/offline-indicator/offline-indicator.component';
+import { User } from '../../models';
 
 interface MenuItem {
   title: string;
@@ -175,7 +182,8 @@ interface MenuGroup {
       align-items: center;
       justify-content: space-between;
       padding: 20px 16px;
-      background: var(--medical-gradient-primary);
+      background: var(--medical-bg-card);
+      border-bottom: 1px solid var(--medical-border-light);
     }
 
     .brand {
@@ -187,7 +195,7 @@ interface MenuGroup {
     .brand-icon {
       width: 40px;
       height: 40px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(var(--ion-color-primary-rgb), 0.12);
       border-radius: var(--medical-radius);
       display: flex;
       align-items: center;
@@ -195,7 +203,7 @@ interface MenuGroup {
 
       ion-icon {
         font-size: 22px;
-        color: white;
+        color: var(--ion-color-primary);
       }
     }
 
@@ -208,12 +216,12 @@ interface MenuGroup {
     .brand-name {
       font-size: 18px;
       font-weight: 700;
-      color: white;
+      color: var(--ion-color-dark);
     }
 
     .brand-tagline {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.8);
+      color: var(--ion-color-medium);
       font-weight: 500;
     }
 
@@ -236,12 +244,12 @@ interface MenuGroup {
     .user-avatar {
       width: 64px;
       height: 64px;
-      background: var(--medical-gradient-primary);
+      background: rgba(var(--ion-color-primary-rgb), 0.14);
       margin-bottom: 12px;
 
       ion-icon {
         font-size: 36px;
-        color: white;
+        color: var(--ion-color-primary);
       }
     }
 
@@ -370,13 +378,13 @@ interface MenuGroup {
       }
 
       &.active {
-        --background: rgba(var(--ion-color-primary-rgb), 0.1);
+        --background: rgba(var(--ion-color-primary-rgb), 0.08);
 
         .item-icon-wrapper {
-          background: var(--medical-gradient-primary);
+          background: rgba(var(--ion-color-primary-rgb), 0.14);
 
           ion-icon {
-            color: white;
+            color: var(--ion-color-primary);
           }
         }
 
@@ -412,30 +420,58 @@ interface MenuGroup {
       }
     }
 
-    /* Responsive */
-    @media (prefers-color-scheme: dark) {
-      .menu-header {
-        background: var(--medical-gradient-primary);
-      }
-
-      .user-card {
-        background: linear-gradient(180deg, rgba(var(--ion-color-primary-rgb), 0.1) 0%, transparent 100%);
-      }
-    }
+    /* Theme is fixed to light from global stylesheet */
   `]
 })
 export class MainLayoutComponent {
   private store = inject(Store);
+  private readonly authService = inject(AuthService);
+  private readonly specialtiesApi = inject(SpecialtiesApiService);
   private readonly pwaUpdateService = inject(PwaUpdateService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly pushNotificationsService = inject(PushNotificationsService);
 
-  user$ = this.store.select(selectUser);
-  visibleMenuGroups$ = this.user$.pipe(
-    map((user) => this.filterMenuGroups(user?.role))
+  user$ = combineLatest([
+    this.store.select(selectUser),
+    this.authService.currentUser$
+  ]).pipe(
+    map(([storeUser, runtimeUser]) => this.resolveUser(storeUser, runtimeUser)),
+    distinctUntilChanged(
+      (prev, curr) =>
+        prev?.id === curr?.id &&
+        prev?.role === curr?.role &&
+        prev?.specialty === curr?.specialty
+    ),
+    shareReplay(1)
   );
 
-  menuGroups: MenuGroup[] = [
+  specialtyCatalog$ = this.specialtiesApi.getCatalog().pipe(
+    catchError(() => of([] as SpecialtyModuleDefinition[])),
+    shareReplay(1)
+  );
+
+  mySpecialtyModule$ = this.user$.pipe(
+    switchMap((user) => {
+      if (user?.role !== 'professional') {
+        return of(null as SpecialtyModuleDefinition | null);
+      }
+      return this.specialtiesApi.getMyModule().pipe(
+        map((response) => response.module),
+        catchError(() => of(null as SpecialtyModuleDefinition | null))
+      );
+    }),
+    shareReplay(1)
+  );
+
+  visibleMenuGroups$ = combineLatest([
+    this.user$,
+    this.specialtyCatalog$,
+    this.mySpecialtyModule$
+  ]).pipe(
+    map(([user, catalog, myModule]) => this.buildMenuGroups(user, catalog, myModule))
+  );
+
+  private readonly baseMenuGroups: MenuGroup[] = [
     {
       title: 'Principal',
       items: [
@@ -445,21 +481,13 @@ export class MainLayoutComponent {
     {
       title: 'Gestion',
       items: [
-        { title: 'Pacientes', url: '/patients', icon: 'people-outline', roles: ['admin', 'professional'] },
-        { title: 'Profesionales', url: '/professionals', icon: 'medkit-outline', roles: ['admin', 'professional'] },
-        { title: 'Citas', url: '/appointments', icon: 'calendar-outline', badge: 3, roles: ['admin', 'professional'] },
-        { title: 'Historiales', url: '/medical-records', icon: 'document-text-outline', roles: ['admin', 'professional'] },
-        { title: 'Archivos', url: '/files', icon: 'folder-open-outline', roles: ['admin', 'professional'] },
-        { title: 'Presupuestos', url: '/budgets', icon: 'wallet-outline', roles: ['admin', 'professional'] },
-        { title: 'Pagos', url: '/payments', icon: 'card-outline', roles: ['admin', 'professional'] }
-      ]
-    },
-    {
-      title: 'Especialidades',
-      items: [
-        { title: 'Odontologia', url: '/odontology', icon: 'fitness-outline', roles: ['admin', 'professional'] },
-        { title: 'Psicologia', url: '/psychology', icon: 'happy-outline', roles: ['admin', 'professional'] },
-        { title: 'Psicopedagogia', url: '/psychopedagogy', icon: 'school-outline', roles: ['admin', 'professional'] }
+        { title: 'Pacientes', url: '/patients', icon: 'people-outline', roles: ['admin'] },
+        { title: 'Profesionales', url: '/professionals', icon: 'medkit-outline', roles: ['admin'] },
+        { title: 'Citas', url: '/appointments', icon: 'calendar-outline', badge: 3, roles: ['admin'] },
+        { title: 'Historiales', url: '/medical-records', icon: 'document-text-outline', roles: ['admin'] },
+        { title: 'Archivos', url: '/files', icon: 'folder-open-outline', roles: ['admin'] },
+        { title: 'Presupuestos', url: '/budgets', icon: 'wallet-outline', roles: ['admin'] },
+        { title: 'Pagos', url: '/payments', icon: 'card-outline', roles: ['admin'] }
       ]
     },
     {
@@ -507,13 +535,76 @@ export class MainLayoutComponent {
     }
   }
 
-  private filterMenuGroups(role?: string): MenuGroup[] {
-    return this.menuGroups
+  private buildMenuGroups(
+    user: User | null,
+    catalog: SpecialtyModuleDefinition[],
+    myModule: SpecialtyModuleDefinition | null
+  ): MenuGroup[] {
+    const groups = this.baseMenuGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => this.canAccess(item.roles, role))
+        items: group.items.filter((item) => this.canAccess(item.roles, user?.role))
       }))
       .filter((group) => group.items.length > 0);
+
+    const specialtyItems = this.buildSpecialtyMenuItems(user, catalog, myModule);
+    if (specialtyItems.length > 0) {
+      groups.splice(2, 0, {
+        title: 'Especialidades',
+        items: specialtyItems
+      });
+    }
+
+    return groups;
+  }
+
+  private buildSpecialtyMenuItems(
+    user: User | null,
+    catalog: SpecialtyModuleDefinition[],
+    myModule: SpecialtyModuleDefinition | null
+  ): MenuItem[] {
+    if (!user || !this.canAccess(['admin'], user.role)) {
+      return [];
+    }
+
+    const sourceModules = user.role === 'admin' ? catalog : myModule ? [myModule] : [];
+
+    return sourceModules.map((module) => ({
+      title: module.label,
+      url: this.resolveSpecialtyRoute(module.key),
+      icon: this.resolveSpecialtyIcon(module.key),
+      roles: ['admin']
+    }));
+  }
+
+  private resolveSpecialtyRoute(moduleKey: string): string {
+    if (moduleKey === 'odontology') {
+      return '/odontology';
+    }
+    if (moduleKey === 'psychology') {
+      return '/psychology';
+    }
+    if (moduleKey === 'psychopedagogy') {
+      return '/psychopedagogy';
+    }
+    const normalized = String(moduleKey || '').trim().toLowerCase();
+    if (normalized) {
+      return `/${normalized}`;
+    }
+    return `/specialties/${moduleKey}`;
+  }
+
+  private resolveSpecialtyIcon(moduleKey: string): string {
+    if (moduleKey === 'odontology') {
+      return 'fitness-outline';
+    }
+    if (moduleKey === 'psychology') {
+      return 'happy-outline';
+    }
+    if (moduleKey === 'psychopedagogy') {
+      return 'school-outline';
+    }
+    return 'medkit-outline';
   }
 
   private canAccess(roles: string[] | undefined, role?: string): boolean {
@@ -521,6 +612,16 @@ export class MainLayoutComponent {
       return true;
     }
     return !!role && roles.includes(role);
+  }
+
+  private resolveUser(storeUser: User | null, runtimeUser: User | null): User | null {
+    if (storeUser?.role) {
+      return storeUser;
+    }
+    if (runtimeUser?.role) {
+      return runtimeUser;
+    }
+    return storeUser ?? runtimeUser ?? null;
   }
 
   getRoleLabel(role: string): string {

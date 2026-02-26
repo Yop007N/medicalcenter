@@ -271,21 +271,21 @@ type ApiErrorShape = {
     }
 
     .info-text {
-      background: #eff8ff;
-      border: 1px solid #b2ddff;
-      color: #175cd3;
+      background: rgba(var(--ion-color-primary-rgb), 0.14);
+      border: 1px solid rgba(var(--ion-color-primary-rgb), 0.3);
+      color: var(--ion-color-primary);
     }
 
     .error-text {
-      background: #fef3f2;
-      border: 1px solid #fecdca;
-      color: #b42318;
+      background: rgba(var(--ion-color-danger-rgb), 0.14);
+      border: 1px solid rgba(var(--ion-color-danger-rgb), 0.3);
+      color: var(--ion-color-danger);
     }
 
     .success-text {
-      background: #ecfdf3;
-      border: 1px solid #abefc6;
-      color: #067647;
+      background: rgba(var(--ion-color-success-rgb), 0.14);
+      border: 1px solid rgba(var(--ion-color-success-rgb), 0.3);
+      color: var(--ion-color-success);
     }
   `]
 })

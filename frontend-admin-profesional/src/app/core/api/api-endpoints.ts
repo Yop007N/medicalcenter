@@ -118,6 +118,13 @@ export const API_ENDPOINTS = {
   dashboard: {
     overview: 'dashboard/overview'
   },
+  specialties: {
+    catalog: 'specialties/catalog',
+    myModule: 'specialties/my-module',
+    myModuleOverview: 'specialties/my-module/overview',
+    encounters: 'specialties/encounters',
+    encounterById: (id: number) => `specialties/encounters/${id}`
+  },
   logs: {
     frontend: 'logs/frontend'
   }

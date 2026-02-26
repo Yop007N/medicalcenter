@@ -24,7 +24,9 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
           return true;
         }
         notification.showError('No tiene permisos para acceder a esta sección');
-        router.navigate(['/dashboard']);
+        router.navigate(['/auth/login'], {
+          queryParams: { reason: 'role' }
+        });
         return false;
       }
 

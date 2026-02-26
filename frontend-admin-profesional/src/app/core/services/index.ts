@@ -21,3 +21,4 @@ export * from './sync.service';
 export * from './camera.service';
 export * from './push-notifications.service';
 export * from './logger.service';
+export * from './specialties-api.service';
