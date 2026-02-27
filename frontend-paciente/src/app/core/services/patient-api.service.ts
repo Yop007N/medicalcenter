@@ -49,6 +49,47 @@ export interface ProfessionalAvailabilityItem extends ProfessionalDirectoryItem 
   available_count: number;
 }
 
+export interface SpecialtyCatalogItem {
+  key: string;
+  label: string;
+  description?: string | null;
+  route?: string | null;
+}
+
+export interface PatientSpecialtyOverview {
+  actor: string;
+  specialty: string | null;
+  module: SpecialtyCatalogItem;
+  totals: {
+    patients: number;
+    patients_active: number;
+    appointments_total: number;
+    appointments_upcoming: number;
+    medical_records: number;
+    budgets: number;
+    payments_completed: number;
+    revenue_completed: number;
+    currency: string;
+  };
+  upcoming_appointments: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    status: string;
+    appointment_type: string | null;
+    appointment_date: string;
+  }>;
+  recent_medical_records: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    record_date: string | null;
+    diagnosis: string | null;
+    treatment: string | null;
+  }>;
+  generated_at: string;
+}
+
 export interface CreatePatientAppointmentPayload {
   professional_id: number;
   appointment_date: string;
@@ -356,6 +397,16 @@ export class PatientApiService {
         reason: reason ?? null
       }
     );
+  }
+
+  getSpecialtiesCatalog(): Observable<SpecialtyCatalogItem[]> {
+    return this.apiClient.get<SpecialtyCatalogItem[]>(API_ENDPOINTS.specialties.catalog);
+  }
+
+  getMySpecialtyOverview(specialtyKey?: string): Observable<PatientSpecialtyOverview> {
+    return this.apiClient.get<PatientSpecialtyOverview>(API_ENDPOINTS.specialties.myModuleOverview, {
+      specialty_key: specialtyKey
+    });
   }
 
   private resolvePatientId(): Observable<number> {

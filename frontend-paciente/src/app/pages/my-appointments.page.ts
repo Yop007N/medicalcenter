@@ -462,9 +462,7 @@ export class MyAppointmentsPage implements OnInit {
       })
       .subscribe({
         next: (professionals) => {
-          this.professionals = [...professionals].sort((a, b) =>
-            `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
-          );
+          this.professionals = this.sortProfessionalsByAvailability(professionals);
           this.specialtyOptions = this.buildSpecialtyOptions(this.professionals);
           this.applyProfessionalFilters();
           this.professionalLoading = false;
@@ -501,21 +499,7 @@ export class MyAppointmentsPage implements OnInit {
         .trim();
       return professionalText.includes(normalizedQuery);
     });
-
-    if (this.bookingProfessionalId) {
-      const selectedProfessional = this.filteredProfessionals.find(
-        (professional) => professional.id === this.bookingProfessionalId
-      );
-      if (!selectedProfessional) {
-        this.bookingProfessionalId = null;
-        this.bookingDate = '';
-        return;
-      }
-
-      if (!selectedProfessional.available_slots.includes(this.bookingDate)) {
-        this.bookingDate = selectedProfessional.available_slots[0] ?? '';
-      }
-    }
+    this.ensureSelectionForFilteredProfessionals();
   }
 
   createAppointment(): void {
@@ -639,6 +623,59 @@ export class MyAppointmentsPage implements OnInit {
       .map((professional) => (professional.specialty ?? '').trim())
       .filter((specialty) => specialty.length > 0);
     return [...new Set(specialties)].sort((a, b) => a.localeCompare(b));
+  }
+
+  private sortProfessionalsByAvailability(
+    professionals: ProfessionalAvailabilityItem[]
+  ): ProfessionalAvailabilityItem[] {
+    const normalizeSlots = (slots: string[]): string[] =>
+      [...slots].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    return [...professionals]
+      .map((professional) => ({
+        ...professional,
+        available_slots: normalizeSlots(professional.available_slots ?? []),
+      }))
+      .sort((a, b) => {
+        const nearestA = this.nearestSlotEpoch(a);
+        const nearestB = this.nearestSlotEpoch(b);
+        if (nearestA !== nearestB) {
+          return nearestA - nearestB;
+        }
+        return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+      });
+  }
+
+  private nearestSlotEpoch(professional: ProfessionalAvailabilityItem): number {
+    const firstSlot = professional.available_slots?.[0] || professional.next_available_slot;
+    const epoch = firstSlot ? new Date(firstSlot).getTime() : Number.POSITIVE_INFINITY;
+    return Number.isFinite(epoch) ? epoch : Number.POSITIVE_INFINITY;
+  }
+
+  private ensureSelectionForFilteredProfessionals(): void {
+    if (this.filteredProfessionals.length === 0) {
+      this.bookingProfessionalId = null;
+      this.bookingDate = '';
+      return;
+    }
+
+    if (this.bookingProfessionalId) {
+      const selectedProfessional = this.filteredProfessionals.find(
+        (professional) => professional.id === this.bookingProfessionalId
+      );
+      if (selectedProfessional) {
+        if (!selectedProfessional.available_slots.includes(this.bookingDate)) {
+          this.bookingDate = selectedProfessional.available_slots[0] ?? '';
+        }
+        return;
+      }
+    }
+
+    const nearestProfessional = this.filteredProfessionals.find(
+      (professional) => professional.available_slots.length > 0
+    );
+    this.bookingProfessionalId = nearestProfessional?.id ?? null;
+    this.bookingDate = nearestProfessional?.available_slots[0] ?? '';
   }
 
   private recalculateCounters(): void {

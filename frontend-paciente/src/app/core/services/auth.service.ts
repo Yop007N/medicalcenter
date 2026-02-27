@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
 import { ApiClientService } from './api-client.service';
 import { SessionStoreService } from './session-store.service';
 import { API_ENDPOINTS } from './api-endpoints';
@@ -50,8 +50,24 @@ export class AuthService {
   }
 
   logout(): void {
-    this.sessionStore.clear();
-    this.currentUserSubject.next(null);
+    const hasToken = Boolean(this.sessionStore.getAccessToken());
+
+    if (!hasToken) {
+      this.sessionStore.clear();
+      this.currentUserSubject.next(null);
+      return;
+    }
+
+    this.apiClient
+      .post<{ msg: string }>(API_ENDPOINTS.auth.logout, {})
+      .pipe(
+        catchError(() => of(null)),
+        finalize(() => {
+          this.sessionStore.clear();
+          this.currentUserSubject.next(null);
+        })
+      )
+      .subscribe();
   }
 
   getToken(): string | null {

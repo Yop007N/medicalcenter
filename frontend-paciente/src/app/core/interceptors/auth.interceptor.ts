@@ -34,7 +34,8 @@ export class AuthInterceptor implements HttpInterceptor {
         if (
           error instanceof HttpErrorResponse &&
           error.status === 401 &&
-          !authReq.url.includes('/auth/login')
+          !authReq.url.includes('/auth/login') &&
+          !authReq.url.includes('/auth/logout')
         ) {
           this.authService.logout();
           void this.router.navigate(['/auth/login']);

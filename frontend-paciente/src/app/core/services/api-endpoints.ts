@@ -1,6 +1,7 @@
 export const API_ENDPOINTS = {
   auth: {
-    login: 'auth/login'
+    login: 'auth/login',
+    logout: 'auth/logout'
   },
   patients: {
     byId: (id: number) => `patients/${id}`,
@@ -16,6 +17,10 @@ export const API_ENDPOINTS = {
   professionals: {
     base: 'professionals',
     availableSlots: 'professionals/available-slots'
+  },
+  specialties: {
+    catalog: 'specialties/catalog',
+    myModuleOverview: 'specialties/my-module/overview'
   },
   budgets: {
     accept: (id: number) => `budgets/${id}/accept`

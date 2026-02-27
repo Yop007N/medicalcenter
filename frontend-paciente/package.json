@@ -8,7 +8,11 @@
     "test": "ng test",
     "lint": "ng lint",
     "ionic:build": "ng build",
-    "ionic:serve": "ng serve"
+    "ionic:serve": "ng serve",
+    "e2e": "playwright test --config=e2e/playwright.config.ts",
+    "e2e:chromium": "playwright test --config=e2e/playwright.config.ts --project=chromium",
+    "e2e:headed": "playwright test --config=e2e/playwright.config.ts --project=chromium --headed",
+    "e2e:report": "playwright show-report e2e/playwright-report"
   },
   "private": true,
   "dependencies": {
@@ -40,6 +44,7 @@
     "@angular/compiler-cli": "^17.0.0",
     "@capacitor/cli": "^5.5.0",
     "@ionic/angular-toolkit": "^9.0.0",
+    "@playwright/test": "^1.58.2",
     "@types/jasmine": "^5.1.0",
     "jasmine-core": "^5.1.0",
     "karma": "^6.4.0",

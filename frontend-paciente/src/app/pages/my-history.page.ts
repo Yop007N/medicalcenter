@@ -10,8 +10,10 @@ import {
   InformedConsentItem,
   PatientApiService,
   PatientDocumentItem,
+  PatientSpecialtyOverview,
   PatientOdontogram,
-  PatientOdontogramTooth
+  PatientOdontogramTooth,
+  SpecialtyCatalogItem
 } from '../core/services/patient-api.service';
 import { UiDialogService } from '../core/services/ui-dialog.service';
 import { OfflineService } from '../core/services/offline.service';
@@ -65,6 +67,77 @@ type SectionResult<T> = {
           <ion-button size="small" fill="outline" (click)="syncNow()" [disabled]="syncing">
             @if (syncing) { Sincronizando... } @else { Sincronizar ahora }
           </ion-button>
+        }
+      </section>
+
+      <section class="panel specialty-panel">
+        <h3 class="panel-title">Enfoque por especialidad</h3>
+        <p class="panel-text">
+          Filtra el resumen por especialidad para ver tus turnos y registros clinicos mas relevantes.
+        </p>
+        <ion-item lines="none">
+          <ion-label>Especialidad</ion-label>
+          <ion-select
+            [value]="selectedSpecialtyKey"
+            placeholder="Todas"
+            interface="popover"
+            (ionChange)="onSpecialtyChange($event)"
+          >
+            <ion-select-option value="">Todas</ion-select-option>
+            @for (specialty of specialtyCatalog; track specialty.key) {
+              <ion-select-option [value]="specialty.key">{{ specialty.label }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        @if (selectedSpecialtyKey && specialtyOverview) {
+          <div class="summary-grid">
+            <article>
+              <strong>{{ specialtyOverview.totals.appointments_upcoming }}</strong>
+              <span>Proximas citas</span>
+            </article>
+            <article>
+              <strong>{{ specialtyOverview.totals.medical_records }}</strong>
+              <span>Registros clinicos</span>
+            </article>
+            <article>
+              <strong>{{ specialtyOverview.totals.payments_completed }}</strong>
+              <span>Pagos completados</span>
+            </article>
+            <article>
+              <strong>
+                {{
+                  specialtyOverview.totals.revenue_completed
+                    | currency:specialtyOverview.totals.currency:'symbol':'1.0-0'
+                }}
+              </strong>
+              <span>Facturacion completada</span>
+            </article>
+          </div>
+
+          @if (specialtyOverview.upcoming_appointments.length > 0) {
+            <h4 class="sub-title">Proximas citas por especialidad</h4>
+            <ul class="simple-list">
+              @for (appointment of specialtyOverview.upcoming_appointments; track appointment.id) {
+                <li>
+                  <strong>{{ appointment.appointment_type || 'Consulta' }}</strong>
+                  <div>{{ appointment.appointment_date | date:'medium' }} · {{ appointment.status }}</div>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (specialtyOverview.recent_medical_records.length > 0) {
+            <h4 class="sub-title">Registros recientes por especialidad</h4>
+            <ul class="simple-list">
+              @for (record of specialtyOverview.recent_medical_records; track record.id) {
+                <li>
+                  <strong>{{ record.diagnosis || 'Sin diagnostico' }}</strong>
+                  <div>{{ (record.record_date || specialtyOverview.generated_at) | date:'mediumDate' }}</div>
+                </li>
+              }
+            </ul>
+          }
         }
       </section>
 
@@ -471,6 +544,9 @@ export class MyHistoryPage implements OnInit {
   consents: InformedConsentItem[] = [];
   odontogram: PatientOdontogram | null = null;
   odontogramTeeth: PatientOdontogramTooth[] = [];
+  specialtyCatalog: SpecialtyCatalogItem[] = [];
+  selectedSpecialtyKey = '';
+  specialtyOverview: PatientSpecialtyOverview | null = null;
 
   processingConsentIds = new Set<number>();
 
@@ -481,6 +557,7 @@ export class MyHistoryPage implements OnInit {
       this.isOnline = online;
       this.pendingChangesCount = this.syncService.getPendingChanges().length;
     });
+    this.loadSpecialtyCatalog();
     this.loadHistory();
   }
 
@@ -489,6 +566,12 @@ export class MyHistoryPage implements OnInit {
     if (nextValue) {
       this.activeView = nextValue;
     }
+  }
+
+  onSpecialtyChange(event: CustomEvent<{ value: string }>): void {
+    const nextKey = this.normalizeSpecialtyKey(event.detail?.value || '');
+    this.selectedSpecialtyKey = nextKey || '';
+    this.loadHistory();
   }
 
   refresh(event: CustomEvent): void {
@@ -639,6 +722,14 @@ export class MyHistoryPage implements OnInit {
     this.errorMessage = null;
     this.warningMessage = null;
 
+    const specialtyOverview$ = this.selectedSpecialtyKey
+      ? this.withOptionalSectionFallback(
+          this.patientApi.getMySpecialtyOverview(this.selectedSpecialtyKey),
+          null as PatientSpecialtyOverview | null,
+          'No se pudo cargar el resumen por especialidad.'
+        )
+      : of({ data: null, warning: null } as SectionResult<PatientSpecialtyOverview | null>);
+
     forkJoin({
       summary: this.withSectionFallback(
         this.patientApi.getMyClinicalSummary(),
@@ -660,24 +751,33 @@ export class MyHistoryPage implements OnInit {
         [] as InformedConsentItem[],
         'No se pudo cargar la seccion de consentimientos.'
       ),
+      specialtyOverview: specialtyOverview$,
       odontogram: this.withOptionalSectionFallback(
         this.patientApi.getMyOdontogram(),
         null,
         'No se pudo cargar la seccion de odontograma.'
       )
     }).subscribe({
-      next: ({ summary, timeline, documents, consents, odontogram }) => {
+      next: ({ summary, timeline, documents, consents, specialtyOverview, odontogram }) => {
         this.summary = summary.data;
         this.timeline = timeline.data;
         this.documents = documents.data;
         this.consents = consents.data;
+        this.specialtyOverview = specialtyOverview.data;
         this.odontogram = odontogram.data;
         this.odontogramTeeth = [...(this.odontogram?.teeth ?? [])].sort(
           (a, b) => a.tooth_number - b.tooth_number
         );
         this.pendingChangesCount = this.syncService.getPendingChanges().length;
 
-        const warnings = [summary.warning, timeline.warning, documents.warning, consents.warning, odontogram.warning]
+        const warnings = [
+          summary.warning,
+          timeline.warning,
+          documents.warning,
+          consents.warning,
+          specialtyOverview.warning,
+          odontogram.warning
+        ]
           .filter((message): message is string => !!message);
         if (warnings.length > 0) {
           this.warningMessage = warnings[0];
@@ -757,6 +857,25 @@ export class MyHistoryPage implements OnInit {
         }
       };
     }
+  }
+
+  private loadSpecialtyCatalog(): void {
+    this.patientApi.getSpecialtiesCatalog().subscribe({
+      next: (catalog) => {
+        this.specialtyCatalog = [...catalog].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      error: () => {
+        this.specialtyCatalog = [];
+      }
+    });
+  }
+
+  private normalizeSpecialtyKey(rawValue: string): string | null {
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : null;
   }
 
   private resolveErrorMessage(error: unknown): string | null {
