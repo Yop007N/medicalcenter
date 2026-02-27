@@ -130,6 +130,60 @@ class TestListPatients:
         assert linked_id in listed_ids
         assert unlinked_id not in listed_ids
 
+    def test_professional_list_patients_filtered_by_specialty_key(
+        self,
+        client,
+        auth_headers,
+        app,
+        sample_professional,
+    ):
+        """Test professional scope can be narrowed by specialty_key."""
+        with app.app_context():
+            cardiology_patient = Patient(
+                email='cardio-linked@test.com',
+                first_name='Cardio',
+                last_name='Linked',
+                role='patient',
+            )
+            cardiology_patient.set_password('Patient123')
+
+            odontology_patient = Patient(
+                email='odonto-linked@test.com',
+                first_name='Odonto',
+                last_name='Linked',
+                role='patient',
+            )
+            odontology_patient.set_password('Patient123')
+
+            db.session.add(cardiology_patient)
+            db.session.add(odontology_patient)
+            db.session.commit()
+
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=sample_professional.id,
+                    patient_id=cardiology_patient.id,
+                    specialty_key='cardiology',
+                )
+            )
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=sample_professional.id,
+                    patient_id=odontology_patient.id,
+                    specialty_key='odontology',
+                )
+            )
+            db.session.commit()
+            cardiology_id = cardiology_patient.id
+            odontology_id = odontology_patient.id
+
+        response = client.get('/api/patients?specialty_key=cardiology', headers=auth_headers)
+
+        assert response.status_code == 200
+        listed_ids = {item['id'] for item in response.json}
+        assert cardiology_id in listed_ids
+        assert odontology_id not in listed_ids
+
 
 class TestGetPatient:
     """Test get patient endpoint"""
@@ -217,10 +271,35 @@ class TestCreatePatient:
                 patient_id=patient_id,
             ).first()
             assert assignment is not None
+            assert assignment.specialty_key is not None
 
         scoped_list_response = client.get('/api/patients?q=scoped-patient@test.com', headers=auth_headers)
         assert scoped_list_response.status_code == 200
         assert any(item['id'] == patient_id for item in scoped_list_response.json)
+
+    def test_create_patient_then_login_with_new_credentials(self, client, auth_headers):
+        """Create flow should produce valid credentials for patient login."""
+        response = client.post('/api/patients', headers=auth_headers, json={
+            'email': 'new-login-patient@test.com',
+            'password': 'Patient123',
+            'first_name': 'New',
+            'last_name': 'Login',
+        })
+        assert response.status_code == 201
+        patient_id = response.json['id']
+
+        login_response = client.post('/api/auth/login', json={
+            'email': 'new-login-patient@test.com',
+            'password': 'Patient123',
+        })
+        assert login_response.status_code == 200
+        token = login_response.json.get('access_token')
+        assert token
+
+        patient_headers = {'Authorization': f'Bearer {token}'}
+        own_profile_response = client.get(f'/api/patients/{patient_id}', headers=patient_headers)
+        assert own_profile_response.status_code == 200
+        assert own_profile_response.json['email'] == 'new-login-patient@test.com'
 
     def test_create_patient_duplicate_email(self, client, auth_headers, app):
         """Test creating patient with duplicate email"""

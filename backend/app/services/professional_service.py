@@ -241,12 +241,15 @@ class ProfessionalService:
             .all()
         )
 
-        busy_slots_by_professional = {professional_id: set() for professional_id in professional_ids}
+        busy_ranges_by_professional = {professional_id: [] for professional_id in professional_ids}
         for appointment in appointments:
-            if appointment.professional_id not in busy_slots_by_professional:
+            if appointment.professional_id not in busy_ranges_by_professional:
                 continue
-            busy_slots_by_professional[appointment.professional_id].add(
-                appointment.appointment_date.replace(second=0, microsecond=0)
+            start_dt = appointment.appointment_date.replace(second=0, microsecond=0)
+            duration = int(appointment.duration_minutes or slot_minutes)
+            end_dt = start_dt + timedelta(minutes=duration)
+            busy_ranges_by_professional[appointment.professional_id].append(
+                (start_dt, end_dt)
             )
 
         response = []
@@ -265,9 +268,14 @@ class ProfessionalService:
 
                 while slot_dt < day_end_dt and len(available_slots) < slots_per_professional:
                     normalized_slot = slot_dt.replace(second=0, microsecond=0)
+                    slot_end = normalized_slot + timedelta(minutes=slot_minutes)
+                    is_busy = any(
+                        (normalized_slot < busy_end and slot_end > busy_start)
+                        for busy_start, busy_end in busy_ranges_by_professional.get(professional.id, [])
+                    )
                     if (
                         normalized_slot >= window_start
-                        and normalized_slot not in busy_slots_by_professional.get(professional.id, set())
+                        and not is_busy
                     ):
                         available_slots.append(normalized_slot)
                     slot_dt += timedelta(minutes=slot_minutes)

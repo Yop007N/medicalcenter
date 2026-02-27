@@ -382,3 +382,12 @@ class TestLogout:
         response = client.post('/api/auth/logout')
 
         assert response.status_code == 401
+
+    def test_logout_revokes_current_token(self, client, auth_headers):
+        """After logout the same token must be rejected by protected endpoints."""
+        first_logout = client.post('/api/auth/logout', headers=auth_headers)
+        assert first_logout.status_code == 200
+
+        second_logout = client.post('/api/auth/logout', headers=auth_headers)
+        assert second_logout.status_code == 401
+        assert 'msg' in second_logout.json

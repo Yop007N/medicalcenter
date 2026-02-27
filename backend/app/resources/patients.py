@@ -45,6 +45,10 @@ def list_patients():
         name: search
         type: string
         description: Buscar por nombre, apellido o email
+      - in: query
+        name: specialty_key
+        type: string
+        description: Filtro opcional por modulo/especialidad para scope profesional
     responses:
       200:
         description: Lista de pacientes
@@ -57,8 +61,13 @@ def list_patients():
     """
     current_user_id = int(get_jwt_identity())
     search = request.args.get('search') or request.args.get('q')
+    specialty_key = request.args.get('specialty_key')
     try:
-        patients = PatientService.list_patients(current_user_id=current_user_id, search=search)
+        patients = PatientService.list_patients(
+            current_user_id=current_user_id,
+            search=search,
+            specialty_key=specialty_key,
+        )
         return jsonify([serialize_patient(patient) for patient in patients]), 200
     except AccessDeniedError as exc:
         return domain_error_response(exc)

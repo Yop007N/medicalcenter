@@ -7,6 +7,7 @@ import pytest
 from app import create_app
 from app.extensions import db
 from app.models.user import User
+from app.services.token_blocklist_service import TokenBlocklistService
 
 
 @pytest.fixture(scope='session')
@@ -31,12 +32,14 @@ def client(app):
 def db_session(app):
     """Database session for tests - auto cleans up after each test"""
     with app.app_context():
+        TokenBlocklistService.reset_for_tests()
         yield db.session
         db.session.rollback()
         # Clean up all data after each test
         for table in reversed(db.metadata.sorted_tables):
             db.session.execute(table.delete())
         db.session.commit()
+        TokenBlocklistService.reset_for_tests()
 
 
 @pytest.fixture(scope='function')

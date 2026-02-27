@@ -338,10 +338,13 @@ class RealisticDataSeeder:
                     assignment = ProfessionalPatientAssignment(
                         professional_id=professional.id,
                         patient_id=patient.id,
+                        specialty_key=module_key,
                         assigned_at=self.now - timedelta(days=120 - (idx % 30)),
                     )
                     created = True
                     db.session.add(assignment)
+                elif assignment.specialty_key != module_key:
+                    assignment.specialty_key = module_key
                 self.bump("assignments", created)
 
             self.module_patients[module_key] = selected

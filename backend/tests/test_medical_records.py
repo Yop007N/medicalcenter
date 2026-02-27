@@ -88,6 +88,90 @@ class TestListMedicalRecords:
         response = client.get('/api/medical-records')
         assert response.status_code == 401
 
+    def test_list_medical_records_filter_by_specialty_key_for_admin(
+        self,
+        client,
+        admin_auth_headers,
+        app,
+    ):
+        """Admin specialty_key filter should scope records by module professionals."""
+        from app.extensions import db
+        from app.models.patient import Patient
+        from app.models.professional import Professional
+
+        with app.app_context():
+            cardio = Professional(
+                email='records-cardio@test.com',
+                first_name='Carla',
+                last_name='Cardio',
+                role='professional',
+                license_number='REC-CARDIO-01',
+                specialty='Cardiologia',
+            )
+            cardio.set_password('Doctor123')
+
+            derma = Professional(
+                email='records-derma@test.com',
+                first_name='Dario',
+                last_name='Derma',
+                role='professional',
+                license_number='REC-DERMA-01',
+                specialty='Dermatologia',
+            )
+            derma.set_password('Doctor123')
+
+            cardio_patient = Patient(
+                email='records-cardio-patient@test.com',
+                first_name='Paciente',
+                last_name='Cardio',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+
+            derma_patient = Patient(
+                email='records-derma-patient@test.com',
+                first_name='Paciente',
+                last_name='Derma',
+                role='patient',
+            )
+            derma_patient.set_password('Patient123')
+
+            db.session.add_all([cardio, derma, cardio_patient, derma_patient])
+            db.session.flush()
+
+            cardio_record = MedicalRecord(
+                patient_id=cardio_patient.id,
+                professional_id=cardio.id,
+                chief_complaint='Dolor toracico',
+                diagnosis='Control cardiologico',
+            )
+            derma_record = MedicalRecord(
+                patient_id=derma_patient.id,
+                professional_id=derma.id,
+                chief_complaint='Erupcion cutanea',
+                diagnosis='Control dermatologico',
+            )
+            db.session.add_all([cardio_record, derma_record])
+            db.session.commit()
+            cardio_record_id = cardio_record.id
+            derma_record_id = derma_record.id
+
+        response = client.get('/api/medical-records?specialty_key=cardiology', headers=admin_auth_headers)
+        assert response.status_code == 200
+        rows = response.json
+        returned_ids = {row['id'] for row in rows}
+        assert cardio_record_id in returned_ids
+        assert derma_record_id not in returned_ids
+
+    def test_list_medical_records_rejects_foreign_specialty_for_professional(
+        self,
+        client,
+        auth_headers,
+    ):
+        """Professional cannot query records outside own specialty module."""
+        response = client.get('/api/medical-records?specialty_key=cardiology', headers=auth_headers)
+        assert response.status_code == 403
+
     def test_list_medical_records_include_patient_and_professional_summary(
         self,
         client,

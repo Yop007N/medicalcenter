@@ -53,6 +53,7 @@ def list_appointments():
             "status": request.args.get("status"),
             "date_from": request.args.get("date_from"),
             "date_to": request.args.get("date_to"),
+            "specialty_key": request.args.get("specialty_key"),
         }
         pagination = AppointmentService.get_appointments(
             current_user=current_user,

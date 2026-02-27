@@ -9,6 +9,7 @@ from flask_cors import CORS
 from flasgger import Swagger
 from app.config import config_by_name
 from app.extensions import db, jwt, celery, redis_client, ma, limiter, cache, socketio, migrate
+from app.services.token_blocklist_service import TokenBlocklistService
 
 
 def create_app(config_name='development'):
@@ -30,6 +31,7 @@ def create_app(config_name='development'):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    register_jwt_handlers()
     ma.init_app(app)
     limiter.init_app(app)
     socketio.init_app(app)
@@ -170,6 +172,14 @@ def register_blueprints(app):
     app.register_blueprint(psychology.blueprint)
     app.register_blueprint(clinical_history.blueprint)
     app.register_blueprint(specialties.blueprint)
+
+
+def register_jwt_handlers():
+    """Register JWT callbacks (revocation/blocklist)."""
+
+    @jwt.token_in_blocklist_loader
+    def is_token_revoked(jwt_header, jwt_payload):  # pylint: disable=unused-argument
+        return TokenBlocklistService.is_revoked(jwt_payload.get('jti', ''))
 
 
 def register_health_check(app):

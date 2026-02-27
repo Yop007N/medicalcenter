@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from app.models.appointment import Appointment
 from app.models.budget import Budget
+from app.models.file import File
 from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
 from app.models.payment import Payment
@@ -275,6 +276,11 @@ class SpecialtyModuleService:
             return DEFAULT_MODULE
         return None
 
+    @classmethod
+    def get_module_by_key(cls, module_key):
+        """Public resolver for module definitions by key."""
+        return cls._module_by_key(module_key)
+
     @staticmethod
     def _empty_query(model):
         return model.query.filter(model.id == -1)
@@ -301,6 +307,11 @@ class SpecialtyModuleService:
             if cls.resolve_module(specialty).get('key') == module_key:
                 matching_ids.add(professional_id)
         return matching_ids
+
+    @classmethod
+    def get_professional_ids_for_module(cls, module_key):
+        """Public helper returning professional IDs linked to a module key."""
+        return cls._professional_ids_for_module(module_key)
 
     @classmethod
     def _collect_patient_ids(
@@ -535,6 +546,82 @@ class SpecialtyModuleService:
             for patient in patients
         ]
 
+        encounter_query = SpecialtyEncounter.query
+        if scope_module_key:
+            encounter_query = encounter_query.filter(SpecialtyEncounter.specialty_key == scope_module_key)
+
+        if user.role == 'admin' and scope_module_key:
+            module_professional_ids = cls._professional_ids_for_module(scope_module_key)
+            if module_professional_ids:
+                encounter_query = encounter_query.filter(
+                    SpecialtyEncounter.professional_id.in_(sorted(module_professional_ids))
+                )
+            else:
+                encounter_query = cls._empty_query(SpecialtyEncounter)
+        elif user.role == 'professional':
+            encounter_query = encounter_query.filter(SpecialtyEncounter.professional_id == user.id)
+        elif user.role == 'patient':
+            encounter_query = encounter_query.filter(SpecialtyEncounter.patient_id == user.id)
+
+        recent_specialty_encounters = (
+            encounter_query.order_by(SpecialtyEncounter.visit_date.desc())
+            .limit(12)
+            .all()
+        )
+        encounter_rows = [
+            {
+                'id': encounter.id,
+                'specialty_key': encounter.specialty_key,
+                'patient_id': encounter.patient_id,
+                'patient_name': (
+                    f'{encounter.patient.first_name} {encounter.patient.last_name}'
+                    if encounter.patient
+                    else f'Paciente #{encounter.patient_id}'
+                ),
+                'professional_id': encounter.professional_id,
+                'professional_name': (
+                    f'{encounter.professional.first_name} {encounter.professional.last_name}'
+                    if encounter.professional
+                    else f'Profesional #{encounter.professional_id}'
+                ),
+                'visit_date': encounter.visit_date.isoformat() if encounter.visit_date else None,
+                'status': encounter.status,
+                'chief_complaint': encounter.chief_complaint,
+                'diagnosis': encounter.diagnosis,
+            }
+            for encounter in recent_specialty_encounters
+        ]
+
+        records_subquery = medical_record_query.with_entities(MedicalRecord.id).subquery()
+        documents_query = File.query.join(
+            records_subquery,
+            File.medical_record_id == records_subquery.c.id
+        )
+        documents_total = documents_query.count()
+        recent_documents = documents_query.order_by(File.created_at.desc()).limit(12).all()
+        document_rows = [
+            {
+                'id': document.id,
+                'medical_record_id': document.medical_record_id,
+                'patient_id': document.medical_record.patient_id if document.medical_record else None,
+                'patient_name': (
+                    f'{document.medical_record.patient.first_name} '
+                    f'{document.medical_record.patient.last_name}'
+                    if document.medical_record and document.medical_record.patient
+                    else (
+                        f'Paciente #{document.medical_record.patient_id}'
+                        if document.medical_record
+                        else None
+                    )
+                ),
+                'filename': document.filename,
+                'file_type': document.file_type,
+                'description': document.description,
+                'created_at': document.created_at.isoformat() if document.created_at else None,
+            }
+            for document in recent_documents
+        ]
+
         return {
             'actor': user.role,
             'specialty': getattr(user, 'specialty', None),
@@ -548,10 +635,14 @@ class SpecialtyModuleService:
                 'budgets': budgets_total,
                 'payments_completed': completed_payments,
                 'revenue_completed': float(completed_revenue),
+                'specialty_encounters': encounter_query.count(),
+                'documents': documents_total,
                 'currency': 'ARS',
             },
             'upcoming_appointments': appointment_rows,
             'recent_medical_records': record_rows,
+            'recent_specialty_encounters': encounter_rows,
+            'recent_documents': document_rows,
             'patients': patient_rows,
             'generated_at': now.isoformat(),
         }

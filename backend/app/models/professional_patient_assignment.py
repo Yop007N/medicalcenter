@@ -21,6 +21,7 @@ class ProfessionalPatientAssignment(db.Model):
         db.ForeignKey('patients.id', ondelete='CASCADE'),
         primary_key=True,
     )
+    specialty_key = db.Column(db.String(64), nullable=True)
     assigned_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -45,4 +46,7 @@ class ProfessionalPatientAssignment(db.Model):
     )
 
     def __repr__(self):
-        return f'<ProfessionalPatientAssignment professional={self.professional_id} patient={self.patient_id}>'
+        return (
+            f'<ProfessionalPatientAssignment professional={self.professional_id} '
+            f'patient={self.patient_id} specialty={self.specialty_key}>'
+        )

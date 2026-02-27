@@ -9,6 +9,7 @@ from app.models.professional_patient_assignment import ProfessionalPatientAssign
 from app.extensions import db
 from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
+from app.services.specialty_module_service import SpecialtyModuleService
 
 
 class MedicalRecordService:
@@ -22,19 +23,56 @@ class MedicalRecordService:
         ).all()
 
     @staticmethod
-    def list_medical_records(current_user_id, patient_id=None, professional_id=None):
+    def list_medical_records(
+        current_user_id,
+        patient_id=None,
+        professional_id=None,
+        specialty_key=None,
+    ):
         """List medical records with optional filters."""
         current_user = AccessScopeService.get_user_or_raise(current_user_id)
         query = MedicalRecord.query
+        normalized_specialty_key = None
+        scoped_professional_ids = None
+
+        if specialty_key:
+            normalized_specialty_key = AccessScopeService.normalize_text(specialty_key)
+            module = SpecialtyModuleService.get_module_by_key(normalized_specialty_key)
+            if not module:
+                raise ValidationError('Invalid specialty_key')
+            normalized_specialty_key = module.get('key')
+            scoped_professional_ids = sorted(
+                SpecialtyModuleService.get_professional_ids_for_module(normalized_specialty_key)
+            )
 
         if current_user.role == 'patient':
             query = query.filter_by(patient_id=current_user.id)
+            if normalized_specialty_key:
+                if not scoped_professional_ids:
+                    return []
+                query = query.filter(MedicalRecord.professional_id.in_(scoped_professional_ids))
         elif current_user.role == 'professional':
-            scoped_patient_ids = list(AccessScopeService.get_professional_patient_ids(current_user.id))
+            if normalized_specialty_key:
+                professional_specialty_key = AccessScopeService.resolve_specialty_key(
+                    getattr(current_user, 'specialty', None)
+                )
+                if professional_specialty_key != normalized_specialty_key:
+                    raise AccessDeniedError('Professional can only access own specialty records')
+            scoped_patient_ids = list(
+                AccessScopeService.get_professional_patient_ids(
+                    current_user.id,
+                    specialty_key=normalized_specialty_key,
+                )
+            )
             if not scoped_patient_ids:
                 return []
             query = query.filter(MedicalRecord.patient_id.in_(scoped_patient_ids))
-        elif current_user.role != 'admin':
+        elif current_user.role == 'admin':
+            if normalized_specialty_key:
+                if not scoped_professional_ids:
+                    return []
+                query = query.filter(MedicalRecord.professional_id.in_(scoped_professional_ids))
+        else:
             raise AccessDeniedError('Unauthorized')
 
         if patient_id:
@@ -83,6 +121,16 @@ class MedicalRecordService:
 
         if current_user.role == 'professional':
             has_scope = AccessScopeService.professional_can_access_patient(current_user.id, patient_id)
+            if has_scope:
+                assignment = ProfessionalPatientAssignment.query.filter_by(
+                    professional_id=current_user.id,
+                    patient_id=patient_id,
+                ).first()
+                if assignment and not assignment.specialty_key:
+                    assignment.specialty_key = AccessScopeService.resolve_specialty_key(
+                        getattr(current_user, 'specialty', None)
+                    )
+
             if not has_scope:
                 # First clinical contact: if patient has no owner yet, auto-assign to this professional.
                 has_any_assignment = ProfessionalPatientAssignment.query.filter_by(
@@ -95,6 +143,9 @@ class MedicalRecordService:
                     ProfessionalPatientAssignment(
                         professional_id=current_user.id,
                         patient_id=patient_id,
+                        specialty_key=AccessScopeService.resolve_specialty_key(
+                            getattr(current_user, 'specialty', None)
+                        ),
                     )
                 )
             professional_id = current_user.id

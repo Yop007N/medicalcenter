@@ -81,6 +81,89 @@ class TestListAppointments:
         response = client.get('/api/appointments')
         assert response.status_code == 401
 
+    def test_list_appointments_filter_by_specialty_key_for_admin(
+        self,
+        client,
+        admin_auth_headers,
+        app,
+    ):
+        """Admin specialty_key filter should scope appointments by module professionals."""
+        from app.models.patient import Patient
+        from app.models.professional import Professional
+
+        with app.app_context():
+            cardio = Professional(
+                email='appointment-cardio@test.com',
+                first_name='Carla',
+                last_name='Cardio',
+                role='professional',
+                license_number='APT-CARDIO-01',
+                specialty='Cardiologia',
+            )
+            cardio.set_password('Doctor123')
+
+            derma = Professional(
+                email='appointment-derma@test.com',
+                first_name='Dario',
+                last_name='Derma',
+                role='professional',
+                license_number='APT-DERMA-01',
+                specialty='Dermatologia',
+            )
+            derma.set_password('Doctor123')
+
+            cardio_patient = Patient(
+                email='appointment-cardio-patient@test.com',
+                first_name='Paciente',
+                last_name='Cardio',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+
+            derma_patient = Patient(
+                email='appointment-derma-patient@test.com',
+                first_name='Paciente',
+                last_name='Derma',
+                role='patient',
+            )
+            derma_patient.set_password('Patient123')
+
+            db.session.add_all([cardio, derma, cardio_patient, derma_patient])
+            db.session.flush()
+
+            cardio_appointment = Appointment(
+                patient_id=cardio_patient.id,
+                professional_id=cardio.id,
+                appointment_date=datetime.now() + timedelta(days=1),
+                status='scheduled',
+            )
+            derma_appointment = Appointment(
+                patient_id=derma_patient.id,
+                professional_id=derma.id,
+                appointment_date=datetime.now() + timedelta(days=2),
+                status='scheduled',
+            )
+            db.session.add_all([cardio_appointment, derma_appointment])
+            db.session.commit()
+            cardio_appointment_id = cardio_appointment.id
+            derma_appointment_id = derma_appointment.id
+
+        response = client.get('/api/appointments?specialty_key=cardiology', headers=admin_auth_headers)
+        assert response.status_code == 200
+        rows = response.json['items']
+        returned_ids = {row['id'] for row in rows}
+        assert cardio_appointment_id in returned_ids
+        assert derma_appointment_id not in returned_ids
+
+    def test_list_appointments_rejects_foreign_specialty_for_professional(
+        self,
+        client,
+        auth_headers,
+    ):
+        """Professional cannot query appointments outside own specialty module."""
+        response = client.get('/api/appointments?specialty_key=cardiology', headers=auth_headers)
+        assert response.status_code == 403
+
 
 class TestGetAppointment:
     """Test get appointment endpoint"""
@@ -295,9 +378,37 @@ class TestAppointmentConflict:
             'duration_minutes': 30
         })
 
-        # Should either return conflict error (409) or create successfully
-        # depending on implementation
-        assert response.status_code in [201, 400, 409]
+        assert response.status_code == 409
+
+    def test_appointment_overlap_conflict_by_duration(
+        self,
+        client,
+        auth_headers,
+        app,
+        sample_professional,
+        sample_patient,
+    ):
+        """Test overlap conflict when new slot intersects existing duration."""
+        appointment_time = datetime.now() + timedelta(days=2)
+
+        with app.app_context():
+            appointment = Appointment(
+                patient_id=sample_patient.id,
+                professional_id=sample_professional.id,
+                appointment_date=appointment_time,
+                duration_minutes=60,
+                status='scheduled'
+            )
+            db.session.add(appointment)
+            db.session.commit()
+
+        overlap_response = client.post('/api/appointments', headers=auth_headers, json={
+            'patient_id': sample_patient.id,
+            'professional_id': sample_professional.id,
+            'appointment_date': (appointment_time + timedelta(minutes=30)).isoformat(),
+            'duration_minutes': 30
+        })
+        assert overlap_response.status_code == 409
 
 
 class TestAppointmentWorkflow:

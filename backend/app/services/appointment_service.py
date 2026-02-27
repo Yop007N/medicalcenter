@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.models.appointment import Appointment
 from app.models.user import User
+from app.services.access_scope_service import AccessScopeService
 from app.services.appointment_policy import AppointmentAccessPolicy
 from app.services.appointment_repository import AppointmentRepository
 from app.services.exceptions import (
@@ -43,6 +44,7 @@ class AppointmentService:
     def get_appointments(cls, current_user, filters=None, page=1, per_page=20):
         """Get paginated appointments honoring role-based visibility."""
         scoped_filters = cls.policy.scope_filters(current_user, filters or {})
+        cls._apply_specialty_scope_filter(current_user, scoped_filters)
         if scoped_filters.get("date_from"):
             scoped_filters["date_from"] = cls._parse_iso_datetime(
                 scoped_filters["date_from"],
@@ -58,6 +60,44 @@ class AppointmentService:
             page=page,
             per_page=per_page,
         )
+
+    @classmethod
+    def _apply_specialty_scope_filter(cls, current_user, scoped_filters):
+        """Normalize and enforce specialty_key scope for listing endpoints."""
+        raw_key = scoped_filters.pop("specialty_key", None)
+        normalized_key = AccessScopeService.normalize_text(raw_key)
+        if not normalized_key:
+            return
+
+        from app.services.specialty_module_service import SpecialtyModuleService
+
+        module = SpecialtyModuleService.get_module_by_key(normalized_key)
+        if not module:
+            raise ValidationError("Invalid specialty_key")
+        module_key = module.get("key")
+
+        if current_user.role == "professional":
+            professional_specialty_key = AccessScopeService.resolve_specialty_key(
+                getattr(current_user, "specialty", None)
+            )
+            if professional_specialty_key != module_key:
+                raise AccessDeniedError("Professional can only query appointments for own specialty")
+            scoped_filters["professional_ids"] = [current_user.id]
+            scoped_filters["professional_id"] = current_user.id
+            return
+
+        professional_ids = sorted(
+            SpecialtyModuleService.get_professional_ids_for_module(module_key)
+        )
+
+        requested_professional_id = scoped_filters.get("professional_id")
+        if requested_professional_id:
+            if int(requested_professional_id) in professional_ids:
+                scoped_filters["professional_ids"] = [int(requested_professional_id)]
+            else:
+                scoped_filters["professional_ids"] = []
+        else:
+            scoped_filters["professional_ids"] = professional_ids
 
     @classmethod
     def get_appointment(cls, current_user, appointment_id):
@@ -78,15 +118,29 @@ class AppointmentService:
 
         appointment_date = cls._parse_iso_datetime(data["appointment_date"], "appointment_date")
         professional_id = int(data["professional_id"])
+        try:
+            duration_minutes = int(
+                data.get("duration_minutes", DEFAULT_APPOINTMENT_DURATION)
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("duration_minutes must be an integer") from exc
+        if duration_minutes <= 0:
+            raise ValidationError("duration_minutes must be a positive integer")
 
-        if cls.repository.find_conflict(professional_id=professional_id, appointment_date=appointment_date):
+        cls.repository.lock_professional(professional_id)
+
+        if cls.repository.find_conflict(
+            professional_id=professional_id,
+            appointment_date=appointment_date,
+            duration_minutes=duration_minutes,
+        ):
             raise ConflictError("Time slot already booked")
 
         appointment = Appointment(
             patient_id=int(data["patient_id"]),
             professional_id=professional_id,
             appointment_date=appointment_date,
-            duration_minutes=int(data.get("duration_minutes", DEFAULT_APPOINTMENT_DURATION)),
+            duration_minutes=duration_minutes,
             status="scheduled",
             appointment_type=data.get("appointment_type"),
             reason=data.get("reason"),
@@ -102,18 +156,30 @@ class AppointmentService:
 
         next_professional_id = appointment.professional_id
         next_date = appointment.appointment_date
+        next_duration = int(appointment.duration_minutes or DEFAULT_APPOINTMENT_DURATION)
 
         if "professional_id" in data and data["professional_id"] is not None:
             next_professional_id = int(data["professional_id"])
         if "appointment_date" in data and data["appointment_date"] is not None:
             next_date = cls._parse_iso_datetime(data["appointment_date"], "appointment_date")
+        if "duration_minutes" in data and data["duration_minutes"] is not None:
+            try:
+                next_duration = int(data["duration_minutes"])
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("duration_minutes must be an integer") from exc
+        if next_duration <= 0:
+            raise ValidationError("duration_minutes must be a positive integer")
+
+        cls.repository.lock_professional(next_professional_id)
 
         if (
             next_professional_id != appointment.professional_id
             or next_date != appointment.appointment_date
+            or next_duration != int(appointment.duration_minutes or DEFAULT_APPOINTMENT_DURATION)
         ) and cls.repository.find_conflict(
             professional_id=next_professional_id,
             appointment_date=next_date,
+            duration_minutes=next_duration,
             exclude_id=appointment.id,
         ):
             raise ConflictError("Time slot already booked")
@@ -125,7 +191,7 @@ class AppointmentService:
         if "appointment_date" in data and data["appointment_date"] is not None:
             appointment.appointment_date = next_date
         if "duration_minutes" in data and data["duration_minutes"] is not None:
-            appointment.duration_minutes = int(data["duration_minutes"])
+            appointment.duration_minutes = next_duration
         if "status" in data and data["status"] is not None:
             appointment.status = data["status"]
         if "appointment_type" in data:
@@ -201,6 +267,7 @@ class AppointmentService:
         return not AppointmentRepository.find_conflict(
             professional_id=int(professional_id),
             appointment_date=date,
+            duration_minutes=int(duration or DEFAULT_APPOINTMENT_DURATION),
         )
 
     @staticmethod

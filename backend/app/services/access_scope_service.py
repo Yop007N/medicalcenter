@@ -79,6 +79,21 @@ class AccessScopeService:
         return any(alias in normalized_specialty for alias in aliases)
 
     @classmethod
+    def resolve_specialty_key(cls, specialty):
+        """Resolve specialty/module key using the specialty module catalog."""
+        from app.services.specialty_module_service import SpecialtyModuleService
+
+        module = SpecialtyModuleService.resolve_module(specialty)
+        key = module.get('key') if module else None
+        return cls.normalize_text(key) if key else None
+
+    @classmethod
+    def get_user_specialty_key(cls, current_user_id):
+        """Return resolved module key for current user specialty, when applicable."""
+        user = cls.get_user_or_raise(current_user_id)
+        return cls.resolve_specialty_key(getattr(user, 'specialty', None))
+
+    @classmethod
     def ensure_module_access(cls, current_user_id, module_key):
         """
         Enforce module access:
@@ -101,18 +116,36 @@ class AccessScopeService:
         return user
 
     @staticmethod
-    def get_professional_patient_ids(professional_id):
+    def get_professional_patient_ids(professional_id, specialty_key=None):
         """Return distinct patient IDs linked to a professional activity."""
         try:
             professional_id = int(professional_id)
         except (TypeError, ValueError):
             return set()
 
+        normalized_specialty_key = AccessScopeService.normalize_text(specialty_key)
         patient_ids = set()
 
-        assigned_rows = db.session.query(ProfessionalPatientAssignment.patient_id).filter(
+        assigned_query = db.session.query(ProfessionalPatientAssignment.patient_id).filter(
             ProfessionalPatientAssignment.professional_id == professional_id
-        ).distinct().all()
+        )
+
+        if normalized_specialty_key:
+            scoped_rows = assigned_query.filter(
+                ProfessionalPatientAssignment.specialty_key == normalized_specialty_key
+            ).distinct().all()
+            if scoped_rows:
+                return {value for (value,) in scoped_rows if value is not None}
+
+            legacy_rows = assigned_query.filter(
+                ProfessionalPatientAssignment.specialty_key.is_(None)
+            ).distinct().all()
+            if legacy_rows:
+                return {value for (value,) in legacy_rows if value is not None}
+
+            return set()
+
+        assigned_rows = assigned_query.distinct().all()
         patient_ids.update(value for (value,) in assigned_rows if value is not None)
 
         query_specs = [
@@ -132,7 +165,7 @@ class AccessScopeService:
         return patient_ids
 
     @classmethod
-    def professional_can_access_patient(cls, professional_id, patient_id):
+    def professional_can_access_patient(cls, professional_id, patient_id, specialty_key=None):
         """Check if professional has relationship with patient."""
         if patient_id is None:
             return False
@@ -141,7 +174,10 @@ class AccessScopeService:
         except (TypeError, ValueError):
             return False
 
-        return patient_id in cls.get_professional_patient_ids(professional_id)
+        return patient_id in cls.get_professional_patient_ids(
+            professional_id,
+            specialty_key=specialty_key,
+        )
 
     @classmethod
     def ensure_patient_access_scope(cls, current_user_id, patient_id):

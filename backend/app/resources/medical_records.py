@@ -38,6 +38,11 @@ def list_medical_records():
         type: integer
         required: false
         description: Filter by professional ID
+      - in: query
+        name: specialty_key
+        type: string
+        required: false
+        description: Filter scope by specialty module key
     responses:
       200:
         description: Lista de historiales médicos
@@ -65,11 +70,13 @@ def list_medical_records():
     current_user_id = int(get_jwt_identity())
     patient_id = request.args.get('patient_id', type=int)
     professional_id = request.args.get('professional_id', type=int)
+    specialty_key = request.args.get('specialty_key')
     try:
         records = MedicalRecordService.list_medical_records(
             current_user_id=current_user_id,
             patient_id=patient_id,
             professional_id=professional_id,
+            specialty_key=specialty_key,
         )
         return jsonify(medical_records_schema.dump(records)), 200
     except (AccessDeniedError, ValidationError) as exc:

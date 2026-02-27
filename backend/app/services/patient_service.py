@@ -49,7 +49,21 @@ class PatientService:
             raise AccessDeniedError('Unauthorized')
 
     @staticmethod
-    def _assign_patient_to_professional(patient_id, professional_id):
+    def _resolve_professional_specialty_key(professional_id):
+        """Resolve specialty module key for assignment metadata."""
+        try:
+            professional_id = int(professional_id)
+        except (TypeError, ValueError):
+            return None
+
+        professional = Professional.query.get(professional_id)
+        if not professional:
+            return None
+
+        return AccessScopeService.resolve_specialty_key(getattr(professional, 'specialty', None))
+
+    @staticmethod
+    def _assign_patient_to_professional(patient_id, professional_id, specialty_key=None):
         """Create explicit professional-patient assignment when missing."""
         if not professional_id:
             return
@@ -68,16 +82,19 @@ class PatientService:
             patient_id=patient_id,
         ).first()
         if existing_assignment:
+            if specialty_key and existing_assignment.specialty_key != specialty_key:
+                existing_assignment.specialty_key = specialty_key
             return
 
         assignment = ProfessionalPatientAssignment(
             professional_id=professional.id,
             patient_id=patient_id,
+            specialty_key=specialty_key,
         )
         db.session.add(assignment)
 
     @staticmethod
-    def list_patients(current_user_id, search=None):
+    def list_patients(current_user_id, search=None, specialty_key=None):
         """List patients with optional free-text search."""
         current_user = User.query.get(current_user_id)
         if not current_user or current_user.role not in ['admin', 'professional']:
@@ -85,7 +102,12 @@ class PatientService:
 
         query = Patient.query
         if current_user.role == 'professional':
-            scoped_patient_ids = list(AccessScopeService.get_professional_patient_ids(current_user.id))
+            scoped_patient_ids = list(
+                AccessScopeService.get_professional_patient_ids(
+                    current_user.id,
+                    specialty_key=specialty_key,
+                )
+            )
             if not scoped_patient_ids:
                 return []
             query = query.filter(Patient.id.in_(scoped_patient_ids))
@@ -152,9 +174,13 @@ class PatientService:
                     assigned_professional_id = creator.id
 
             if assigned_professional_id is not None:
+                resolved_specialty_key = PatientService._resolve_professional_specialty_key(
+                    assigned_professional_id
+                )
                 PatientService._assign_patient_to_professional(
                     patient_id=patient.id,
                     professional_id=assigned_professional_id,
+                    specialty_key=resolved_specialty_key,
                 )
 
             db.session.commit()

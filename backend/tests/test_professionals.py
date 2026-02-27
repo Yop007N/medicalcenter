@@ -4,6 +4,9 @@ Professional CRUD Tests
 """
 
 import pytest
+from datetime import datetime, timedelta
+
+from app.models.appointment import Appointment
 from app.models.professional import Professional
 from app.extensions import db
 
@@ -358,9 +361,52 @@ class TestDeleteProfessional:
             prof_id = prof.id
 
         response = client.delete(f'/api/professionals/{prof_id}', headers=patient_auth_headers)
-
         # Should fail - only admins can delete professionals
         assert response.status_code in [401, 403]
+
+
+class TestProfessionalAvailability:
+    """Test professional availability endpoint."""
+
+    def test_available_slots_skip_overlapping_ranges(
+        self,
+        client,
+        auth_headers,
+        app,
+        sample_professional,
+        sample_patient,
+    ):
+        """Availability should not expose slots overlapping existing appointments."""
+        base_slot = (datetime.utcnow() + timedelta(days=1)).replace(
+            hour=8,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        with app.app_context():
+            db.session.add(
+                Appointment(
+                    patient_id=sample_patient.id,
+                    professional_id=sample_professional.id,
+                    appointment_date=base_slot,
+                    duration_minutes=60,
+                    status='scheduled',
+                )
+            )
+            db.session.commit()
+
+        response = client.get(
+            f'/api/professionals/available-slots?date_from={base_slot.isoformat()}&days=2&slots_per_professional=4',
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json
+        target = next((item for item in data if item['id'] == sample_professional.id), None)
+        assert target is not None
+        assert base_slot.isoformat() not in target['available_slots']
+        assert (base_slot + timedelta(minutes=30)).isoformat() not in target['available_slots']
 
 
 class TestProfessionalCrudWorkflow:
