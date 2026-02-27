@@ -76,4 +76,16 @@ export const pageShellStyles = `
     margin: 12px;
     padding: 10px;
   }
+
+  .field-error {
+    color: #b42318;
+    display: block;
+    font-size: 0.75rem;
+    margin-left: 16px;
+    margin-top: 4px;
+  }
+
+  .required-mark {
+    color: #b91c1c;
+  }
 `;

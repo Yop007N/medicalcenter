@@ -46,14 +46,20 @@ type ApiErrorShape = {
 
       <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="ion-padding-horizontal">
         <ion-item>
-          <ion-label position="stacked">Nombre</ion-label>
+          <ion-label position="stacked">Nombre <span class="required-mark">*</span></ion-label>
           <ion-input formControlName="first_name" placeholder="Nombre"></ion-input>
         </ion-item>
+        @if (profileForm.controls.first_name.touched && profileForm.controls.first_name.invalid) {
+          <small class="field-error">El nombre es obligatorio.</small>
+        }
 
-        <ion-item>
-          <ion-label position="stacked">Apellido</ion-label>
+        <ion-item class="ion-margin-top">
+          <ion-label position="stacked">Apellido <span class="required-mark">*</span></ion-label>
           <ion-input formControlName="last_name" placeholder="Apellido"></ion-input>
         </ion-item>
+        @if (profileForm.controls.last_name.touched && profileForm.controls.last_name.invalid) {
+          <small class="field-error">El apellido es obligatorio.</small>
+        }
 
         <ion-item>
           <ion-label position="stacked">Fecha de nacimiento</ion-label>
