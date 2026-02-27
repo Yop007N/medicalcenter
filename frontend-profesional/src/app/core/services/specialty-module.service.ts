@@ -101,8 +101,10 @@ export class SpecialtyModuleService {
     return this.api.get<SpecialtyModuleContext>(API_ENDPOINTS.specialties.myModule);
   }
 
-  getMyModuleOverview(): Observable<SpecialtyModuleOverview> {
-    return this.api.get<SpecialtyModuleOverview>(API_ENDPOINTS.specialties.myModuleOverview);
+  getMyModuleOverview(specialtyKey?: string): Observable<SpecialtyModuleOverview> {
+    return this.api.get<SpecialtyModuleOverview>(API_ENDPOINTS.specialties.myModuleOverview, {
+      specialty_key: specialtyKey
+    });
   }
 
   listEncounters(params?: {

@@ -11,7 +11,11 @@ import { CollectionResponse, mapCollectionItems } from '../api/collection-respon
 export class BudgetService {
   constructor(private api: ApiService) {}
 
-  getBudgets(filters?: any): Observable<Budget[]> {
+  getBudgets(filters?: {
+    patient_id?: number;
+    status?: Budget['status'];
+    specialty_key?: string;
+  }): Observable<Budget[]> {
     return this.api
       .get<CollectionResponse<Budget>>(API_ENDPOINTS.budgets.base, filters)
       .pipe(mapCollectionItems<Budget>());

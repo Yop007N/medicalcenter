@@ -11,7 +11,11 @@ import { CollectionResponse, mapCollectionItems } from '../api/collection-respon
 export class MedicalRecordService {
   constructor(private api: ApiService) {}
 
-  getMedicalRecords(filters?: { patient_id?: number; professional_id?: number }): Observable<MedicalRecord[]> {
+  getMedicalRecords(filters?: {
+    patient_id?: number;
+    professional_id?: number;
+    specialty_key?: string;
+  }): Observable<MedicalRecord[]> {
     return this.api
       .get<CollectionResponse<MedicalRecord>>(API_ENDPOINTS.medicalRecords.base, filters)
       .pipe(mapCollectionItems<MedicalRecord>());

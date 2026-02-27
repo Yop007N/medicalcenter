@@ -11,7 +11,14 @@ import { CollectionResponse, mapCollectionItems } from '../api/collection-respon
 export class AppointmentService {
   constructor(private api: ApiService) {}
 
-  getAppointments(filters?: any): Observable<Appointment[]> {
+  getAppointments(filters?: {
+    professional_id?: number;
+    patient_id?: number;
+    status?: Appointment['status'];
+    date_from?: string;
+    date_to?: string;
+    specialty_key?: string;
+  }): Observable<Appointment[]> {
     return this.api
       .get<CollectionResponse<Appointment>>(API_ENDPOINTS.appointments.base, filters)
       .pipe(mapCollectionItems<Appointment>());

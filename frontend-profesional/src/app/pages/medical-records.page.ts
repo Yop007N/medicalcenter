@@ -1,6 +1,7 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { MedicalRecordService } from '../core/services/medical-record.service';
 import { MedicalRecord } from '../shared/models/medical-record.model';
@@ -44,6 +45,12 @@ type FormMode = 'create' | 'edit';
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (activeSpecialtyKey) {
+        <p class="scope-text">
+          Scope por especialidad: <strong>{{ activeSpecialtyKey }}</strong>
+        </p>
+      }
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
@@ -162,6 +169,12 @@ type FormMode = 'create' | 'edit';
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-text {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+        margin: -0.25rem 0 0.6rem;
       }
 
       .search-input,
@@ -329,6 +342,7 @@ type FormMode = 'create' | 'edit';
 export class MedicalRecordsPage implements OnInit {
   private readonly medicalRecordService = inject(MedicalRecordService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   records: MedicalRecord[] = [];
   loading = false;
@@ -337,6 +351,7 @@ export class MedicalRecordsPage implements OnInit {
   successMessage: string | null = null;
   fieldError: string | null = null;
   activePatientId: number | null = null;
+  activeSpecialtyKey: string | undefined;
   showForm = false;
   formMode: FormMode = 'create';
   editingRecordId: number | null = null;
@@ -351,7 +366,15 @@ export class MedicalRecordsPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadRecords();
+    this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      this.activeSpecialtyKey = nextSpecialtyKey;
+
+      if (scopeChanged || this.records.length === 0) {
+        this.loadRecords();
+      }
+    });
   }
 
   applyPatientFilter(rawValue: string): void {
@@ -368,9 +391,15 @@ export class MedicalRecordsPage implements OnInit {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters = this.activePatientId ? { patient_id: this.activePatientId } : undefined;
+    const filters: { patient_id?: number; specialty_key?: string } = {};
+    if (this.activePatientId) {
+      filters.patient_id = this.activePatientId;
+    }
+    if (this.activeSpecialtyKey) {
+      filters.specialty_key = this.activeSpecialtyKey;
+    }
     this.medicalRecordService
-      .getMedicalRecords(filters)
+      .getMedicalRecords(Object.keys(filters).length ? filters : undefined)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (records) => {
@@ -515,6 +544,14 @@ export class MedicalRecordsPage implements OnInit {
       }
     });
     return result;
+  }
+
+  private normalizeSpecialtyKey(rawKey: string | null): string | undefined {
+    if (!rawKey) {
+      return undefined;
+    }
+    const normalized = rawKey.trim().toLowerCase();
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
   }
 
   private resolveErrorMessage(error: unknown): string {

@@ -33,7 +33,7 @@ export interface UploadFilePayload {
 export class FileService {
   constructor(private api: ApiService) {}
 
-  listFiles(filters?: { patient_id?: number }): Observable<ClinicalFile[]> {
+  listFiles(filters?: { patient_id?: number; specialty_key?: string }): Observable<ClinicalFile[]> {
     return this.api.get<ClinicalFile[]>(API_ENDPOINTS.files.base, filters);
   }
 

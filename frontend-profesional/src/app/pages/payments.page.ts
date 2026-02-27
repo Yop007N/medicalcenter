@@ -1,6 +1,7 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { Payment, PaymentService } from '../core/services/payment.service';
 import { pageShellStyles } from './page-shell.styles';
@@ -47,6 +48,12 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (activeSpecialtyKey) {
+        <p class="scope-text">
+          Scope por especialidad: <strong>{{ activeSpecialtyKey }}</strong>
+        </p>
+      }
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
@@ -159,6 +166,12 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-text {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+        margin: -0.25rem 0 0.6rem;
       }
 
       .search-input,
@@ -362,6 +375,7 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
 export class PaymentsPage implements OnInit {
   private readonly paymentService = inject(PaymentService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   payments: Payment[] = [];
   loading = false;
@@ -372,6 +386,7 @@ export class PaymentsPage implements OnInit {
   showForm = false;
   filterBudgetId: number | undefined;
   filterStatus: string | undefined;
+  activeSpecialtyKey: string | undefined;
   processingIds = new Set<number>();
 
   readonly paymentForm = this.fb.group({
@@ -382,7 +397,15 @@ export class PaymentsPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadPayments();
+    this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      this.activeSpecialtyKey = nextSpecialtyKey;
+
+      if (scopeChanged || this.payments.length === 0) {
+        this.loadPayments();
+      }
+    });
   }
 
   applyFilters(rawBudgetId: string, status: string): void {
@@ -396,12 +419,15 @@ export class PaymentsPage implements OnInit {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters: { budget_id?: number; status?: string } = {};
+    const filters: { budget_id?: number; status?: string; specialty_key?: string } = {};
     if (this.filterBudgetId) {
       filters.budget_id = this.filterBudgetId;
     }
     if (this.filterStatus) {
       filters.status = this.filterStatus;
+    }
+    if (this.activeSpecialtyKey) {
+      filters.specialty_key = this.activeSpecialtyKey;
     }
 
     this.paymentService
@@ -531,5 +557,13 @@ export class PaymentsPage implements OnInit {
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {
     return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private normalizeSpecialtyKey(rawKey: string | null): string | undefined {
+    if (!rawKey) {
+      return undefined;
+    }
+    const normalized = rawKey.trim().toLowerCase();
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
   }
 }

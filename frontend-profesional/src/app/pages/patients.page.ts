@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
+import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import {
   CreatePatientPayload,
   PatientService,
@@ -420,6 +422,8 @@ type PatientFormMode = 'create' | 'edit';
 })
 export class PatientsPage implements OnInit {
   private readonly patientService = inject(PatientService);
+  private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
@@ -432,6 +436,7 @@ export class PatientsPage implements OnInit {
   successMessage: string | null = null;
   fieldError: string | null = null;
   activeSearch = '';
+  activeSpecialtyKey: string | null = null;
   showForm = false;
   formMode: PatientFormMode = 'create';
   editingPatientId: number | null = null;
@@ -452,6 +457,11 @@ export class PatientsPage implements OnInit {
   });
 
   ngOnInit(): void {
+    const user = this.authService.currentUserValue;
+    if (user?.role === 'professional') {
+      this.activeSpecialtyKey =
+        this.specialtyAccess.resolveSpecialtyModule(user.specialty)?.key ?? null;
+    }
     this.loadPatients();
   }
 
@@ -464,9 +474,16 @@ export class PatientsPage implements OnInit {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters = this.activeSearch ? { search: this.activeSearch } : undefined;
+    const filters: { search?: string; specialty_key?: string } = {};
+    if (this.activeSearch) {
+      filters.search = this.activeSearch;
+    }
+    if (this.activeSpecialtyKey) {
+      filters.specialty_key = this.activeSpecialtyKey;
+    }
+
     this.patientService
-      .getPatients(filters)
+      .getPatients(Object.keys(filters).length > 0 ? filters : undefined)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (patients) => {

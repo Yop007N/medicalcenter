@@ -1,6 +1,7 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { BudgetService } from '../core/services/budget.service';
 import { Budget } from '../shared/models/budget.model';
@@ -53,6 +54,12 @@ type BudgetStatus = Budget['status'];
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (activeSpecialtyKey) {
+        <p class="scope-text">
+          Scope por especialidad: <strong>{{ activeSpecialtyKey }}</strong>
+        </p>
+      }
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
@@ -198,6 +205,12 @@ type BudgetStatus = Budget['status'];
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-text {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+        margin: -0.25rem 0 0.6rem;
       }
 
       .search-input,
@@ -408,6 +421,7 @@ type BudgetStatus = Budget['status'];
 export class BudgetsPage implements OnInit {
   private readonly budgetService = inject(BudgetService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   budgets: Budget[] = [];
   loading = false;
@@ -420,6 +434,7 @@ export class BudgetsPage implements OnInit {
   editingBudgetId: number | null = null;
   filterPatientId: number | undefined;
   filterStatus: BudgetStatus | undefined;
+  activeSpecialtyKey: string | undefined;
   sendingIds = new Set<number>();
   deletingIds = new Set<number>();
 
@@ -433,7 +448,15 @@ export class BudgetsPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadBudgets();
+    this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      this.activeSpecialtyKey = nextSpecialtyKey;
+
+      if (scopeChanged || this.budgets.length === 0) {
+        this.loadBudgets();
+      }
+    });
   }
 
   applyFilters(rawPatientId: string, rawStatus: string): void {
@@ -447,12 +470,15 @@ export class BudgetsPage implements OnInit {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters: { patient_id?: number; status?: BudgetStatus } = {};
+    const filters: { patient_id?: number; status?: BudgetStatus; specialty_key?: string } = {};
     if (this.filterPatientId) {
       filters.patient_id = this.filterPatientId;
     }
     if (this.filterStatus) {
       filters.status = this.filterStatus;
+    }
+    if (this.activeSpecialtyKey) {
+      filters.specialty_key = this.activeSpecialtyKey;
     }
 
     this.budgetService
@@ -647,6 +673,14 @@ export class BudgetsPage implements OnInit {
       return undefined;
     }
     return candidate;
+  }
+
+  private normalizeSpecialtyKey(rawKey: string | null): string | undefined {
+    if (!rawKey) {
+      return undefined;
+    }
+    const normalized = rawKey.trim().toLowerCase();
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
   }
 
   private normalizeDateValue(rawDate: string): string | undefined {

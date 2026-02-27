@@ -1,6 +1,7 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
 import { AppointmentService } from '../core/services/appointment.service';
@@ -54,6 +55,12 @@ type AppointmentStatus = Appointment['status'];
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (filterSpecialtyKey) {
+        <p class="scope-text">
+          Scope por especialidad: <strong>{{ filterSpecialtyKey }}</strong>
+        </p>
+      }
 
       @if (errorMessage) {
         <div class="error-box" role="alert">{{ errorMessage }}</div>
@@ -222,6 +229,12 @@ type AppointmentStatus = Appointment['status'];
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-text {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+        margin: -0.25rem 0 0.6rem;
       }
 
       .search-input,
@@ -432,6 +445,7 @@ export class AppointmentsPage implements OnInit {
   private readonly appointmentService = inject(AppointmentService);
   private readonly authService = inject(AuthService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   appointments: Appointment[] = [];
   loading = false;
@@ -444,6 +458,7 @@ export class AppointmentsPage implements OnInit {
   editingAppointmentId: number | null = null;
   filterPatientId: number | undefined;
   filterStatus: AppointmentStatus | undefined;
+  filterSpecialtyKey: string | undefined;
   confirmingIds = new Set<number>();
   cancelingIds = new Set<number>();
 
@@ -466,7 +481,15 @@ export class AppointmentsPage implements OnInit {
     if (sessionUserId && Number.isInteger(sessionUserId)) {
       this.appointmentForm.patchValue({ professional_id: sessionUserId });
     }
-    this.loadAppointments();
+    this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      const scopeChanged = nextSpecialtyKey !== this.filterSpecialtyKey;
+      this.filterSpecialtyKey = nextSpecialtyKey;
+
+      if (scopeChanged || this.appointments.length === 0) {
+        this.loadAppointments();
+      }
+    });
   }
 
   applyFilters(rawPatientId: string, rawStatus: string): void {
@@ -480,12 +503,15 @@ export class AppointmentsPage implements OnInit {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters: { patient_id?: number; status?: AppointmentStatus } = {};
+    const filters: { patient_id?: number; status?: AppointmentStatus; specialty_key?: string } = {};
     if (this.filterPatientId) {
       filters.patient_id = this.filterPatientId;
     }
     if (this.filterStatus) {
       filters.status = this.filterStatus;
+    }
+    if (this.filterSpecialtyKey) {
+      filters.specialty_key = this.filterSpecialtyKey;
     }
 
     this.appointmentService
@@ -688,6 +714,14 @@ export class AppointmentsPage implements OnInit {
       return undefined;
     }
     return candidate;
+  }
+
+  private normalizeSpecialtyKey(rawKey: string | null): string | undefined {
+    if (!rawKey) {
+      return undefined;
+    }
+    const normalized = rawKey.trim().toLowerCase();
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
   }
 
   private normalizeDateTimeValue(rawDate: string): string {

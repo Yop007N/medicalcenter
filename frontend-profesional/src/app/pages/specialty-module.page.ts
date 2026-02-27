@@ -945,12 +945,12 @@ const SPECIALTY_FIELD_TEMPLATES: Record<string, SpecialtyFieldDefinition[]> = {
             }
           </div>
           <div class="quick-actions">
-            <a routerLink="/patients" class="quick-link">Pacientes</a>
-            <a routerLink="/appointments" class="quick-link">Citas</a>
-            <a routerLink="/medical-records" class="quick-link">Registros</a>
-            <a routerLink="/budgets" class="quick-link">Presupuestos</a>
-            <a routerLink="/files" class="quick-link">Archivos</a>
-            <a routerLink="/payments" class="quick-link">Pagos</a>
+            <a [routerLink]="['/patients']" [queryParams]="buildScopeQueryParams()" class="quick-link">Pacientes</a>
+            <a [routerLink]="['/appointments']" [queryParams]="buildScopeQueryParams()" class="quick-link">Citas</a>
+            <a [routerLink]="['/medical-records']" [queryParams]="buildScopeQueryParams()" class="quick-link">Registros</a>
+            <a [routerLink]="['/budgets']" [queryParams]="buildScopeQueryParams()" class="quick-link">Presupuestos</a>
+            <a [routerLink]="['/files']" [queryParams]="buildScopeQueryParams()" class="quick-link">Archivos</a>
+            <a [routerLink]="['/payments']" [queryParams]="buildScopeQueryParams()" class="quick-link">Pagos</a>
             @if (context.module.key === 'odontology') {
               <a routerLink="/odontology" class="quick-link primary">Ir a Odontologia</a>
             }
@@ -1766,6 +1766,14 @@ export class SpecialtyModulePage implements OnInit {
     });
   }
 
+  buildScopeQueryParams(): { specialty_key?: string } {
+    const key = this.context?.module?.key;
+    if (!key) {
+      return {};
+    }
+    return { specialty_key: key };
+  }
+
   private syncDynamicFieldControls(): void {
     for (const key of this.dynamicFieldKeys) {
       if (this.encounterForm.contains(key)) {
@@ -1875,14 +1883,16 @@ export class SpecialtyModulePage implements OnInit {
   }
 
   private loadOverview(): void {
-    this.specialtyModuleService.getMyModuleOverview().subscribe({
+    this.specialtyModuleService
+      .getMyModuleOverview(this.context?.module?.key)
+      .subscribe({
       next: (overview) => {
         this.overview = overview;
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
       }
-    });
+      });
   }
 
   private loadEncounters(): void {

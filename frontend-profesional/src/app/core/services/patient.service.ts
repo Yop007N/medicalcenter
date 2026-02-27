@@ -28,7 +28,7 @@ export type UpdatePatientPayload = Partial<CreatePatientPayload>;
 export class PatientService {
   constructor(private readonly api: ApiService) {}
 
-  getPatients(filters?: { search?: string; q?: string }): Observable<Patient[]> {
+  getPatients(filters?: { search?: string; q?: string; specialty_key?: string }): Observable<Patient[]> {
     return this.api
       .get<CollectionResponse<Patient>>(API_ENDPOINTS.patients.base, filters)
       .pipe(mapCollectionItems<Patient>());

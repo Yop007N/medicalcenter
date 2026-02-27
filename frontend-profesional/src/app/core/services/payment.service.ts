@@ -24,7 +24,7 @@ export interface Payment {
 export class PaymentService {
   constructor(private api: ApiService) {}
 
-  getPayments(filters?: { budget_id?: number; status?: string }): Observable<Payment[]> {
+  getPayments(filters?: { budget_id?: number; status?: string; specialty_key?: string }): Observable<Payment[]> {
     return this.api
       .get<CollectionResponse<Payment>>(API_ENDPOINTS.payments.base, filters)
       .pipe(mapCollectionItems<Payment>());
