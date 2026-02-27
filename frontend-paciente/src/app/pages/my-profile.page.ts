@@ -47,12 +47,22 @@ type ApiErrorShape = {
       <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="ion-padding-horizontal">
         <ion-item>
           <ion-label position="stacked">Nombre</ion-label>
-          <ion-input formControlName="first_name" placeholder="Nombre"></ion-input>
+          <ion-input
+            formControlName="first_name"
+            placeholder="Nombre"
+            autocomplete="given-name"
+            autocapitalize="words"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
           <ion-label position="stacked">Apellido</ion-label>
-          <ion-input formControlName="last_name" placeholder="Apellido"></ion-input>
+          <ion-input
+            formControlName="last_name"
+            placeholder="Apellido"
+            autocomplete="family-name"
+            autocapitalize="words"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
@@ -62,22 +72,43 @@ type ApiErrorShape = {
 
         <ion-item>
           <ion-label position="stacked">Teléfono</ion-label>
-          <ion-input formControlName="phone" placeholder="+54 ..."></ion-input>
+          <ion-input
+            type="tel"
+            inputmode="tel"
+            formControlName="phone"
+            placeholder="+54 ..."
+            autocomplete="tel"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
           <ion-label position="stacked">Dirección</ion-label>
-          <ion-input formControlName="address" placeholder="Dirección"></ion-input>
+          <ion-input
+            formControlName="address"
+            placeholder="Dirección"
+            autocomplete="street-address"
+            autocapitalize="sentences"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
           <ion-label position="stacked">Contacto de emergencia</ion-label>
-          <ion-input formControlName="emergency_contact" placeholder="Nombre"></ion-input>
+          <ion-input
+            formControlName="emergency_contact"
+            placeholder="Nombre"
+            autocapitalize="words"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
           <ion-label position="stacked">Teléfono de emergencia</ion-label>
-          <ion-input formControlName="emergency_phone" placeholder="+54 ..."></ion-input>
+          <ion-input
+            type="tel"
+            inputmode="tel"
+            formControlName="emergency_phone"
+            placeholder="+54 ..."
+            autocomplete="tel"
+          ></ion-input>
         </ion-item>
 
         <ion-item>
