@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  outputDir: 'playwright-artifacts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -12,8 +13,8 @@ export default defineConfig({
   },
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }],
+    ['html', { outputFolder: 'playwright-html-report', open: 'never' }],
+    ['json', { outputFile: 'playwright-artifacts/results.json' }],
   ],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost',
