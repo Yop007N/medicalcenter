@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -14,6 +12,14 @@ services:
     networks:
       - medical-services-network
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   # Redis
   redis:
@@ -26,6 +32,12 @@ services:
     networks:
       - medical-services-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   # Backend API
   backend:
@@ -44,11 +56,22 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - medical-services-network
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3).getcode()==200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
 
   # Celery Worker
   celery:
@@ -62,11 +85,23 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     networks:
       - medical-services-network
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - celery -A celery_worker.celery inspect ping -d celery@$$HOSTNAME >/dev/null 2>&1 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 6
+      start_period: 45s
 
   # Nginx Reverse Proxy
   nginx:
@@ -79,10 +114,17 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./infrastructure/nginx/ssl:/etc/nginx/ssl
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - medical-services-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
 volumes:
   postgres_data:
