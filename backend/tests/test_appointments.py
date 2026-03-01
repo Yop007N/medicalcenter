@@ -6,6 +6,9 @@ Appointment CRUD Tests
 import pytest
 from datetime import datetime, timedelta
 from app.models.appointment import Appointment
+from app.models.patient import Patient
+from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.extensions import db
 
 
@@ -253,6 +256,123 @@ class TestCreateAppointment:
 
         assert response.status_code == 401
 
+    def test_create_appointment_rejects_patient_owned_by_other_professional(self, client, app):
+        """Professional cannot create appointment for a patient already linked to another owner."""
+        with app.app_context():
+            owner_professional = Professional(
+                email='appointment-owner@test.com',
+                first_name='Owner',
+                last_name='Doctor',
+                role='professional',
+                license_number='APT-OWNER-001',
+                specialty='Cardiologia',
+            )
+            owner_professional.set_password('Doctor123')
+
+            requester_professional = Professional(
+                email='appointment-requester@test.com',
+                first_name='Requester',
+                last_name='Doctor',
+                role='professional',
+                license_number='APT-REQUESTER-001',
+                specialty='Cardiologia',
+            )
+            requester_professional.set_password('Doctor123')
+
+            patient = Patient(
+                email='appointment-owned-patient@test.com',
+                first_name='Paciente',
+                last_name='Asignado',
+                role='patient',
+            )
+            patient.set_password('Patient123')
+
+            db.session.add_all([owner_professional, requester_professional, patient])
+            db.session.flush()
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=owner_professional.id,
+                    patient_id=patient.id,
+                    specialty_key='cardiology',
+                )
+            )
+            db.session.commit()
+            requester_id = requester_professional.id
+            patient_id = patient.id
+
+        response = client.post(
+            '/api/auth/login',
+            json={'email': 'appointment-requester@test.com', 'password': 'Doctor123'},
+        )
+        headers = {'Authorization': f"Bearer {response.get_json()['access_token']}"}
+
+        create_response = client.post(
+            '/api/appointments',
+            headers=headers,
+            json={
+                'patient_id': patient_id,
+                'professional_id': requester_id,
+                'appointment_date': (datetime.now() + timedelta(days=2)).isoformat(),
+                'duration_minutes': 30,
+            },
+        )
+
+        assert create_response.status_code == 403
+        assert 'linked patients' in create_response.get_json()['msg']
+
+    def test_create_appointment_auto_assigns_unlinked_patient_for_professional(self, client, app):
+        """Professional can create first appointment and auto-link patient ownership."""
+        with app.app_context():
+            requester_professional = Professional(
+                email='appointment-auto-assign-prof@test.com',
+                first_name='Auto',
+                last_name='Doctor',
+                role='professional',
+                license_number='APT-AUTO-ASSIGN-001',
+                specialty='Cardiologia',
+            )
+            requester_professional.set_password('Doctor123')
+
+            patient = Patient(
+                email='appointment-auto-assign-patient@test.com',
+                first_name='Paciente',
+                last_name='Nuevo',
+                role='patient',
+            )
+            patient.set_password('Patient123')
+
+            db.session.add_all([requester_professional, patient])
+            db.session.commit()
+            requester_id = requester_professional.id
+            patient_id = patient.id
+
+        login_response = client.post(
+            '/api/auth/login',
+            json={'email': 'appointment-auto-assign-prof@test.com', 'password': 'Doctor123'},
+        )
+        headers = {'Authorization': f"Bearer {login_response.get_json()['access_token']}"}
+
+        create_response = client.post(
+            '/api/appointments',
+            headers=headers,
+            json={
+                'patient_id': patient_id,
+                'professional_id': requester_id,
+                'appointment_date': (datetime.now() + timedelta(days=3)).isoformat(),
+                'duration_minutes': 30,
+            },
+        )
+
+        assert create_response.status_code == 201
+
+        with app.app_context():
+            assignment = ProfessionalPatientAssignment.query.filter_by(
+                professional_id=requester_id,
+                patient_id=patient_id,
+            ).first()
+            assert assignment is not None
+            assert assignment.specialty_key == 'cardiology'
+
 
 class TestUpdateAppointment:
     """Test update appointment endpoint"""
@@ -306,6 +426,90 @@ class TestUpdateAppointment:
         })
 
         assert response.status_code == 401
+
+    def test_update_appointment_rejects_patient_outside_professional_scope(self, client, app):
+        """Professional cannot move appointment to a patient owned by another professional."""
+        with app.app_context():
+            requester_professional = Professional(
+                email='appointment-update-requester@test.com',
+                first_name='Requester',
+                last_name='Doctor',
+                role='professional',
+                license_number='APT-UPD-REQ-001',
+                specialty='Cardiologia',
+            )
+            requester_professional.set_password('Doctor123')
+
+            owner_professional = Professional(
+                email='appointment-update-owner@test.com',
+                first_name='Owner',
+                last_name='Doctor',
+                role='professional',
+                license_number='APT-UPD-OWN-001',
+                specialty='Cardiologia',
+            )
+            owner_professional.set_password('Doctor123')
+
+            linked_patient = Patient(
+                email='appointment-update-linked@test.com',
+                first_name='Paciente',
+                last_name='Linked',
+                role='patient',
+            )
+            linked_patient.set_password('Patient123')
+
+            foreign_patient = Patient(
+                email='appointment-update-foreign@test.com',
+                first_name='Paciente',
+                last_name='Foreign',
+                role='patient',
+            )
+            foreign_patient.set_password('Patient123')
+
+            db.session.add_all(
+                [requester_professional, owner_professional, linked_patient, foreign_patient]
+            )
+            db.session.flush()
+            db.session.add_all(
+                [
+                    ProfessionalPatientAssignment(
+                        professional_id=requester_professional.id,
+                        patient_id=linked_patient.id,
+                        specialty_key='cardiology',
+                    ),
+                    ProfessionalPatientAssignment(
+                        professional_id=owner_professional.id,
+                        patient_id=foreign_patient.id,
+                        specialty_key='cardiology',
+                    ),
+                ]
+            )
+            appointment = Appointment(
+                patient_id=linked_patient.id,
+                professional_id=requester_professional.id,
+                appointment_date=datetime.now() + timedelta(days=1),
+                duration_minutes=30,
+                status='scheduled',
+            )
+            db.session.add(appointment)
+            db.session.commit()
+            appointment_id = appointment.id
+            foreign_patient_id = foreign_patient.id
+
+        login_response = client.post(
+            '/api/auth/login',
+            json={'email': 'appointment-update-requester@test.com', 'password': 'Doctor123'},
+        )
+        headers = {'Authorization': f"Bearer {login_response.get_json()['access_token']}"}
+
+        update_response = client.put(
+            f'/api/appointments/{appointment_id}',
+            headers=headers,
+            json={'patient_id': foreign_patient_id},
+        )
+
+        assert update_response.status_code == 403
+        assert 'linked patients' in update_response.get_json()['msg']
 
 
 class TestDeleteAppointment:

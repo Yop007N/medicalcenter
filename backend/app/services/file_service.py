@@ -13,7 +13,9 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
-from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.access_scope_service import AccessScopeService
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
+from app.services.specialty_module_service import SpecialtyModuleService
 
 
 class FileService:
@@ -118,19 +120,131 @@ class FileService:
         raise ValidationError('medical_record_id is required')
 
     @staticmethod
-    def list_files(patient_id=None):
-        """List file metadata with optional patient filter."""
-        query = File.query
-        if patient_id:
-            query = query.join(MedicalRecord).filter(MedicalRecord.patient_id == patient_id)
+    def _resolve_specialty_scope(current_user, specialty_key):
+        """Validate specialty_key and return normalized module metadata."""
+        effective_specialty_key = specialty_key
+        if current_user.role == 'professional' and not effective_specialty_key:
+            effective_specialty_key = AccessScopeService.resolve_specialty_key(
+                getattr(current_user, 'specialty', None)
+            )
+
+        if not effective_specialty_key:
+            return None, None
+
+        normalized_specialty_key = AccessScopeService.normalize_text(effective_specialty_key)
+        module = SpecialtyModuleService.get_module_by_key(normalized_specialty_key)
+        if not module:
+            raise ValidationError('Invalid specialty_key')
+
+        module_key = module.get('key')
+        if current_user.role == 'professional':
+            professional_specialty_key = AccessScopeService.resolve_specialty_key(
+                getattr(current_user, 'specialty', None)
+            )
+            if professional_specialty_key != module_key:
+                raise AccessDeniedError('Professional can only access own specialty files')
+            return module_key, None
+
+        module_professional_ids = sorted(
+            SpecialtyModuleService.get_professional_ids_for_module(module_key)
+        )
+        return module_key, module_professional_ids
+
+    @classmethod
+    def _scoped_query(cls, current_user, specialty_key=None):
+        """Build a scoped file query for current actor."""
+        module_key, module_professional_ids = cls._resolve_specialty_scope(
+            current_user=current_user,
+            specialty_key=specialty_key,
+        )
+        query = File.query.join(MedicalRecord)
+
+        if current_user.role == 'patient':
+            query = query.filter(MedicalRecord.patient_id == current_user.id)
+            if module_key:
+                if not module_professional_ids:
+                    return query.filter(File.id == -1), module_key
+                query = query.filter(MedicalRecord.professional_id.in_(module_professional_ids))
+        elif current_user.role == 'professional':
+            scoped_patient_ids = list(
+                AccessScopeService.get_professional_patient_ids(
+                    current_user.id,
+                    specialty_key=module_key,
+                )
+            )
+            if not scoped_patient_ids:
+                return query.filter(File.id == -1), module_key
+            query = query.filter(MedicalRecord.patient_id.in_(scoped_patient_ids))
+        elif current_user.role == 'admin':
+            if module_key:
+                if not module_professional_ids:
+                    return query.filter(File.id == -1), module_key
+                query = query.filter(MedicalRecord.professional_id.in_(module_professional_ids))
+        else:
+            raise AccessDeniedError('Unauthorized')
+
+        return query, module_key
+
+    @classmethod
+    def _ensure_medical_record_access(cls, current_user, medical_record, specialty_key=None):
+        """Validate actor permissions over a medical record used by files flow."""
+        patient_id = getattr(medical_record, 'patient_id', None)
+        if patient_id is None:
+            raise ValidationError('Invalid medical record context')
+
+        module_key, module_professional_ids = cls._resolve_specialty_scope(
+            current_user=current_user,
+            specialty_key=specialty_key,
+        )
+
+        AccessScopeService.ensure_patient_access_scope(current_user.id, patient_id)
+        if current_user.role == 'professional' and module_key and not AccessScopeService.professional_can_access_patient(
+            current_user.id,
+            patient_id,
+            specialty_key=module_key,
+        ):
+            raise AccessDeniedError('Professional can only access linked patients in this specialty')
+
+        if current_user.role == 'admin' and module_key:
+            if not module_professional_ids or medical_record.professional_id not in module_professional_ids:
+                raise AccessDeniedError('Medical record is outside requested specialty scope')
+
+        return module_key
+
+    @classmethod
+    def list_files(cls, current_user_id, patient_id=None, specialty_key=None):
+        """List file metadata with optional patient and specialty scopes."""
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        query, module_key = cls._scoped_query(current_user=current_user, specialty_key=specialty_key)
+
+        if patient_id is not None:
+            AccessScopeService.ensure_patient_access_scope(current_user.id, patient_id)
+            if current_user.role == 'professional' and module_key and not AccessScopeService.professional_can_access_patient(
+                current_user.id,
+                patient_id,
+                specialty_key=module_key,
+            ):
+                raise AccessDeniedError('Professional can only access linked patients in this specialty')
+            query = query.filter(MedicalRecord.patient_id == patient_id)
+
         return query.order_by(File.created_at.desc()).all()
 
-    @staticmethod
-    def get_file(file_id):
+    @classmethod
+    def get_file(cls, file_id, current_user_id, specialty_key=None):
         """Get file by ID or raise ResourceNotFoundError."""
         file_record = File.query.get(file_id)
         if not file_record:
             raise ResourceNotFoundError('File not found')
+        medical_record = file_record.medical_record
+        if not medical_record:
+            raise ResourceNotFoundError('Medical record not found')
+
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        cls._ensure_medical_record_access(
+            current_user=current_user,
+            medical_record=medical_record,
+            specialty_key=specialty_key,
+        )
         return file_record
 
     @classmethod
@@ -142,6 +256,7 @@ class FileService:
         patient_id=None,
         file_type='other',
         description='',
+        specialty_key=None,
     ):
         """Create file from upload payload."""
         if file is None:
@@ -161,6 +276,13 @@ class FileService:
         medical_record = MedicalRecord.query.get(resolved_record_id)
         if not medical_record:
             raise ResourceNotFoundError('Medical record not found')
+
+        current_user = AccessScopeService.get_user_or_raise(uploaded_by)
+        cls._ensure_medical_record_access(
+            current_user=current_user,
+            medical_record=medical_record,
+            specialty_key=specialty_key,
+        )
 
         original_filename = secure_filename(file.filename)
         unique_filename = cls.generate_unique_filename(original_filename)
@@ -187,7 +309,14 @@ class FileService:
         return file_record
 
     @staticmethod
-    def upload_file(file, medical_record_id, file_type, uploaded_by, description=None):
+    def upload_file(
+        file,
+        medical_record_id,
+        file_type,
+        uploaded_by,
+        description=None,
+        specialty_key=None,
+    ):
         """Backward-compatible upload wrapper."""
         return FileService.create_file_record(
             file=file,
@@ -195,21 +324,33 @@ class FileService:
             medical_record_id=medical_record_id,
             file_type=file_type,
             description=description or '',
+            specialty_key=specialty_key,
         )
 
     @classmethod
-    def download_file(cls, file_id):
+    def download_file(cls, file_id, current_user_id, specialty_key=None):
         """Get file metadata + resolved path for download."""
-        file_record = cls.get_file(file_id)
+        file_record = cls.get_file(
+            file_id=file_id,
+            current_user_id=current_user_id,
+            specialty_key=specialty_key,
+        )
         resolved_path = cls.resolve_file_path(file_record.file_path)
         if not os.path.exists(resolved_path):
             raise ResourceNotFoundError('File not found on disk')
         return file_record, resolved_path
 
     @classmethod
-    def delete_file(cls, file_id):
+    def delete_file(cls, file_id, current_user_id, specialty_key=None):
         """Delete file from storage and database."""
-        file_record = cls.get_file(file_id)
+        current_user = AccessScopeService.get_user_or_raise(current_user_id)
+        if current_user.role == 'patient':
+            raise AccessDeniedError('Patients cannot delete files')
+        file_record = cls.get_file(
+            file_id=file_id,
+            current_user_id=current_user_id,
+            specialty_key=specialty_key,
+        )
         resolved_path = cls.resolve_file_path(file_record.file_path)
         if resolved_path and os.path.exists(resolved_path):
             os.remove(resolved_path)

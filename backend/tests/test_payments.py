@@ -8,7 +8,19 @@ from decimal import Decimal
 from datetime import datetime
 from app.models.payment import Payment
 from app.models.budget import Budget
+from app.models.patient import Patient
+from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.extensions import db
+
+
+def professional_headers(client, email, password='Doctor123'):
+    response = client.post(
+        '/api/auth/login',
+        json={'email': email, 'password': password},
+    )
+    assert response.status_code == 200
+    return {'Authorization': f"Bearer {response.get_json()['access_token']}"}
 
 
 class TestListPayments:
@@ -81,6 +93,123 @@ class TestListPayments:
         response = client.get('/api/payments')
         assert response.status_code == 401
 
+    def test_professional_can_list_payments_scoped_by_own_specialty(self, client, app):
+        with app.app_context():
+            cardio_professional = Professional(
+                email='payment-scope-cardio-prof@test.com',
+                first_name='Carla',
+                last_name='Cardio',
+                role='professional',
+                license_number='PAY-SCOPE-CARD-001',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+
+            derm_professional = Professional(
+                email='payment-scope-derm-prof@test.com',
+                first_name='Diego',
+                last_name='Derma',
+                role='professional',
+                license_number='PAY-SCOPE-DERM-001',
+                specialty='Dermatología',
+            )
+            derm_professional.set_password('Doctor123')
+
+            cardio_patient = Patient(
+                email='payment-scope-cardio-patient@test.com',
+                first_name='Paciente',
+                last_name='Cardio',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+
+            derm_patient = Patient(
+                email='payment-scope-derm-patient@test.com',
+                first_name='Paciente',
+                last_name='Derm',
+                role='patient',
+            )
+            derm_patient.set_password('Patient123')
+
+            db.session.add_all([cardio_professional, derm_professional, cardio_patient, derm_patient])
+            db.session.flush()
+
+            db.session.add_all([
+                ProfessionalPatientAssignment(
+                    professional_id=cardio_professional.id,
+                    patient_id=cardio_patient.id,
+                    specialty_key='cardiology',
+                ),
+                ProfessionalPatientAssignment(
+                    professional_id=derm_professional.id,
+                    patient_id=derm_patient.id,
+                    specialty_key='dermatology',
+                ),
+            ])
+
+            cardio_budget = Budget(
+                patient_id=cardio_patient.id,
+                created_by=cardio_professional.id,
+                title='Cardio payment budget',
+                total_amount=Decimal('1000.00'),
+            )
+            derm_budget = Budget(
+                patient_id=derm_patient.id,
+                created_by=derm_professional.id,
+                title='Derm payment budget',
+                total_amount=Decimal('900.00'),
+            )
+            db.session.add_all([cardio_budget, derm_budget])
+            db.session.flush()
+
+            cardio_payment = Payment(
+                budget_id=cardio_budget.id,
+                amount=Decimal('250.00'),
+                payment_method='cash',
+                payment_status='pending',
+            )
+            derm_payment = Payment(
+                budget_id=derm_budget.id,
+                amount=Decimal('180.00'),
+                payment_method='card',
+                payment_status='pending',
+            )
+            db.session.add_all([cardio_payment, derm_payment])
+            db.session.commit()
+            cardio_payment_id = cardio_payment.id
+            derm_payment_id = derm_payment.id
+            cardio_patient_id = cardio_patient.id
+
+        headers = professional_headers(client, 'payment-scope-cardio-prof@test.com')
+        response = client.get(
+            f'/api/payments?specialty_key=cardiology&patient_id={cardio_patient_id}',
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        returned_ids = {item['id'] for item in payload}
+        assert cardio_payment_id in returned_ids
+        assert derm_payment_id not in returned_ids
+
+    def test_professional_payment_scope_rejects_mismatched_specialty_key(self, client, app):
+        with app.app_context():
+            cardio_professional = Professional(
+                email='payment-scope-mismatch@test.com',
+                first_name='Cora',
+                last_name='Mismatch',
+                role='professional',
+                license_number='PAY-SCOPE-MISMATCH',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+            db.session.add(cardio_professional)
+            db.session.commit()
+
+        headers = professional_headers(client, 'payment-scope-mismatch@test.com')
+        response = client.get('/api/payments?specialty_key=dermatology', headers=headers)
+        assert response.status_code == 403
+
 
 class TestGetPayment:
     """Test get payment endpoint"""
@@ -123,6 +252,148 @@ class TestGetPayment:
 
         response = client.get(f'/api/payments/{payment_id}')
         assert response.status_code == 401
+
+    def test_get_payment_forbidden_for_unlinked_professional(
+        self,
+        client,
+        auth_headers,
+        app,
+    ):
+        """Professional should not access payment from unrelated patient scope."""
+        with app.app_context():
+            other_professional = Professional(
+                email='payment-other-prof@test.com',
+                first_name='Other',
+                last_name='Doctor',
+                role='professional',
+                license_number='PAY-OTH-001',
+                specialty='Cardiología',
+            )
+            other_professional.set_password('Doctor123')
+            db.session.add(other_professional)
+            db.session.flush()
+
+            patient_2 = Patient(
+                email='payment-unlinked-patient@test.com',
+                first_name='Payment',
+                last_name='Unlinked',
+                role='patient',
+            )
+            patient_2.set_password('Patient123')
+            db.session.add(patient_2)
+            db.session.flush()
+
+            budget = Budget(
+                patient_id=patient_2.id,
+                created_by=other_professional.id,
+                title='Payment Scope Budget',
+                total_amount=Decimal('1200.00'),
+            )
+            db.session.add(budget)
+            db.session.flush()
+
+            payment = Payment(
+                budget_id=budget.id,
+                amount=Decimal('500.00'),
+                payment_method='cash',
+                payment_status='pending',
+            )
+            db.session.add(payment)
+            db.session.commit()
+            payment_id = payment.id
+
+        response = client.get(f'/api/payments/{payment_id}', headers=auth_headers)
+        assert response.status_code == 403
+
+    def test_admin_can_filter_payments_by_specialty_key(
+        self,
+        client,
+        admin_auth_headers,
+        app,
+    ):
+        """Admin specialty_key filter should return only module payments."""
+        with app.app_context():
+            cardio_professional = Professional(
+                email='payment-cardio-prof@test.com',
+                first_name='Cardio',
+                last_name='Doctor',
+                role='professional',
+                license_number='PAY-CARD-001',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+            db.session.add(cardio_professional)
+
+            derm_professional = Professional(
+                email='payment-derm-prof@test.com',
+                first_name='Derm',
+                last_name='Doctor',
+                role='professional',
+                license_number='PAY-DERM-001',
+                specialty='Dermatología',
+            )
+            derm_professional.set_password('Doctor123')
+            db.session.add(derm_professional)
+            db.session.flush()
+
+            cardio_patient = Patient(
+                email='payment-cardio-patient@test.com',
+                first_name='Cardio',
+                last_name='Patient',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+            derm_patient = Patient(
+                email='payment-derm-patient@test.com',
+                first_name='Derm',
+                last_name='Patient',
+                role='patient',
+            )
+            derm_patient.set_password('Patient123')
+            db.session.add_all([cardio_patient, derm_patient])
+            db.session.flush()
+
+            cardio_budget = Budget(
+                patient_id=cardio_patient.id,
+                created_by=cardio_professional.id,
+                title='Cardio Payment Budget',
+                total_amount=Decimal('1000.00'),
+            )
+            derm_budget = Budget(
+                patient_id=derm_patient.id,
+                created_by=derm_professional.id,
+                title='Derm Payment Budget',
+                total_amount=Decimal('1000.00'),
+            )
+            db.session.add_all([cardio_budget, derm_budget])
+            db.session.flush()
+
+            cardio_payment = Payment(
+                budget_id=cardio_budget.id,
+                amount=Decimal('100.00'),
+                payment_method='card',
+                payment_status='pending',
+            )
+            derm_payment = Payment(
+                budget_id=derm_budget.id,
+                amount=Decimal('200.00'),
+                payment_method='card',
+                payment_status='pending',
+            )
+            db.session.add_all([cardio_payment, derm_payment])
+            db.session.commit()
+            cardio_payment_id = cardio_payment.id
+            derm_payment_id = derm_payment.id
+
+        response = client.get(
+            '/api/payments?specialty_key=cardiology',
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        payload = response.json
+        returned_ids = {item['id'] for item in payload}
+        assert cardio_payment_id in returned_ids
+        assert derm_payment_id not in returned_ids
 
 
 class TestCreatePayment:

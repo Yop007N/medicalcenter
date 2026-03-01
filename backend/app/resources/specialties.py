@@ -50,6 +50,23 @@ def get_my_module_overview():
         return domain_error_response(exc)
 
 
+@blueprint.route('/history', methods=['GET'])
+@jwt_required()
+def get_specialty_history():
+    """Return scoped clinical history for a specialty module."""
+    from flask import request
+
+    try:
+        payload = SpecialtyModuleService.get_specialty_history(
+            current_user_id=get_jwt_identity(),
+            specialty_key=request.args.get('specialty_key'),
+            patient_id=request.args.get('patient_id', type=int),
+        )
+        return jsonify(payload), 200
+    except (ValidationError, AccessDeniedError, ResourceNotFoundError) as exc:
+        return domain_error_response(exc)
+
+
 @blueprint.route('/encounters', methods=['GET'])
 @jwt_required()
 def list_encounters():

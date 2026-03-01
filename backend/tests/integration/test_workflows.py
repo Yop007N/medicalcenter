@@ -7,6 +7,16 @@ from datetime import datetime, timedelta
 import io
 
 
+def sample_patient_headers(client):
+    """Authenticate as fixture sample patient."""
+    response = client.post(
+        '/api/auth/login',
+        json={'email': 'testpatient@test.com', 'password': 'Patient123'},
+    )
+    assert response.status_code == 200
+    return {'Authorization': f"Bearer {response.get_json()['access_token']}"}
+
+
 def test_complete_appointment_workflow(
     client,
     auth_headers,
@@ -98,7 +108,6 @@ def test_complete_appointment_workflow(
 def test_budget_payment_workflow(
     client,
     auth_headers,
-    patient_auth_headers,
     admin_auth_headers,
     sample_patient,
 ):
@@ -133,7 +142,7 @@ def test_budget_payment_workflow(
 
     accept_response = client.post(
         f'/api/budgets/{budget_id}/accept',
-        headers=patient_auth_headers
+        headers=sample_patient_headers(client),
     )
     assert accept_response.status_code == 200
     assert accept_response.get_json()['status'] == 'accepted'

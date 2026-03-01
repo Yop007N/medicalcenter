@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.resources.domain_errors import domain_error_response
-from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.file_service import FileService
 
 blueprint = Blueprint('files', __name__, url_prefix='/api/files')
@@ -51,8 +51,17 @@ def serialize_file(file_record):
 def list_files():
     """List file metadata with optional patient filter."""
     patient_id = request.args.get('patient_id', type=int)
-    files = FileService.list_files(patient_id=patient_id)
-    return jsonify([serialize_file(file_record) for file_record in files]), 200
+    specialty_key = request.args.get('specialty_key')
+    current_user_id = int(get_jwt_identity())
+    try:
+        files = FileService.list_files(
+            current_user_id=current_user_id,
+            patient_id=patient_id,
+            specialty_key=specialty_key,
+        )
+        return jsonify([serialize_file(file_record) for file_record in files]), 200
+    except (ValidationError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/upload', methods=['POST'])
@@ -112,6 +121,7 @@ def upload_file():
     description = request.form.get('description', '')
     medical_record_id = request.form.get('medical_record_id')
     patient_id = request.form.get('patient_id')
+    specialty_key = request.form.get('specialty_key') or request.args.get('specialty_key')
 
     try:
         file_record = FileService.create_file_record(
@@ -121,8 +131,9 @@ def upload_file():
             patient_id=patient_id,
             file_type=file_type,
             description=description,
+            specialty_key=specialty_key,
         )
-    except (ValidationError, ResourceNotFoundError) as exc:
+    except (ValidationError, ResourceNotFoundError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
     return jsonify(serialize_file(file_record)), 201
@@ -165,9 +176,13 @@ def get_file(file_id):
         description: No autenticado
     """
     try:
-        file_record = FileService.get_file(file_id)
+        file_record = FileService.get_file(
+            file_id=file_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify(serialize_file(file_record)), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -199,14 +214,18 @@ def download_file(file_id):
         description: No autenticado
     """
     try:
-        file_record, resolved_path = FileService.download_file(file_id)
+        file_record, resolved_path = FileService.download_file(
+            file_id=file_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return send_file(
             resolved_path,
             as_attachment=True,
             download_name=file_record.filename,
             mimetype=file_record.mime_type,
         )
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -234,7 +253,11 @@ def delete_file(file_id):
         description: No autenticado
     """
     try:
-        FileService.delete_file(file_id)
+        FileService.delete_file(
+            file_id=file_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify({'msg': 'File deleted'}), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)

@@ -155,6 +155,9 @@ def create_patient():
             professional_id:
               type: integer
               description: Opcional (admin), asigna paciente al profesional indicado.
+            specialty_key:
+              type: string
+              description: Opcional, resuelve asignacion inicial automatica al modulo/especialidad.
     responses:
       201:
         description: Paciente creado exitosamente

@@ -4,11 +4,11 @@ Payment CRUD endpoints
 """
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.resources.domain_errors import domain_error_response
 from app.schemas.payment_schema import PaymentSchema
-from app.services.exceptions import ResourceNotFoundError, ValidationError
+from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.payment_service import PaymentService
 from app.utils.decorators import professional_required
 
@@ -47,8 +47,19 @@ def list_payments():
     """
     budget_id = request.args.get('budget_id', type=int)
     status = request.args.get('status')
-    payments = PaymentService.list_payments(budget_id=budget_id, status=status)
-    return jsonify(payments_schema.dump(payments)), 200
+    patient_id = request.args.get('patient_id', type=int)
+    specialty_key = request.args.get('specialty_key')
+    try:
+        payments = PaymentService.list_payments(
+            current_user_id=int(get_jwt_identity()),
+            budget_id=budget_id,
+            status=status,
+            patient_id=patient_id,
+            specialty_key=specialty_key,
+        )
+        return jsonify(payments_schema.dump(payments)), 200
+    except (ValidationError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:payment_id>', methods=['GET'])
@@ -75,9 +86,13 @@ def get_payment(payment_id):
         description: No autenticado
     """
     try:
-        payment = PaymentService.get_payment(payment_id)
+        payment = PaymentService.get_payment(
+            payment_id=payment_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify(payment_schema.dump(payment)), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -125,9 +140,14 @@ def create_payment():
     """
     data = request.get_json() or {}
     try:
-        payment = PaymentService.create_payment(data)
+        specialty_key = request.args.get('specialty_key') or data.get('specialty_key')
+        payment = PaymentService.create_payment(
+            data=data,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=specialty_key,
+        )
         return jsonify(payment_schema.dump(payment)), 201
-    except ValidationError as exc:
+    except (ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -174,9 +194,15 @@ def update_payment(payment_id):
     """
     data = request.get_json() or {}
     try:
-        payment = PaymentService.update_payment(payment_id, data)
+        specialty_key = request.args.get('specialty_key') or data.get('specialty_key')
+        payment = PaymentService.update_payment(
+            payment_id=payment_id,
+            data=data,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=specialty_key,
+        )
         return jsonify(payment_schema.dump(payment)), 200
-    except (ValidationError, ResourceNotFoundError) as exc:
+    except (ValidationError, ResourceNotFoundError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -204,9 +230,13 @@ def delete_payment(payment_id):
         description: No autenticado (requiere rol professional)
     """
     try:
-        PaymentService.delete_payment(payment_id)
+        PaymentService.delete_payment(
+            payment_id=payment_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify({'msg': 'Payment deleted successfully'}), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -247,7 +277,13 @@ def process_payment(payment_id):
     """
     data = request.get_json() or {}
     try:
-        payment = PaymentService.process_payment(payment_id, data)
+        specialty_key = request.args.get('specialty_key') or data.get('specialty_key')
+        payment = PaymentService.process_payment(
+            payment_id=payment_id,
+            data=data,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=specialty_key,
+        )
         return jsonify(payment_schema.dump(payment)), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)

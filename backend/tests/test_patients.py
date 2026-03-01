@@ -277,6 +277,44 @@ class TestCreatePatient:
         assert scoped_list_response.status_code == 200
         assert any(item['id'] == patient_id for item in scoped_list_response.json)
 
+    def test_create_patient_assigns_by_specialty_key_for_admin(self, client, admin_auth_headers, app):
+        """Admin create flow should auto-assign patient to an active professional in specialty scope."""
+        from app.models.professional import Professional
+
+        with app.app_context():
+            cardio_professional = Professional(
+                email='auto-cardio@test.com',
+                first_name='Auto',
+                last_name='Cardio',
+                role='professional',
+                specialty='Cardiologia',
+                license_number='AUTO-CARDIO-001',
+                is_active=True,
+            )
+            cardio_professional.set_password('Doctor123')
+            db.session.add(cardio_professional)
+            db.session.commit()
+            cardio_professional_id = cardio_professional.id
+
+        response = client.post('/api/patients', headers=admin_auth_headers, json={
+            'email': 'admin-scoped-patient@test.com',
+            'password': 'Patient123',
+            'first_name': 'Admin',
+            'last_name': 'Scoped',
+            'specialty_key': 'cardiology',
+        })
+
+        assert response.status_code == 201
+        patient_id = response.json['id']
+
+        with app.app_context():
+            assignment = ProfessionalPatientAssignment.query.filter_by(
+                professional_id=cardio_professional_id,
+                patient_id=patient_id,
+                specialty_key='cardiology',
+            ).first()
+            assert assignment is not None
+
     def test_create_patient_then_login_with_new_credentials(self, client, auth_headers):
         """Create flow should produce valid credentials for patient login."""
         response = client.post('/api/patients', headers=auth_headers, json={

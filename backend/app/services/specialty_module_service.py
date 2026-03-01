@@ -313,6 +313,111 @@ class SpecialtyModuleService:
         """Public helper returning professional IDs linked to a module key."""
         return cls._professional_ids_for_module(module_key)
 
+    @staticmethod
+    def _serialize_appointment(appointment):
+        return {
+            'id': appointment.id,
+            'patient_id': appointment.patient_id,
+            'patient_name': (
+                f'{appointment.patient.first_name} {appointment.patient.last_name}'
+                if appointment.patient
+                else f'Paciente #{appointment.patient_id}'
+            ),
+            'professional_id': appointment.professional_id,
+            'professional_name': (
+                f'{appointment.professional.first_name} {appointment.professional.last_name}'
+                if appointment.professional
+                else f'Profesional #{appointment.professional_id}'
+            ),
+            'status': appointment.status,
+            'appointment_type': appointment.appointment_type,
+            'appointment_date': appointment.appointment_date.isoformat(),
+        }
+
+    @staticmethod
+    def _serialize_medical_record(record):
+        return {
+            'id': record.id,
+            'patient_id': record.patient_id,
+            'patient_name': (
+                f'{record.patient.first_name} {record.patient.last_name}'
+                if record.patient
+                else f'Paciente #{record.patient_id}'
+            ),
+            'professional_id': record.professional_id,
+            'professional_name': (
+                f'{record.professional.first_name} {record.professional.last_name}'
+                if record.professional
+                else f'Profesional #{record.professional_id}'
+            ),
+            'record_date': record.record_date.isoformat() if record.record_date else None,
+            'diagnosis': record.diagnosis,
+            'treatment': record.treatment,
+            'chief_complaint': record.chief_complaint,
+            'notes': record.notes,
+        }
+
+    @staticmethod
+    def _serialize_patient(patient):
+        return {
+            'id': patient.id,
+            'first_name': patient.first_name,
+            'last_name': patient.last_name,
+            'email': patient.email,
+            'phone': patient.phone,
+            'is_active': patient.is_active,
+        }
+
+    @staticmethod
+    def _serialize_specialty_encounter(encounter):
+        return {
+            'id': encounter.id,
+            'specialty_key': encounter.specialty_key,
+            'patient_id': encounter.patient_id,
+            'patient_name': (
+                f'{encounter.patient.first_name} {encounter.patient.last_name}'
+                if encounter.patient
+                else f'Paciente #{encounter.patient_id}'
+            ),
+            'professional_id': encounter.professional_id,
+            'professional_name': (
+                f'{encounter.professional.first_name} {encounter.professional.last_name}'
+                if encounter.professional
+                else f'Profesional #{encounter.professional_id}'
+            ),
+            'visit_date': encounter.visit_date.isoformat() if encounter.visit_date else None,
+            'status': encounter.status,
+            'chief_complaint': encounter.chief_complaint,
+            'diagnosis': encounter.diagnosis,
+            'assessment': encounter.assessment,
+            'plan': encounter.plan,
+            'notes': encounter.notes,
+            'vitals': encounter.vitals,
+            'payload': encounter.payload,
+        }
+
+    @staticmethod
+    def _serialize_document(document):
+        return {
+            'id': document.id,
+            'medical_record_id': document.medical_record_id,
+            'patient_id': document.medical_record.patient_id if document.medical_record else None,
+            'patient_name': (
+                f'{document.medical_record.patient.first_name} '
+                f'{document.medical_record.patient.last_name}'
+                if document.medical_record and document.medical_record.patient
+                else (
+                    f'Paciente #{document.medical_record.patient_id}'
+                    if document.medical_record
+                    else None
+                )
+            ),
+            'filename': document.filename,
+            'file_type': document.file_type,
+            'description': document.description,
+            'created_at': document.created_at.isoformat() if document.created_at else None,
+        }
+
     @classmethod
     def _collect_patient_ids(
         cls,
@@ -496,55 +601,17 @@ class SpecialtyModuleService:
             .limit(8)
             .all()
         )
-        appointment_rows = [
-            {
-                'id': appointment.id,
-                'patient_id': appointment.patient_id,
-                'patient_name': (
-                    f'{appointment.patient.first_name} {appointment.patient.last_name}'
-                    if appointment.patient
-                    else f'Paciente #{appointment.patient_id}'
-                ),
-                'status': appointment.status,
-                'appointment_type': appointment.appointment_type,
-                'appointment_date': appointment.appointment_date.isoformat(),
-            }
-            for appointment in upcoming_appointments
-        ]
+        appointment_rows = [cls._serialize_appointment(appointment) for appointment in upcoming_appointments]
 
         recent_records = (
             medical_record_query.order_by(MedicalRecord.record_date.desc())
             .limit(8)
             .all()
         )
-        record_rows = [
-            {
-                'id': record.id,
-                'patient_id': record.patient_id,
-                'patient_name': (
-                    f'{record.patient.first_name} {record.patient.last_name}'
-                    if record.patient
-                    else f'Paciente #{record.patient_id}'
-                ),
-                'record_date': record.record_date.isoformat() if record.record_date else None,
-                'diagnosis': record.diagnosis,
-                'treatment': record.treatment,
-            }
-            for record in recent_records
-        ]
+        record_rows = [cls._serialize_medical_record(record) for record in recent_records]
 
         patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(12).all()
-        patient_rows = [
-            {
-                'id': patient.id,
-                'first_name': patient.first_name,
-                'last_name': patient.last_name,
-                'email': patient.email,
-                'phone': patient.phone,
-                'is_active': patient.is_active,
-            }
-            for patient in patients
-        ]
+        patient_rows = [cls._serialize_patient(patient) for patient in patients]
 
         encounter_query = SpecialtyEncounter.query
         if scope_module_key:
@@ -569,26 +636,7 @@ class SpecialtyModuleService:
             .all()
         )
         encounter_rows = [
-            {
-                'id': encounter.id,
-                'specialty_key': encounter.specialty_key,
-                'patient_id': encounter.patient_id,
-                'patient_name': (
-                    f'{encounter.patient.first_name} {encounter.patient.last_name}'
-                    if encounter.patient
-                    else f'Paciente #{encounter.patient_id}'
-                ),
-                'professional_id': encounter.professional_id,
-                'professional_name': (
-                    f'{encounter.professional.first_name} {encounter.professional.last_name}'
-                    if encounter.professional
-                    else f'Profesional #{encounter.professional_id}'
-                ),
-                'visit_date': encounter.visit_date.isoformat() if encounter.visit_date else None,
-                'status': encounter.status,
-                'chief_complaint': encounter.chief_complaint,
-                'diagnosis': encounter.diagnosis,
-            }
+            cls._serialize_specialty_encounter(encounter)
             for encounter in recent_specialty_encounters
         ]
 
@@ -599,28 +647,7 @@ class SpecialtyModuleService:
         )
         documents_total = documents_query.count()
         recent_documents = documents_query.order_by(File.created_at.desc()).limit(12).all()
-        document_rows = [
-            {
-                'id': document.id,
-                'medical_record_id': document.medical_record_id,
-                'patient_id': document.medical_record.patient_id if document.medical_record else None,
-                'patient_name': (
-                    f'{document.medical_record.patient.first_name} '
-                    f'{document.medical_record.patient.last_name}'
-                    if document.medical_record and document.medical_record.patient
-                    else (
-                        f'Paciente #{document.medical_record.patient_id}'
-                        if document.medical_record
-                        else None
-                    )
-                ),
-                'filename': document.filename,
-                'file_type': document.file_type,
-                'description': document.description,
-                'created_at': document.created_at.isoformat() if document.created_at else None,
-            }
-            for document in recent_documents
-        ]
+        document_rows = [cls._serialize_document(document) for document in recent_documents]
 
         return {
             'actor': user.role,
@@ -645,4 +672,82 @@ class SpecialtyModuleService:
             'recent_documents': document_rows,
             'patients': patient_rows,
             'generated_at': now.isoformat(),
+        }
+
+    @classmethod
+    def get_specialty_history(cls, current_user_id, specialty_key=None, patient_id=None):
+        """Return specialty-scoped operational history for admin/professional/patient."""
+        user = AccessScopeService.get_user_or_raise(current_user_id)
+        module = cls._resolve_overview_module(user, specialty_key=specialty_key)
+        scope_module_key = module.get('key') if specialty_key else None
+
+        patient_query, appointment_query, medical_record_query, budget_query, payment_query = (
+            cls._build_scoped_queries(user, module_key=scope_module_key)
+        )
+
+        if patient_id is not None:
+            patient_in_scope = patient_query.filter(Patient.id == patient_id).first()
+            if not patient_in_scope:
+                raise AccessDeniedError('Patient is outside requested specialty scope')
+            appointment_query = appointment_query.filter(Appointment.patient_id == patient_id)
+            medical_record_query = medical_record_query.filter(MedicalRecord.patient_id == patient_id)
+            budget_query = budget_query.filter(Budget.patient_id == patient_id)
+            payment_query = payment_query.filter(Budget.patient_id == patient_id)
+            patient_query = patient_query.filter(Patient.id == patient_id)
+
+        encounter_query = SpecialtyEncounter.query
+        if scope_module_key:
+            encounter_query = encounter_query.filter(SpecialtyEncounter.specialty_key == scope_module_key)
+
+        if user.role == 'admin' and scope_module_key:
+            module_professional_ids = cls._professional_ids_for_module(scope_module_key)
+            if module_professional_ids:
+                encounter_query = encounter_query.filter(
+                    SpecialtyEncounter.professional_id.in_(sorted(module_professional_ids))
+                )
+            else:
+                encounter_query = cls._empty_query(SpecialtyEncounter)
+        elif user.role == 'professional':
+            encounter_query = encounter_query.filter(SpecialtyEncounter.professional_id == user.id)
+        elif user.role == 'patient':
+            encounter_query = encounter_query.filter(SpecialtyEncounter.patient_id == user.id)
+
+        if patient_id is not None:
+            encounter_query = encounter_query.filter(SpecialtyEncounter.patient_id == patient_id)
+
+        records_subquery = medical_record_query.with_entities(MedicalRecord.id).subquery()
+        documents_query = File.query.join(
+            records_subquery,
+            File.medical_record_id == records_subquery.c.id
+        )
+
+        patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(25).all()
+        appointments = appointment_query.order_by(Appointment.appointment_date.desc()).limit(20).all()
+        records = medical_record_query.order_by(MedicalRecord.record_date.desc()).limit(20).all()
+        encounters = encounter_query.order_by(SpecialtyEncounter.visit_date.desc()).limit(20).all()
+        documents = documents_query.order_by(File.created_at.desc()).limit(20).all()
+
+        return {
+            'actor': user.role,
+            'specialty': getattr(user, 'specialty', None),
+            'module': module,
+            'filters': {
+                'specialty_key': scope_module_key,
+                'patient_id': patient_id,
+            },
+            'totals': {
+                'patients': patient_query.count(),
+                'appointments': appointment_query.count(),
+                'medical_records': medical_record_query.count(),
+                'budgets': budget_query.count(),
+                'payments': payment_query.count(),
+                'encounters': encounter_query.count(),
+                'documents': documents_query.count(),
+            },
+            'patients': [cls._serialize_patient(patient) for patient in patients],
+            'appointments': [cls._serialize_appointment(item) for item in appointments],
+            'medical_records': [cls._serialize_medical_record(item) for item in records],
+            'specialty_encounters': [cls._serialize_specialty_encounter(item) for item in encounters],
+            'documents': [cls._serialize_document(item) for item in documents],
+            'generated_at': datetime.utcnow().isoformat(),
         }

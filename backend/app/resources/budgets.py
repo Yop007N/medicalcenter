@@ -5,12 +5,10 @@ Budget CRUD endpoints
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.budget import Budget
 from app.resources.domain_errors import domain_error_response
 from app.schemas.budget_schema import BudgetSchema
-from app.extensions import db
 from app.services.budget_service import BudgetService
-from app.services.exceptions import ValidationError, ResourceNotFoundError
+from app.services.exceptions import AccessDeniedError, ValidationError, ResourceNotFoundError
 from app.utils.decorators import professional_required
 
 blueprint = Blueprint('budgets', __name__, url_prefix='/api/budgets')
@@ -48,16 +46,18 @@ def list_budgets():
     """
     patient_id = request.args.get('patient_id', type=int)
     status = request.args.get('status')
-
-    query = Budget.query
-
-    if patient_id:
-        query = query.filter_by(patient_id=patient_id)
-    if status:
-        query = query.filter_by(status=status)
-
-    budgets = query.order_by(db.desc(Budget.created_at)).all()
-    return jsonify(budgets_schema.dump(budgets)), 200
+    specialty_key = request.args.get('specialty_key')
+    current_user_id = int(get_jwt_identity())
+    try:
+        budgets = BudgetService.list_budgets(
+            current_user_id=current_user_id,
+            patient_id=patient_id,
+            status=status,
+            specialty_key=specialty_key,
+        )
+        return jsonify(budgets_schema.dump(budgets)), 200
+    except (ValidationError, AccessDeniedError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('/<int:budget_id>', methods=['GET'])
@@ -83,12 +83,15 @@ def get_budget(budget_id):
       401:
         description: No autenticado
     """
-    budget = Budget.query.get(budget_id)
-
-    if not budget:
-        return jsonify({'msg': 'Budget not found'}), 404
-
-    return jsonify(budget_schema.dump(budget)), 200
+    try:
+        budget = BudgetService.get_budget(
+            budget_id=budget_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
+        return jsonify(budget_schema.dump(budget)), 200
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
+        return domain_error_response(exc)
 
 
 @blueprint.route('', methods=['POST'])
@@ -144,9 +147,14 @@ def create_budget():
     current_user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     try:
-        budget = BudgetService.create_budget(data, current_user_id)
+        specialty_key = request.args.get('specialty_key') or data.get('specialty_key')
+        budget = BudgetService.create_budget(
+            data=data,
+            created_by=current_user_id,
+            specialty_key=specialty_key,
+        )
         return jsonify(budget_schema.dump(budget)), 201
-    except ValidationError as exc:
+    except (ValidationError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -188,9 +196,15 @@ def update_budget(budget_id):
     """
     data = request.get_json() or {}
     try:
-        budget = BudgetService.update_budget(budget_id, data)
+        specialty_key = request.args.get('specialty_key') or data.get('specialty_key')
+        budget = BudgetService.update_budget(
+            budget_id=budget_id,
+            data=data,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=specialty_key,
+        )
         return jsonify(budget_schema.dump(budget)), 200
-    except (ValidationError, ResourceNotFoundError) as exc:
+    except (ValidationError, ResourceNotFoundError, AccessDeniedError) as exc:
         return domain_error_response(exc)
 
 
@@ -217,9 +231,13 @@ def delete_budget(budget_id):
         description: No autenticado
     """
     try:
-        BudgetService.delete_budget(budget_id)
+        BudgetService.delete_budget(
+            budget_id=budget_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify({'msg': 'Budget deleted'}), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
         return domain_error_response(exc)
 
 
@@ -246,9 +264,13 @@ def send_budget(budget_id):
         description: No autenticado
     """
     try:
-        budget = BudgetService.send_budget_to_patient(budget_id)
+        budget = BudgetService.send_budget_to_patient(
+            budget_id=budget_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify(budget_schema.dump(budget)), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
         return domain_error_response(exc)
 
 
@@ -257,7 +279,11 @@ def send_budget(budget_id):
 def accept_budget(budget_id):
     """Accept budget (patient action)"""
     try:
-        budget = BudgetService.accept_budget(budget_id)
+        budget = BudgetService.accept_budget(
+            budget_id=budget_id,
+            current_user_id=int(get_jwt_identity()),
+            specialty_key=request.args.get('specialty_key'),
+        )
         return jsonify(budget_schema.dump(budget)), 200
-    except ResourceNotFoundError as exc:
+    except (ResourceNotFoundError, AccessDeniedError, ValidationError) as exc:
         return domain_error_response(exc)

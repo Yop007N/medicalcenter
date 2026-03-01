@@ -35,8 +35,14 @@ class MedicalRecordService:
         normalized_specialty_key = None
         scoped_professional_ids = None
 
-        if specialty_key:
-            normalized_specialty_key = AccessScopeService.normalize_text(specialty_key)
+        effective_specialty_key = specialty_key
+        if current_user.role == 'professional' and not effective_specialty_key:
+            effective_specialty_key = AccessScopeService.resolve_specialty_key(
+                getattr(current_user, 'specialty', None)
+            )
+
+        if effective_specialty_key:
+            normalized_specialty_key = AccessScopeService.normalize_text(effective_specialty_key)
             module = SpecialtyModuleService.get_module_by_key(normalized_specialty_key)
             if not module:
                 raise ValidationError('Invalid specialty_key')

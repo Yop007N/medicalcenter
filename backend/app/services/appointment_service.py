@@ -5,7 +5,9 @@ Appointment Service - Business logic for appointment management
 
 from datetime import datetime
 
+from app.extensions import db
 from app.models.appointment import Appointment
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.models.user import User
 from app.services.access_scope_service import AccessScopeService
 from app.services.appointment_policy import AppointmentAccessPolicy
@@ -117,6 +119,13 @@ class AppointmentService:
         cls._validate_create_access(current_user, data)
 
         appointment_date = cls._parse_iso_datetime(data["appointment_date"], "appointment_date")
+        try:
+            patient_id = int(data["patient_id"])
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Invalid patient_id") from exc
+        if patient_id <= 0:
+            raise ValidationError("patient_id must be a positive integer")
+
         professional_id = int(data["professional_id"])
         try:
             duration_minutes = int(
@@ -126,6 +135,13 @@ class AppointmentService:
             raise ValidationError("duration_minutes must be an integer") from exc
         if duration_minutes <= 0:
             raise ValidationError("duration_minutes must be a positive integer")
+
+        if current_user.role == "professional":
+            cls._ensure_professional_patient_scope(
+                current_user=current_user,
+                patient_id=patient_id,
+                allow_auto_assign=True,
+            )
 
         cls.repository.lock_professional(professional_id)
 
@@ -137,7 +153,7 @@ class AppointmentService:
             raise ConflictError("Time slot already booked")
 
         appointment = Appointment(
-            patient_id=int(data["patient_id"]),
+            patient_id=patient_id,
             professional_id=professional_id,
             appointment_date=appointment_date,
             duration_minutes=duration_minutes,
@@ -154,9 +170,18 @@ class AppointmentService:
         appointment = cls.get_appointment(current_user=current_user, appointment_id=appointment_id)
         cls._validate_update_access(current_user, appointment, data)
 
+        next_patient_id = appointment.patient_id
         next_professional_id = appointment.professional_id
         next_date = appointment.appointment_date
         next_duration = int(appointment.duration_minutes or DEFAULT_APPOINTMENT_DURATION)
+
+        if "patient_id" in data and data["patient_id"] is not None:
+            try:
+                next_patient_id = int(data["patient_id"])
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("Invalid patient_id") from exc
+            if next_patient_id <= 0:
+                raise ValidationError("patient_id must be a positive integer")
 
         if "professional_id" in data and data["professional_id"] is not None:
             next_professional_id = int(data["professional_id"])
@@ -169,6 +194,13 @@ class AppointmentService:
                 raise ValidationError("duration_minutes must be an integer") from exc
         if next_duration <= 0:
             raise ValidationError("duration_minutes must be a positive integer")
+
+        if current_user.role == "professional":
+            cls._ensure_professional_patient_scope(
+                current_user=current_user,
+                patient_id=next_patient_id,
+                allow_auto_assign=True,
+            )
 
         cls.repository.lock_professional(next_professional_id)
 
@@ -185,7 +217,7 @@ class AppointmentService:
             raise ConflictError("Time slot already booked")
 
         if "patient_id" in data and data["patient_id"] is not None:
-            appointment.patient_id = int(data["patient_id"])
+            appointment.patient_id = next_patient_id
         if "professional_id" in data and data["professional_id"] is not None:
             appointment.professional_id = next_professional_id
         if "appointment_date" in data and data["appointment_date"] is not None:
@@ -310,3 +342,43 @@ class AppointmentService:
                 raise ValidationError("Invalid professional_id") from exc
             if not cls.policy.can_assign_professional(current_user, requested_professional_id):
                 raise AccessDeniedError("Unauthorized")
+
+    @staticmethod
+    def _resolve_user_specialty_key(current_user):
+        """Return normalized specialty scope key for the authenticated professional."""
+        return AccessScopeService.resolve_specialty_key(getattr(current_user, "specialty", None))
+
+    @classmethod
+    def _ensure_professional_patient_scope(cls, current_user, patient_id, allow_auto_assign=False):
+        """Ensure professional can access patient within own specialty scope."""
+        specialty_key = cls._resolve_user_specialty_key(current_user)
+        has_scope = AccessScopeService.professional_can_access_patient(
+            current_user.id,
+            patient_id,
+            specialty_key=specialty_key,
+        )
+        if has_scope:
+            assignment = ProfessionalPatientAssignment.query.filter_by(
+                professional_id=current_user.id,
+                patient_id=patient_id,
+            ).first()
+            if assignment and specialty_key and not assignment.specialty_key:
+                assignment.specialty_key = specialty_key
+            return
+
+        if not allow_auto_assign:
+            raise AccessDeniedError("Professional can only create appointments for linked patients")
+
+        has_any_assignment = ProfessionalPatientAssignment.query.filter_by(
+            patient_id=patient_id
+        ).first() is not None
+        if has_any_assignment:
+            raise AccessDeniedError("Professional can only create appointments for linked patients")
+
+        db.session.add(
+            ProfessionalPatientAssignment(
+                professional_id=current_user.id,
+                patient_id=patient_id,
+                specialty_key=specialty_key,
+            )
+        )

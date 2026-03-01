@@ -9,7 +9,18 @@ import io
 from app.models.file import File
 from app.models.medical_record import MedicalRecord
 from app.models.patient import Patient
+from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.extensions import db
+
+
+def professional_headers(client, email, password='Doctor123'):
+    response = client.post(
+        '/api/auth/login',
+        json={'email': email, 'password': password},
+    )
+    assert response.status_code == 200
+    return {'Authorization': f"Bearer {response.get_json()['access_token']}"}
 
 
 class TestUploadFile:
@@ -259,6 +270,188 @@ class TestGetFile:
         assert response.status_code == 401
 
 
+class TestListFilesScope:
+    """Specialty scoped listing contracts."""
+
+    def test_professional_can_list_files_scoped_by_own_specialty(self, client, app):
+        with app.app_context():
+            cardio_professional = Professional(
+                email='file-scope-cardio-prof@test.com',
+                first_name='Carla',
+                last_name='Cardio',
+                role='professional',
+                license_number='FILE-SCOPE-CARD-001',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+
+            derm_professional = Professional(
+                email='file-scope-derm-prof@test.com',
+                first_name='Diego',
+                last_name='Derma',
+                role='professional',
+                license_number='FILE-SCOPE-DERM-001',
+                specialty='Dermatología',
+            )
+            derm_professional.set_password('Doctor123')
+
+            cardio_patient = Patient(
+                email='file-scope-cardio-patient@test.com',
+                first_name='Paciente',
+                last_name='Cardio',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+
+            derm_patient = Patient(
+                email='file-scope-derm-patient@test.com',
+                first_name='Paciente',
+                last_name='Derm',
+                role='patient',
+            )
+            derm_patient.set_password('Patient123')
+
+            db.session.add_all([cardio_professional, derm_professional, cardio_patient, derm_patient])
+            db.session.flush()
+
+            db.session.add_all([
+                ProfessionalPatientAssignment(
+                    professional_id=cardio_professional.id,
+                    patient_id=cardio_patient.id,
+                    specialty_key='cardiology',
+                ),
+                ProfessionalPatientAssignment(
+                    professional_id=derm_professional.id,
+                    patient_id=derm_patient.id,
+                    specialty_key='dermatology',
+                ),
+            ])
+
+            cardio_record = MedicalRecord(
+                patient_id=cardio_patient.id,
+                professional_id=cardio_professional.id,
+                chief_complaint='Control cardiología',
+            )
+            derm_record = MedicalRecord(
+                patient_id=derm_patient.id,
+                professional_id=derm_professional.id,
+                chief_complaint='Control dermatología',
+            )
+            db.session.add_all([cardio_record, derm_record])
+            db.session.flush()
+
+            cardio_file = File(
+                medical_record_id=cardio_record.id,
+                filename='cardio.pdf',
+                file_type='study',
+                mime_type='application/pdf',
+                file_size=1024,
+                storage_type='local',
+                file_path='/tmp/cardio.pdf',
+                uploaded_by=cardio_professional.id,
+            )
+            derm_file = File(
+                medical_record_id=derm_record.id,
+                filename='derm.pdf',
+                file_type='study',
+                mime_type='application/pdf',
+                file_size=1024,
+                storage_type='local',
+                file_path='/tmp/derm.pdf',
+                uploaded_by=derm_professional.id,
+            )
+            db.session.add_all([cardio_file, derm_file])
+            db.session.commit()
+            cardio_file_id = cardio_file.id
+            derm_file_id = derm_file.id
+            cardio_patient_id = cardio_patient.id
+
+        headers = professional_headers(client, 'file-scope-cardio-prof@test.com')
+        response = client.get(
+            f'/api/files?specialty_key=cardiology&patient_id={cardio_patient_id}',
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        returned_ids = {item['id'] for item in payload}
+        assert cardio_file_id in returned_ids
+        assert derm_file_id not in returned_ids
+
+    def test_professional_file_scope_rejects_mismatched_specialty_key(self, client, app):
+        with app.app_context():
+            cardio_professional = Professional(
+                email='file-scope-mismatch@test.com',
+                first_name='Cora',
+                last_name='Mismatch',
+                role='professional',
+                license_number='FILE-SCOPE-MISMATCH',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+            db.session.add(cardio_professional)
+            db.session.commit()
+
+        headers = professional_headers(client, 'file-scope-mismatch@test.com')
+        response = client.get('/api/files?specialty_key=dermatology', headers=headers)
+        assert response.status_code == 403
+
+    def test_get_file_forbidden_for_unlinked_professional(
+        self,
+        client,
+        auth_headers,
+        app,
+    ):
+        """Professional should not fetch files from unrelated patients."""
+        with app.app_context():
+            other_professional = Professional(
+                email='file-other-prof@test.com',
+                first_name='Other',
+                last_name='Doctor',
+                role='professional',
+                license_number='FIL-OTH-001',
+                specialty='Cardiología',
+            )
+            other_professional.set_password('Doctor123')
+            db.session.add(other_professional)
+            db.session.flush()
+
+            patient_2 = Patient(
+                email='file-unlinked-patient@test.com',
+                first_name='File',
+                last_name='Unlinked',
+                role='patient',
+            )
+            patient_2.set_password('Patient123')
+            db.session.add(patient_2)
+            db.session.flush()
+
+            medical_record = MedicalRecord(
+                patient_id=patient_2.id,
+                professional_id=other_professional.id,
+                chief_complaint='Scoped file',
+            )
+            db.session.add(medical_record)
+            db.session.flush()
+
+            file_record = File(
+                medical_record_id=medical_record.id,
+                filename='scoped.pdf',
+                file_type='lab_result',
+                mime_type='application/pdf',
+                file_size=123,
+                storage_type='local',
+                file_path='/tmp/scoped.pdf',
+                uploaded_by=other_professional.id,
+            )
+            db.session.add(file_record)
+            db.session.commit()
+            file_id = file_record.id
+
+        response = client.get(f'/api/files/{file_id}', headers=auth_headers)
+        assert response.status_code == 403
+
+
 class TestListFiles:
     """Test listing file metadata."""
 
@@ -338,6 +531,97 @@ class TestListFiles:
         assert len(filtered) == 1
         assert filtered[0]['patient_id'] == sample_patient.id
         assert filtered[0]['filename'] == 'file-1.pdf'
+
+    def test_admin_can_filter_files_by_specialty_key(self, client, admin_auth_headers, app):
+        """Admin specialty_key filter should return only module files."""
+        with app.app_context():
+            cardio_professional = Professional(
+                email='file-cardio-prof@test.com',
+                first_name='Cardio',
+                last_name='Doctor',
+                role='professional',
+                license_number='FIL-CARD-001',
+                specialty='Cardiología',
+            )
+            cardio_professional.set_password('Doctor123')
+            db.session.add(cardio_professional)
+
+            derm_professional = Professional(
+                email='file-derm-prof@test.com',
+                first_name='Derm',
+                last_name='Doctor',
+                role='professional',
+                license_number='FIL-DERM-001',
+                specialty='Dermatología',
+            )
+            derm_professional.set_password('Doctor123')
+            db.session.add(derm_professional)
+            db.session.flush()
+
+            cardio_patient = Patient(
+                email='file-cardio-patient@test.com',
+                first_name='Cardio',
+                last_name='Patient',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+            derm_patient = Patient(
+                email='file-derm-patient@test.com',
+                first_name='Derm',
+                last_name='Patient',
+                role='patient',
+            )
+            derm_patient.set_password('Patient123')
+            db.session.add_all([cardio_patient, derm_patient])
+            db.session.flush()
+
+            cardio_record = MedicalRecord(
+                patient_id=cardio_patient.id,
+                professional_id=cardio_professional.id,
+                chief_complaint='Cardio file',
+            )
+            derm_record = MedicalRecord(
+                patient_id=derm_patient.id,
+                professional_id=derm_professional.id,
+                chief_complaint='Derm file',
+            )
+            db.session.add_all([cardio_record, derm_record])
+            db.session.flush()
+
+            cardio_file = File(
+                medical_record_id=cardio_record.id,
+                filename='cardio-file.pdf',
+                file_type='xray',
+                mime_type='application/pdf',
+                file_size=100,
+                storage_type='local',
+                file_path='storage/files/cardio-file.pdf',
+                uploaded_by=cardio_professional.id,
+            )
+            derm_file = File(
+                medical_record_id=derm_record.id,
+                filename='derm-file.pdf',
+                file_type='xray',
+                mime_type='application/pdf',
+                file_size=200,
+                storage_type='local',
+                file_path='storage/files/derm-file.pdf',
+                uploaded_by=derm_professional.id,
+            )
+            db.session.add_all([cardio_file, derm_file])
+            db.session.commit()
+            cardio_file_id = cardio_file.id
+            derm_file_id = derm_file.id
+
+        response = client.get(
+            '/api/files?specialty_key=cardiology',
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        returned_ids = {item['id'] for item in payload}
+        assert cardio_file_id in returned_ids
+        assert derm_file_id not in returned_ids
 
 
 class TestDownloadFile:
