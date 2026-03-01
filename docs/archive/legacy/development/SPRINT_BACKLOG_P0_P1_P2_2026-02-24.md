@@ -191,12 +191,48 @@ Definir backlog ejecutable para cerrar brechas de producto (backend + 3 frontend
   - healthchecks avanzados compose/prod.
   - observabilidad y alertas.
   - backup/restore y rollback validados periodicamente.
-- Estado: `PENDING`
+- Estado: `DONE` (evidencia 2026-02-26)
 - Referencias:
   - `docs/deployment/COMPOSE_AUDIT.md`
   - `docs/deployment/ROLLBACK_RUNBOOK.md`
   - `docs/deployment/BACKUP_RESTORE_AUDIT.md`
+- Evidencia:
+  - `docker-compose.yml` y `docker-compose.prod.yml` con:
+    - healthchecks para `postgres`, `redis`, `backend`, `celery`, `frontend-*`/`nginx`.
+    - `depends_on.condition: service_healthy` para orquestacion por salud real.
+    - `restart: unless-stopped` en servicios core.
+    - remocion de `version` obsoleta para evitar warning de compose.
+  - validacion sintactica:
+    - `docker compose config` -> `DEV_CONFIG_OK`.
+    - `docker compose -f docker-compose.prod.yml config` -> `PROD_CONFIG_OK`.
+  - validacion runtime:
+    - `docker compose up -d` + `docker compose ps` -> todos los servicios en estado `healthy`.
+
+### P2.3 Seguridad auth + QA E2E faltante por frontend
+- Alcance:
+  - backend `auth/logout` con revocacion real de JWT (blocklist).
+  - suite E2E propia en `frontend-profesional`.
+  - suite E2E propia en `frontend-paciente`.
+- Estado: `DONE` (evidencia 2026-02-26)
+- Criterio de cierre:
+  - token usado en `logout` queda invalidado para endpoints protegidos.
+  - smoke E2E en `chromium` pasa para profesional y paciente sobre IP activa.
+- Evidencia:
+  - backend:
+    - `backend/app/services/token_blocklist_service.py`
+    - `backend/app/resources/auth.py`
+    - `backend/app/__init__.py`
+    - `docker compose exec -T backend pytest -q tests/test_auth.py tests/test_specialties.py` -> `32 passed`.
+  - frontend profesional:
+    - `frontend-profesional/e2e/playwright.config.ts`
+    - `frontend-profesional/e2e/tests/professional-smoke.spec.ts`
+    - `BASE_URL=http://10.4.33.184 npm run e2e:chromium` -> `3 passed`.
+  - frontend paciente:
+    - `frontend-paciente/e2e/playwright.config.ts`
+    - `frontend-paciente/e2e/tests/patient-smoke.spec.ts`
+    - `BASE_URL=http://10.4.33.184:8100 npm run e2e:chromium` -> `3 passed`.
 
 ## Ejecucion inmediata (siguiente foco)
-1. Ejecutar QA E2E funcional integral (profesional + paciente) incluyendo modulo `files`.
-2. Iniciar `P2.2` (operacion release): healthchecks avanzados, alertas y validacion periodica de rollback/restore.
+1. Profundizar paridad funcional por especialidad en `frontend-admin-profesional` (flujo clínico por área, no solo módulo genérico).
+2. Completar cobertura E2E CRUD profunda por especialidad (no solo smoke).
+3. Ejecutar lote paralelo P3 documentado en `docs/development/SPRINT_BACKLOG_P3_PARALLEL_2026-02-26.md`.

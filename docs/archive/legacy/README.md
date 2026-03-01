@@ -5,6 +5,9 @@ Documentos movidos aqui para reducir ruido y evitar contradicciones con la docum
 ## Estado
 - Son historicos/referenciales.
 - No deben usarse como fuente de verdad para decisiones nuevas.
+- Incluye backlog historico de desarrollo:
+  - `docs/archive/legacy/development/SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md`
+  - `docs/archive/legacy/development/solid_parallel_backlog_2026-02-24.md`
 - Incluye reportes backend historicos movidos desde `backend/`:
   - `docs/archive/legacy/backend/AUDITORIA_BACKEND_2025.md`
   - `docs/archive/legacy/backend/IMPLEMENTACIONES_FINALES_2025.md`

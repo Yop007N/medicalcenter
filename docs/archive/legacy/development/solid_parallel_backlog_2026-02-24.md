@@ -34,6 +34,10 @@
 - QA backend: `test_odontology.py` en verde (`18 passed`) tras integracion de modulo odontology en frontend profesional.
 - QA frontend: `frontend-admin-profesional` build en verde tras activacion operativa de salud mental.
 - QA frontend: `frontend-paciente` build en verde tras operaciones de turnos.
+- Backend P3 D1 en progreso: asignacion profesional-paciente ahora soporta `specialty_key` con migracion Alembic + backfill.
+- Backend P3 D2 en progreso: anti double-booking por rango horario (`duration_minutes`) con lock transaccional por profesional.
+- Frontend profesional P3 B1 en progreso: `patients` consume filtro `specialty_key` derivado del profesional autenticado.
+- Frontend admin P3 A4 en progreso: `/files` limpia listado cuando no existe `patient_id` seleccionado.
 
 ## Pendientes por frontend (actor profesional web)
 - Validar E2E funcional especifico de vistas (interaccion UI) para:
@@ -54,3 +58,35 @@
 1. Frontend profesional: QA E2E real (Playwright) para vistas `dashboard/patients/professionals/medical-records/files`.
 2. Frontend/paciente: QA E2E real para `my-history`, `my-appointments` y `my-budgets` con backend en IP de despliegue.
 3. Operacion DB: ejecutar `db:reconcile-alembic` al inicio de cada despliegue de entorno nuevo.
+
+## Nueva ola paralela P3 (2026-02-26)
+Referencia principal: `docs/development/SPRINT_BACKLOG_P3_PARALLEL_2026-02-26.md`.
+
+### Lane A (frontend-admin-profesional)
+1. Reemplazar uso operativo de `specialty-module` por modulos clinicos dedicados por especialidad.
+2. Aplicar segmentacion real de historiales/documentos/citas por especialidad activa.
+3. Normalizar UI transversal (tokens de color, modales, estados vacios y feedback).
+4. Consolidar archivos por paciente con navegacion contextual (`patients/:id -> files?patient_id=:id`).
+
+### Lane B (frontend-profesional)
+1. Forzar workspace por profesional (solo pacientes asignados y rutas segun especialidad).
+2. Consolidar alta de paciente con credenciales y asignacion inicial automatica.
+3. Profundizar modulo por especialidad (consulta/evolucion/plan por dominio).
+4. Completar E2E profundo CRUD por modulo.
+
+### Lane C (frontend-paciente)
+1. Agenda inteligente por slots reales libres y proximidad temporal.
+2. Historia por especialidad (incluye odontograma lectura paciente y timeline especializado).
+3. Refinamiento UX mobile-first para salida publica.
+4. E2E profundo por journeys de paciente.
+
+### Lane D (backend/transversal)
+1. Endurecer asignacion profesional-paciente-especialidad en servicios de acceso.
+2. Motor de disponibilidad y validacion anti double-booking.
+3. Endpoints especializados de timeline/documentos por dominio clinico.
+4. Seeds reproducibles con dataset clinico realista por especialidad.
+
+### Lane E (QA/release)
+1. Matriz E2E por actor/especialidad.
+2. Contract tests para endpoints compartidos.
+3. Checklist release + rollback por lane.
