@@ -1,15 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { Observable, forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   ClinicalHistoryEvent,
   ClinicalSummary,
   InformedConsentItem,
   PatientApiService,
   PatientDocumentItem,
+  PatientSpecialtyHistory,
   PatientSpecialtyOverview,
   PatientOdontogram,
   PatientOdontogramTooth,
@@ -18,6 +21,10 @@ import {
 import { UiDialogService } from '../core/services/ui-dialog.service';
 import { OfflineService } from '../core/services/offline.service';
 import { SyncService } from '../core/services/sync.service';
+import {
+  buildPatientSpecialtyBoardSections,
+  PatientSpecialtyBoardSectionView,
+} from './my-history.specialty.config';
 import { pageShellStyles } from './page-shell.styles';
 
 type SegmentView = 'summary' | 'timeline' | 'documents' | 'consents' | 'odontogram';
@@ -115,6 +122,82 @@ type SectionResult<T> = {
             </article>
           </div>
 
+          @if (latestSpecialtyEncounter) {
+            <section class="clinical-snapshot">
+              <div>
+                <span class="snapshot-label">Ultima atencion</span>
+                <strong>
+                  {{ latestSpecialtyEncounter.visit_date | date:'medium' }}
+                </strong>
+              </div>
+              <div>
+                <span class="snapshot-label">Profesional</span>
+                <strong>{{ latestSpecialtyEncounter.professional_name || 'Sin asignar' }}</strong>
+              </div>
+              <div>
+                <span class="snapshot-label">Estado</span>
+                <strong>{{ latestSpecialtyEncounter.status }}</strong>
+              </div>
+            </section>
+          }
+
+          @if (nextSpecialtyAppointment || specialtyActionPlan.length > 0 || specialtyCareTeam.length > 0) {
+            <div class="follow-up-grid">
+              @if (nextSpecialtyAppointment) {
+                <article class="follow-up-card">
+                  <span class="snapshot-label">Proximo paso</span>
+                  <strong>{{ nextSpecialtyAppointment.appointment_type || 'Consulta' }}</strong>
+                  <p>
+                    {{ nextSpecialtyAppointment.appointment_date | date:'medium' }}
+                    · {{ nextSpecialtyAppointment.status }}
+                  </p>
+                </article>
+              }
+
+              @if (specialtyActionPlan.length > 0) {
+                <article class="follow-up-card">
+                  <span class="snapshot-label">Ruta de seguimiento</span>
+                  <ul class="follow-up-list">
+                    @for (item of specialtyActionPlan; track item) {
+                      <li>{{ item }}</li>
+                    }
+                  </ul>
+                </article>
+              }
+
+              @if (specialtyCareTeam.length > 0) {
+                <article class="follow-up-card">
+                  <span class="snapshot-label">Equipo tratante</span>
+                  <ul class="follow-up-list">
+                    @for (member of specialtyCareTeam; track member.name) {
+                      <li>{{ member.name }} · {{ member.touchpoints }} contacto(s)</li>
+                    }
+                  </ul>
+                </article>
+              }
+            </div>
+          }
+
+          @if (specialtyBoardSections.length > 0) {
+            <h4 class="sub-title">Panel clinico del modulo</h4>
+            <div class="board-grid">
+              @for (section of specialtyBoardSections; track section.title) {
+                <article class="board-card">
+                  <h5>{{ section.title }}</h5>
+                  <p>{{ section.description }}</p>
+                  <dl class="board-list">
+                    @for (item of section.items; track item.label) {
+                      <div>
+                        <dt>{{ item.label }}</dt>
+                        <dd>{{ item.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </article>
+              }
+            </div>
+          }
+
           @if (specialtyOverview.upcoming_appointments.length > 0) {
             <h4 class="sub-title">Proximas citas por especialidad</h4>
             <ul class="simple-list">
@@ -134,6 +217,36 @@ type SectionResult<T> = {
                 <li>
                   <strong>{{ record.diagnosis || 'Sin diagnostico' }}</strong>
                   <div>{{ (record.record_date || specialtyOverview.generated_at) | date:'mediumDate' }}</div>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (specialtyHistory?.specialty_encounters?.length) {
+            <h4 class="sub-title">Atenciones clínicas del módulo</h4>
+            <ul class="simple-list">
+              @for (encounter of specialtyHistory?.specialty_encounters ?? []; track encounter.id) {
+                <li>
+                  <strong>{{ encounter.diagnosis || encounter.chief_complaint }}</strong>
+                  <div>{{ encounter.visit_date | date:'medium' }} · {{ encounter.status }}</div>
+                  @if (encounter.professional_name) {
+                    <div>Profesional: {{ encounter.professional_name }}</div>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (specialtyHistory?.documents?.length) {
+            <h4 class="sub-title">Documentos recientes del módulo</h4>
+            <ul class="simple-list">
+              @for (document of specialtyHistory?.documents ?? []; track document.id) {
+                <li>
+                  <strong>{{ document.filename }}</strong>
+                  <div>{{ document.created_at | date:'medium' }} · {{ document.file_type || 'documento clínico' }}</div>
+                  @if (document.description) {
+                    <div>{{ document.description }}</div>
+                  }
                 </li>
               }
             </ul>
@@ -457,6 +570,116 @@ type SectionResult<T> = {
         font-size: 0.75rem;
       }
 
+      .clinical-snapshot {
+        background: var(--patient-surface-soft);
+        border: 1px solid var(--patient-border);
+        border-radius: 12px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        margin-bottom: 12px;
+        padding: 12px;
+      }
+
+      .snapshot-label {
+        color: var(--ion-color-medium);
+        display: block;
+        font-size: 0.72rem;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+
+      .board-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-bottom: 12px;
+      }
+
+      .follow-up-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-bottom: 12px;
+      }
+
+      .follow-up-card {
+        background: var(--patient-surface-soft);
+        border: 1px solid var(--patient-border);
+        border-radius: 12px;
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .follow-up-card strong {
+        color: var(--ion-color-dark);
+        font-size: 0.92rem;
+      }
+
+      .follow-up-card p {
+        color: var(--ion-color-medium);
+        font-size: 0.78rem;
+        margin: 0;
+      }
+
+      .follow-up-list {
+        color: var(--ion-color-dark);
+        font-size: 0.8rem;
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .follow-up-list li + li {
+        margin-top: 4px;
+      }
+
+      .board-card {
+        background: var(--patient-surface-soft);
+        border: 1px solid var(--patient-border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .board-card h5 {
+        color: var(--ion-color-dark);
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin: 0 0 4px;
+        text-transform: uppercase;
+      }
+
+      .board-card p {
+        color: var(--ion-color-medium);
+        font-size: 0.75rem;
+        margin: 0 0 8px;
+      }
+
+      .board-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+      }
+
+      .board-list div + div {
+        border-top: 1px dashed var(--patient-border);
+        padding-top: 8px;
+      }
+
+      .board-list dt {
+        color: var(--ion-color-medium);
+        font-size: 0.72rem;
+        margin: 0 0 2px;
+        text-transform: uppercase;
+      }
+
+      .board-list dd {
+        color: var(--ion-color-dark);
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
       .sub-title {
         color: var(--ion-color-medium);
         font-size: 0.85rem;
@@ -529,6 +752,9 @@ export class MyHistoryPage implements OnInit {
   private readonly uiDialog = inject(UiDialogService);
   private readonly offlineService = inject(OfflineService);
   private readonly syncService = inject(SyncService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   activeView: SegmentView = 'summary';
   loading = false;
@@ -547,6 +773,7 @@ export class MyHistoryPage implements OnInit {
   specialtyCatalog: SpecialtyCatalogItem[] = [];
   selectedSpecialtyKey = '';
   specialtyOverview: PatientSpecialtyOverview | null = null;
+  specialtyHistory: PatientSpecialtyHistory | null = null;
 
   processingConsentIds = new Set<number>();
 
@@ -558,7 +785,12 @@ export class MyHistoryPage implements OnInit {
       this.pendingChangesCount = this.syncService.getPendingChanges().length;
     });
     this.loadSpecialtyCatalog();
-    this.loadHistory();
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.selectedSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key')) || '';
+        this.loadHistory();
+      });
   }
 
   onViewChange(event: CustomEvent): void {
@@ -570,8 +802,11 @@ export class MyHistoryPage implements OnInit {
 
   onSpecialtyChange(event: CustomEvent<{ value: string }>): void {
     const nextKey = this.normalizeSpecialtyKey(event.detail?.value || '');
-    this.selectedSpecialtyKey = nextKey || '';
-    this.loadHistory();
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { specialty_key: nextKey || null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   refresh(event: CustomEvent): void {
@@ -598,6 +833,103 @@ export class MyHistoryPage implements OnInit {
 
   countTeethByStatus(status: string): number {
     return this.odontogramTeeth.filter((tooth) => (tooth.status ?? 'healthy') === status).length;
+  }
+
+  get latestSpecialtyEncounter(): PatientSpecialtyHistory['specialty_encounters'][number] | null {
+    if (!this.specialtyHistory?.specialty_encounters?.length) {
+      return null;
+    }
+
+    return [...this.specialtyHistory.specialty_encounters].sort((left, right) =>
+      String(right.visit_date || '').localeCompare(String(left.visit_date || ''))
+    )[0];
+  }
+
+  get specialtyBoardSections(): PatientSpecialtyBoardSectionView[] {
+    return buildPatientSpecialtyBoardSections(
+      this.selectedSpecialtyKey,
+      this.specialtyHistory,
+      this.odontogram,
+    );
+  }
+
+  get nextSpecialtyAppointment():
+    | PatientSpecialtyOverview['upcoming_appointments'][number]
+    | null {
+    if (!this.specialtyOverview?.upcoming_appointments?.length) {
+      return null;
+    }
+
+    return [...this.specialtyOverview.upcoming_appointments].sort((left, right) =>
+      String(left.appointment_date || '').localeCompare(String(right.appointment_date || ''))
+    )[0];
+  }
+
+  get specialtyCareTeam(): Array<{ name: string; touchpoints: number }> {
+    const counters = new Map<string, number>();
+    const register = (name?: string | null) => {
+      const cleanName = String(name || '').trim();
+      if (!cleanName) {
+        return;
+      }
+      counters.set(cleanName, (counters.get(cleanName) ?? 0) + 1);
+    };
+
+    this.specialtyHistory?.appointments?.forEach((appointment) => register(appointment.professional_name));
+    this.specialtyHistory?.medical_records?.forEach((record) => register(record.professional_name));
+    this.specialtyHistory?.specialty_encounters?.forEach((encounter) => register(encounter.professional_name));
+
+    if (this.selectedSpecialtyKey === 'odontology') {
+      register(
+        this.odontogram?.professional
+          ? `${this.odontogram.professional.first_name} ${this.odontogram.professional.last_name}`
+          : null
+      );
+    }
+
+    return [...counters.entries()]
+      .map(([name, touchpoints]) => ({ name, touchpoints }))
+      .sort((left, right) => right.touchpoints - left.touchpoints || left.name.localeCompare(right.name));
+  }
+
+  get specialtyActionPlan(): string[] {
+    if (!this.selectedSpecialtyKey) {
+      return [];
+    }
+
+    const actions: string[] = [];
+    const nextAppointment = this.nextSpecialtyAppointment;
+
+    if (nextAppointment) {
+      actions.push('Confirma asistencia y prepara tus indicaciones para el próximo turno.');
+    } else {
+      actions.push('Aún no tienes un turno próximo en esta especialidad.');
+    }
+
+    if (this.specialtyOverview && this.specialtyOverview.totals.medical_records > 0) {
+      actions.push(`Ya tienes ${this.specialtyOverview.totals.medical_records} registro(s) clínico(s) en este módulo.`);
+    } else {
+      actions.push('Todavía no hay registros clínicos consolidados para esta especialidad.');
+    }
+
+    if ((this.specialtyHistory?.documents?.length ?? 0) > 0) {
+      actions.push(`Revisa ${this.specialtyHistory?.documents.length} documento(s) reciente(s) asociados al módulo.`);
+    }
+
+    if ((this.summary?.counts.consents_pending ?? 0) > 0) {
+      actions.push(`Tienes ${this.summary?.counts.consents_pending} consentimiento(s) pendiente(s) de revisión.`);
+    }
+
+    if (this.selectedSpecialtyKey === 'odontology' && this.odontogramTeeth.length > 0) {
+      const pendingDentalFindings = this.odontogramTeeth.filter((tooth) =>
+        ['caries', 'fractured', 'to_extract', 'missing', 'root_canal'].includes(tooth.status ?? '')
+      ).length;
+      if (pendingDentalFindings > 0) {
+        actions.push(`El odontograma registra ${pendingDentalFindings} pieza(s) con seguimiento odontológico activo.`);
+      }
+    }
+
+    return actions.slice(0, 4);
   }
 
   toToothStatusLabel(status?: string | null): string {
@@ -730,6 +1062,14 @@ export class MyHistoryPage implements OnInit {
         )
       : of({ data: null, warning: null } as SectionResult<PatientSpecialtyOverview | null>);
 
+    const specialtyHistory$ = this.selectedSpecialtyKey
+      ? this.withOptionalSectionFallback(
+          this.patientApi.getMySpecialtyHistory(this.selectedSpecialtyKey),
+          null as PatientSpecialtyHistory | null,
+          'No se pudo cargar la historia por especialidad.'
+        )
+      : of({ data: null, warning: null } as SectionResult<PatientSpecialtyHistory | null>);
+
     forkJoin({
       summary: this.withSectionFallback(
         this.patientApi.getMyClinicalSummary(),
@@ -752,18 +1092,20 @@ export class MyHistoryPage implements OnInit {
         'No se pudo cargar la seccion de consentimientos.'
       ),
       specialtyOverview: specialtyOverview$,
+      specialtyHistory: specialtyHistory$,
       odontogram: this.withOptionalSectionFallback(
         this.patientApi.getMyOdontogram(),
         null,
         'No se pudo cargar la seccion de odontograma.'
       )
     }).subscribe({
-      next: ({ summary, timeline, documents, consents, specialtyOverview, odontogram }) => {
+      next: ({ summary, timeline, documents, consents, specialtyOverview, specialtyHistory, odontogram }) => {
         this.summary = summary.data;
         this.timeline = timeline.data;
         this.documents = documents.data;
         this.consents = consents.data;
         this.specialtyOverview = specialtyOverview.data;
+        this.specialtyHistory = specialtyHistory.data;
         this.odontogram = odontogram.data;
         this.odontogramTeeth = [...(this.odontogram?.teeth ?? [])].sort(
           (a, b) => a.tooth_number - b.tooth_number
@@ -776,6 +1118,7 @@ export class MyHistoryPage implements OnInit {
           documents.warning,
           consents.warning,
           specialtyOverview.warning,
+          specialtyHistory.warning,
           odontogram.warning
         ]
           .filter((message): message is string => !!message);

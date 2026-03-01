@@ -20,7 +20,8 @@ export const API_ENDPOINTS = {
   },
   specialties: {
     catalog: 'specialties/catalog',
-    myModuleOverview: 'specialties/my-module/overview'
+    myModuleOverview: 'specialties/my-module/overview',
+    history: 'specialties/history'
   },
   budgets: {
     accept: (id: number) => `budgets/${id}/accept`

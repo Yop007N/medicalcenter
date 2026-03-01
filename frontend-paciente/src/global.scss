@@ -12,15 +12,14 @@
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
 
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
-
 :root {
   color-scheme: light;
+  --patient-font-family: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: "Manrope", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--patient-font-family);
   background: var(--patient-bg);
   color: var(--ion-color-dark);
 }

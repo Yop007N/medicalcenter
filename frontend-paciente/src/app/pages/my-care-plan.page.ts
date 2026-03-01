@@ -1,12 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   PatientApiService,
   PatientAppointment,
-  PatientMedicalRecord
+  PatientMedicalRecord,
+  PatientSpecialtyHistory,
+  PatientSpecialtyOverview,
+  SpecialtyCatalogItem
 } from '../core/services/patient-api.service';
 import { pageShellStyles } from './page-shell.styles';
 
@@ -64,6 +69,56 @@ type CareInstruction = {
             <span>Proximo control</span>
           </article>
         </div>
+      </section>
+
+      <section class="panel">
+        <h3 class="panel-title">Enfoque por especialidad</h3>
+        <p class="panel-text">Filtra las indicaciones para revisar el seguimiento de un módulo clínico específico.</p>
+        <ion-item lines="none">
+          <ion-label>Especialidad</ion-label>
+          <ion-select
+            [value]="selectedSpecialtyKey"
+            placeholder="Todas"
+            interface="popover"
+            (ionChange)="onSpecialtyChange($event)"
+          >
+            <ion-select-option value="">Todas</ion-select-option>
+            @for (specialty of specialtyCatalog; track specialty.key) {
+              <ion-select-option [value]="specialty.key">{{ specialty.label }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        @if (selectedSpecialtyKey && specialtyOverview) {
+          <div class="hero-grid specialty-grid">
+            <article class="hero-card">
+              <strong>{{ specialtyOverview.totals.appointments_upcoming }}</strong>
+              <span>Turnos próximos</span>
+            </article>
+            <article class="hero-card">
+              <strong>{{ specialtyOverview.totals.medical_records }}</strong>
+              <span>Registros del módulo</span>
+            </article>
+            <article class="hero-card">
+              <strong>{{ specialtyHistory?.totals?.encounters ?? 0 }}</strong>
+              <span>Atenciones</span>
+            </article>
+            <article class="hero-card">
+              <strong>{{ specialtyHistory?.totals?.documents ?? 0 }}</strong>
+              <span>Documentos</span>
+            </article>
+          </div>
+
+          @if (specialtyCareTeam.length > 0) {
+            <p class="panel-text">
+              Equipo tratante:
+              <strong>{{ specialtyCareTeam[0].name }}</strong>
+              @if (specialtyCareTeam.length > 1) {
+                <span> y {{ specialtyCareTeam.length - 1 }} profesional(es) más</span>
+              }
+            </p>
+          }
+        }
       </section>
 
       @if (errorMessage) {
@@ -219,10 +274,17 @@ type CareInstruction = {
 })
 export class MyCarePlanPage implements OnInit {
   private readonly patientApi = inject(PatientApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   loading = false;
   errorMessage: string | null = null;
   activeView: 'instructions' | 'medications' | 'treatments' = 'instructions';
+  specialtyCatalog: SpecialtyCatalogItem[] = [];
+  selectedSpecialtyKey = '';
+  specialtyOverview: PatientSpecialtyOverview | null = null;
+  specialtyHistory: PatientSpecialtyHistory | null = null;
 
   instructions: CareInstruction[] = [];
   medications: string[] = [];
@@ -230,7 +292,13 @@ export class MyCarePlanPage implements OnInit {
   nextControlDate: string | null = null;
 
   ngOnInit(): void {
-    this.loadCarePlan();
+    this.loadSpecialtyCatalog();
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.selectedSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key')) || '';
+        this.loadCarePlan();
+      });
   }
 
   onViewChange(event: CustomEvent): void {
@@ -240,25 +308,74 @@ export class MyCarePlanPage implements OnInit {
     }
   }
 
+  onSpecialtyChange(event: CustomEvent<{ value: string }>): void {
+    const nextKey = this.normalizeSpecialtyKey(event.detail?.value || '');
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { specialty_key: nextKey || null },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  get specialtyCareTeam(): Array<{ name: string; touchpoints: number }> {
+    const counters = new Map<string, number>();
+    const register = (name?: string | null) => {
+      const cleanName = String(name || '').trim();
+      if (!cleanName) {
+        return;
+      }
+      counters.set(cleanName, (counters.get(cleanName) ?? 0) + 1);
+    };
+
+    this.specialtyHistory?.medical_records?.forEach((record) => register(record.professional_name));
+    this.specialtyHistory?.specialty_encounters?.forEach((encounter) => register(encounter.professional_name));
+    this.specialtyHistory?.appointments?.forEach((appointment) => register(appointment.professional_name));
+
+    return [...counters.entries()]
+      .map(([name, touchpoints]) => ({ name, touchpoints }))
+      .sort((left, right) => right.touchpoints - left.touchpoints || left.name.localeCompare(right.name));
+  }
+
   private loadCarePlan(): void {
     this.loading = true;
     this.errorMessage = null;
 
     forkJoin({
       records: this.patientApi.getMyMedicalRecords().pipe(catchError(() => of([] as PatientMedicalRecord[]))),
-      appointments: this.patientApi.getMyAppointments().pipe(catchError(() => of([] as PatientAppointment[])))
+      appointments: this.patientApi.getMyAppointments().pipe(catchError(() => of([] as PatientAppointment[]))),
+      specialtyOverview: this.selectedSpecialtyKey
+        ? this.patientApi.getMySpecialtyOverview(this.selectedSpecialtyKey).pipe(
+            catchError(() => of(null as PatientSpecialtyOverview | null))
+          )
+        : of(null as PatientSpecialtyOverview | null),
+      specialtyHistory: this.selectedSpecialtyKey
+        ? this.patientApi.getMySpecialtyHistory(this.selectedSpecialtyKey).pipe(
+            catchError(() => of(null as PatientSpecialtyHistory | null))
+          )
+        : of(null as PatientSpecialtyHistory | null),
     })
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: ({ records, appointments }) => {
+        next: ({ records, appointments, specialtyOverview, specialtyHistory }) => {
           const sortedRecords = [...records].sort(
             (a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
           );
+          const scopedRecords = this.filterRecordsBySelectedSpecialty(sortedRecords);
+          const recordsSource =
+            this.selectedSpecialtyKey
+              ? scopedRecords
+              : sortedRecords;
 
-          this.instructions = this.extractInstructions(sortedRecords);
-          this.medications = this.extractMedications(sortedRecords);
-          this.treatmentItems = this.extractTreatments(sortedRecords);
-          this.nextControlDate = this.extractNextControlDate(appointments);
+          this.specialtyOverview = specialtyOverview;
+          this.specialtyHistory = specialtyHistory;
+
+          this.instructions = this.extractInstructions(recordsSource);
+          this.medications = this.extractMedications(recordsSource);
+          this.treatmentItems = this.extractTreatments(recordsSource);
+          this.nextControlDate = this.extractNextControlDate(
+            appointments,
+            specialtyOverview,
+          );
         },
         error: (error: unknown) => {
           this.errorMessage = this.resolveErrorMessage(error);
@@ -308,7 +425,24 @@ export class MyCarePlanPage implements OnInit {
     return [...medications].slice(0, 20);
   }
 
-  private extractNextControlDate(appointments: PatientAppointment[]): string | null {
+  private extractNextControlDate(
+    appointments: PatientAppointment[],
+    specialtyOverview?: PatientSpecialtyOverview | null
+  ): string | null {
+    if (specialtyOverview?.upcoming_appointments?.length) {
+      const nextSpecialtyAppointment = [...specialtyOverview.upcoming_appointments]
+        .map((appointment) => ({
+          date: appointment.appointment_date,
+          ts: new Date(appointment.appointment_date).getTime()
+        }))
+        .filter((item) => Number.isFinite(item.ts))
+        .sort((a, b) => a.ts - b.ts)[0];
+
+      if (nextSpecialtyAppointment?.date) {
+        return nextSpecialtyAppointment.date;
+      }
+    }
+
     const now = Date.now();
     const next = appointments
       .filter((appointment) => ['scheduled', 'confirmed', 'pending'].includes(appointment.status))
@@ -329,6 +463,66 @@ export class MyCarePlanPage implements OnInit {
     return fullName || 'Profesional tratante';
   }
 
+  private filterRecordsBySelectedSpecialty(records: PatientMedicalRecord[]): PatientMedicalRecord[] {
+    if (!this.selectedSpecialtyKey) {
+      return records;
+    }
+
+    return records.filter((record) =>
+      this.matchesSelectedSpecialty(record.professional?.specialty)
+    );
+  }
+
+  private matchesSelectedSpecialty(specialty?: string | null): boolean {
+    if (!this.selectedSpecialtyKey) {
+      return true;
+    }
+
+    const normalizedSpecialty = this.normalizeText(specialty || '');
+    if (!normalizedSpecialty) {
+      return false;
+    }
+
+    const selectedLabel = this.specialtyCatalog.find(
+      (item) => item.key === this.selectedSpecialtyKey
+    )?.label;
+    const candidates = [
+      this.normalizeText(this.selectedSpecialtyKey.replace(/-/g, ' ')),
+      this.normalizeText(selectedLabel || '')
+    ].filter(Boolean);
+
+    return candidates.some((candidate) =>
+      normalizedSpecialty.includes(candidate) || candidate.includes(normalizedSpecialty)
+    );
+  }
+
+  private loadSpecialtyCatalog(): void {
+    this.patientApi.getSpecialtiesCatalog().subscribe({
+      next: (catalog) => {
+        this.specialtyCatalog = [...catalog].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      error: () => {
+        this.specialtyCatalog = [];
+      }
+    });
+  }
+
+  private normalizeSpecialtyKey(rawValue: string): string | null {
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : null;
+  }
+
+  private normalizeText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
   private hasText(value: string | null | undefined): boolean {
     return typeof value === 'string' && value.trim().length > 0;
   }
@@ -347,4 +541,3 @@ export class MyCarePlanPage implements OnInit {
     return typeof value === 'object' && value !== null && 'error' in value;
   }
 }
-

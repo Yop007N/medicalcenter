@@ -1,11 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   CreatePatientAppointmentPayload,
   PatientApiService,
   PatientAppointment,
+  SpecialtyCatalogItem,
   ProfessionalAvailabilityItem
 } from '../core/services/patient-api.service';
 import { UiDialogService } from '../core/services/ui-dialog.service';
@@ -79,10 +82,10 @@ type ApiErrorShape = {
         <div class="booking-filters">
           <ion-item>
             <ion-label position="stacked">Especialidad</ion-label>
-            <ion-select interface="popover" [(ngModel)]="specialtyFilter" (ionChange)="reloadAvailability()">
+              <ion-select interface="popover" [(ngModel)]="specialtyFilter" (ionChange)="onSpecialtyFilterChange()">
               <ion-select-option value="all">Todas</ion-select-option>
               @for (specialty of specialtyOptions; track specialty) {
-                <ion-select-option [value]="specialty">{{ specialty }}</ion-select-option>
+                <ion-select-option [value]="specialty">{{ getSpecialtyDisplayName(specialty) }}</ion-select-option>
               }
             </ion-select>
           </ion-item>
@@ -111,11 +114,16 @@ type ApiErrorShape = {
               <article class="professional-option" [class.active]="professional.id === bookingProfessionalId">
                 <header>
                   <strong>{{ professional.first_name }} {{ professional.last_name }}</strong>
-                  <span>{{ professional.specialty || 'Especialidad general' }}</span>
+                  <span>{{ getSpecialtyDisplayName(professional.specialty) }}</span>
                 </header>
                 <p class="slot-hint">
                   Proximo horario: {{ professional.next_available_slot | date:'dd/MM/yyyy HH:mm' }}
                 </p>
+                @if (getProfessionalAffinityScore(professional.id) > 0) {
+                  <p class="slot-hint">
+                    Continuidad clínica: {{ getProfessionalAffinityScore(professional.id) }} turno(s) previo(s)
+                  </p>
+                }
                 <div class="slot-grid">
                   @for (slot of professional.available_slots; track slot) {
                     <button
@@ -199,7 +207,7 @@ type ApiErrorShape = {
                   <br />
                   Profesional: {{ appointment.professional?.first_name }} {{ appointment.professional?.last_name }}
                   @if (appointment.professional?.specialty) {
-                    ({{ appointment.professional?.specialty }})
+                    ({{ getSpecialtyDisplayName(appointment.professional?.specialty) }})
                   }
                 </p>
                 <div class="item-actions">
@@ -375,12 +383,16 @@ type ApiErrorShape = {
 export class MyAppointmentsPage implements OnInit {
   private readonly patientApi = inject(PatientApiService);
   private readonly uiDialog = inject(UiDialogService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   appointments: PatientAppointment[] = [];
   filteredAppointments: PatientAppointment[] = [];
   professionals: ProfessionalAvailabilityItem[] = [];
   filteredProfessionals: ProfessionalAvailabilityItem[] = [];
   specialtyOptions: string[] = [];
+  specialtyCatalog: SpecialtyCatalogItem[] = [];
   loading = false;
   professionalLoading = false;
   booking = false;
@@ -413,8 +425,14 @@ export class MyAppointmentsPage implements OnInit {
 
   ngOnInit(): void {
     this.slotSearchDate = this.toDateInput(new Date());
-    this.loadAppointments();
-    this.loadAvailableProfessionals();
+    this.loadSpecialtyCatalog();
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.specialtyFilter = params.get('specialty_key')?.trim() || 'all';
+        this.loadAppointments();
+        this.loadAvailableProfessionals();
+      });
   }
 
   refresh(event: CustomEvent): void {
@@ -431,6 +449,10 @@ export class MyAppointmentsPage implements OnInit {
         this.appointments = this.sortAppointments(appointments);
         this.recalculateCounters();
         this.applyFilter();
+        if (this.professionals.length > 0) {
+          this.professionals = this.sortProfessionalsByAvailability(this.professionals);
+          this.applyProfessionalFilters();
+        }
         this.loading = false;
         onComplete?.();
       },
@@ -444,6 +466,14 @@ export class MyAppointmentsPage implements OnInit {
 
   reloadAvailability(): void {
     this.loadAvailableProfessionals();
+  }
+
+  onSpecialtyFilterChange(): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { specialty_key: this.specialtyFilter === 'all' ? null : this.specialtyFilter },
+      queryParamsHandling: 'merge'
+    });
   }
 
   private loadAvailableProfessionals(): void {
@@ -464,6 +494,9 @@ export class MyAppointmentsPage implements OnInit {
         next: (professionals) => {
           this.professionals = this.sortProfessionalsByAvailability(professionals);
           this.specialtyOptions = this.buildSpecialtyOptions(this.professionals);
+          if (this.specialtyFilter !== 'all' && !this.specialtyOptions.includes(this.specialtyFilter)) {
+            this.specialtyFilter = 'all';
+          }
           this.applyProfessionalFilters();
           this.professionalLoading = false;
         },
@@ -494,7 +527,7 @@ export class MyAppointmentsPage implements OnInit {
         return true;
       }
 
-      const professionalText = `${professional.first_name} ${professional.last_name} ${professional.specialty ?? ''}`
+      const professionalText = `${professional.first_name} ${professional.last_name} ${professional.specialty ?? ''} ${this.getSpecialtyDisplayName(professional.specialty)}`
         .toLowerCase()
         .trim();
       return professionalText.includes(normalizedQuery);
@@ -622,7 +655,9 @@ export class MyAppointmentsPage implements OnInit {
     const specialties = professionals
       .map((professional) => (professional.specialty ?? '').trim())
       .filter((specialty) => specialty.length > 0);
-    return [...new Set(specialties)].sort((a, b) => a.localeCompare(b));
+    return [...new Set(specialties)].sort((a, b) =>
+      this.getSpecialtyDisplayName(a).localeCompare(this.getSpecialtyDisplayName(b))
+    );
   }
 
   private sortProfessionalsByAvailability(
@@ -641,6 +676,10 @@ export class MyAppointmentsPage implements OnInit {
         const nearestB = this.nearestSlotEpoch(b);
         if (nearestA !== nearestB) {
           return nearestA - nearestB;
+        }
+        const affinityDelta = this.getProfessionalAffinityScore(b.id) - this.getProfessionalAffinityScore(a.id);
+        if (affinityDelta !== 0) {
+          return affinityDelta;
         }
         return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
       });
@@ -676,6 +715,44 @@ export class MyAppointmentsPage implements OnInit {
     );
     this.bookingProfessionalId = nearestProfessional?.id ?? null;
     this.bookingDate = nearestProfessional?.available_slots[0] ?? '';
+  }
+
+  getSpecialtyDisplayName(rawSpecialty?: string | null): string {
+    const specialty = (rawSpecialty ?? '').trim();
+    if (!specialty) {
+      return 'Especialidad general';
+    }
+
+    const normalized = this.normalizeText(specialty);
+    const catalogItem = this.specialtyCatalog.find((item) => {
+      const itemKey = this.normalizeText(item.key);
+      const itemLabel = this.normalizeText(item.label);
+      return normalized === itemKey || normalized === itemLabel;
+    });
+    return catalogItem?.label ?? specialty;
+  }
+
+  getProfessionalAffinityScore(professionalId: number): number {
+    return this.appointments.filter((appointment) => appointment.professional?.id === professionalId).length;
+  }
+
+  private loadSpecialtyCatalog(): void {
+    this.patientApi.getSpecialtiesCatalog().subscribe({
+      next: (catalog) => {
+        this.specialtyCatalog = [...catalog].sort((a, b) => a.label.localeCompare(b.label));
+      },
+      error: () => {
+        this.specialtyCatalog = [];
+      }
+    });
+  }
+
+  private normalizeText(rawValue: string): string {
+    return rawValue
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
   }
 
   private recalculateCounters(): void {
