@@ -1,0 +1,3 @@
+## 2026-02-28 - Explicit ARIA linking for Angular Reactive Forms
+**Learning:** When using Angular Reactive Forms with conditionally rendered error messages (like `@if (emailControl.hasError('required'))`), screen readers may not automatically associate the error `<small>` element with the corresponding `<input>` field because they appear asynchronously.
+**Action:** Next time forms are built or updated, always explicitly link the error message to the input by using `[attr.aria-describedby]="error-id"` on the `<input>` and providing an `id="error-id"` to the conditionally rendered error tag. Additionally, use `[attr.aria-invalid]="true"` to explicitly state invalid status.

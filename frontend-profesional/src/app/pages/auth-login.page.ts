@@ -41,12 +41,14 @@ type ApiErrorShape = {
             autocomplete="username"
             formControlName="email"
             placeholder="profesional@medical.com"
+            [attr.aria-invalid]="emailControl.touched && emailControl.invalid ? 'true' : null"
+            [attr.aria-describedby]="emailControl.touched && emailControl.invalid ? 'email-error' : null"
           />
           @if (emailControl.touched && emailControl.hasError('required')) {
-            <small class="field-error">El correo es obligatorio.</small>
+            <small id="email-error" class="field-error">El correo es obligatorio.</small>
           }
           @if (emailControl.touched && emailControl.hasError('email')) {
-            <small class="field-error">Ingresa un correo valido.</small>
+            <small id="email-error" class="field-error">Ingresa un correo valido.</small>
           }
 
           <label class="field-label" for="password">Password</label>
@@ -57,12 +59,14 @@ type ApiErrorShape = {
             autocomplete="current-password"
             formControlName="password"
             placeholder="Tu password"
+            [attr.aria-invalid]="passwordControl.touched && passwordControl.invalid ? 'true' : null"
+            [attr.aria-describedby]="passwordControl.touched && passwordControl.invalid ? 'password-error' : null"
           />
           @if (passwordControl.touched && passwordControl.hasError('required')) {
-            <small class="field-error">La password es obligatoria.</small>
+            <small id="password-error" class="field-error">La password es obligatoria.</small>
           }
 
-          <button class="submit-button" type="submit" [disabled]="loginForm.invalid || isSubmitting">
+          <button class="submit-button" type="submit" [disabled]="loginForm.invalid || isSubmitting" [attr.aria-busy]="isSubmitting">
             @if (isSubmitting) {
               Iniciando sesion...
             } @else {
