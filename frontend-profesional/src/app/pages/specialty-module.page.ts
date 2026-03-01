@@ -16,6 +16,18 @@ import {
   SpecialtyModuleService
 } from '../core/services/specialty-module.service';
 import { pageShellStyles } from './page-shell.styles';
+import {
+  buildProfessionalSpecialtyBoardSections,
+  buildProfessionalSpecialtyInsightCards,
+  LEGACY_SPECIALTY_MODULES,
+  SpecialtyBoardSectionView,
+  SpecialtyFieldDefinition,
+  SpecialtyInsightCard,
+  SpecialtyPrimaryQuickAction,
+  resolveProfessionalSpecialtyFields,
+  resolveProfessionalSpecialtyPrimaryQuickAction,
+} from './specialty-module.config';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
 
 type ApiErrorShape = {
   error?: {
@@ -24,895 +36,6 @@ type ApiErrorShape = {
     error?: string;
   };
 };
-
-type SpecialtyFieldType = 'text' | 'number' | 'date' | 'select' | 'textarea';
-type SpecialtyFieldTarget = 'vitals' | 'payload';
-
-type SpecialtyFieldDefinition = {
-  key: string;
-  label: string;
-  type: SpecialtyFieldType;
-  target: SpecialtyFieldTarget;
-  placeholder?: string;
-  min?: number;
-  step?: string;
-  options?: Array<{ value: string; label: string }>;
-};
-
-const LEGACY_SPECIALTY_MODULES = new Set(['odontology', 'psychology', 'psychopedagogy']);
-
-const DEFAULT_SPECIALTY_FIELDS: SpecialtyFieldDefinition[] = [
-  {
-    key: 'blood_pressure',
-    label: 'Presion arterial',
-    type: 'text',
-    target: 'vitals',
-    placeholder: 'Ej: 120/80'
-  },
-  {
-    key: 'heart_rate',
-    label: 'Frecuencia cardiaca (bpm)',
-    type: 'number',
-    target: 'vitals',
-    min: 0
-  },
-  {
-    key: 'temperature',
-    label: 'Temperatura (C)',
-    type: 'number',
-    target: 'vitals',
-    min: 0,
-    step: '0.1'
-  },
-  {
-    key: 'primary_diagnosis',
-    label: 'Impresion diagnostica principal',
-    type: 'text',
-    target: 'payload'
-  },
-  {
-    key: 'followup_days',
-    label: 'Seguimiento (dias)',
-    type: 'number',
-    target: 'payload',
-    min: 0
-  },
-  {
-    key: 'study_requests',
-    label: 'Estudios solicitados',
-    type: 'textarea',
-    target: 'payload',
-    placeholder: 'Laboratorio, imagenes o estudios funcionales.'
-  }
-];
-
-const SPECIALTY_FIELD_TEMPLATES: Record<string, SpecialtyFieldDefinition[]> = {
-  cardiology: [
-    {
-      key: 'systolic_bp',
-      label: 'Presion sistolica',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'diastolic_bp',
-      label: 'Presion diastolica',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'heart_rate',
-      label: 'Frecuencia cardiaca (bpm)',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'cholesterol_total',
-      label: 'Colesterol total',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'risk_class',
-      label: 'Riesgo cardiovascular',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'low', label: 'Bajo' },
-        { value: 'medium', label: 'Medio' },
-        { value: 'high', label: 'Alto' }
-      ]
-    },
-    {
-      key: 'ldl_hdl_ratio',
-      label: 'Relacion LDL/HDL',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'ecg_summary',
-      label: 'Resumen ECG / Hallazgos',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  pediatrics: [
-    {
-      key: 'weight_kg',
-      label: 'Peso (kg)',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.01'
-    },
-    {
-      key: 'height_cm',
-      label: 'Altura (cm)',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'temperature',
-      label: 'Temperatura (C)',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'vaccine_status',
-      label: 'Estado de vacunacion',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'up_to_date', label: 'Al dia' },
-        { value: 'delayed', label: 'Atrasado' }
-      ]
-    },
-    {
-      key: 'development_milestone',
-      label: 'Hito de desarrollo',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'feeding_type',
-      label: 'Tipo de alimentacion',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'pediatric_alerts',
-      label: 'Alertas pediatricas',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  gynecology: [
-    {
-      key: 'last_menstrual_period',
-      label: 'FUM (ultima menstruacion)',
-      type: 'date',
-      target: 'payload'
-    },
-    {
-      key: 'pregnancy_status',
-      label: 'Estado de embarazo',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'suspected', label: 'Sospecha' },
-        { value: 'confirmed', label: 'Confirmado' }
-      ]
-    },
-    {
-      key: 'contraceptive_method',
-      label: 'Metodo anticonceptivo',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'pap_smear_result',
-      label: 'Resultado PAP',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'breast_exam',
-      label: 'Examen mamario',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'gynecology_plan',
-      label: 'Plan ginecologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  traumatology: [
-    {
-      key: 'pain_scale',
-      label: 'Escala de dolor (0-10)',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '1'
-    },
-    {
-      key: 'injured_region',
-      label: 'Region afectada',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'mobility_grade',
-      label: 'Movilidad funcional',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'conserved', label: 'Conservada' },
-        { value: 'limited', label: 'Limitada' },
-        { value: 'severe', label: 'Severamente limitada' }
-      ]
-    },
-    {
-      key: 'fracture_suspected',
-      label: 'Sospecha de fractura',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'rehab_plan',
-      label: 'Plan de rehabilitacion',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  neurology: [
-    {
-      key: 'glasgow_scale',
-      label: 'Escala de Glasgow',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'seizure_history',
-      label: 'Antecedente de convulsiones',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'focal_deficit',
-      label: 'Deficit focal',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'cognitive_status',
-      label: 'Estado cognitivo',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'neuro_exam_notes',
-      label: 'Notas del examen neurologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  'internal-medicine': [
-    {
-      key: 'blood_glucose',
-      label: 'Glucemia',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'blood_pressure',
-      label: 'Presion arterial',
-      type: 'text',
-      target: 'vitals'
-    },
-    {
-      key: 'chronic_conditions',
-      label: 'Condiciones cronicas',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'current_medication',
-      label: 'Medicacion actual',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'risk_factors',
-      label: 'Factores de riesgo',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  dermatology: [
-    {
-      key: 'lesion_location',
-      label: 'Ubicacion de lesion',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'lesion_type',
-      label: 'Tipo de lesion',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'macula', label: 'Macula' },
-        { value: 'papula', label: 'Papula' },
-        { value: 'placa', label: 'Placa' },
-        { value: 'ulcera', label: 'Ulcera' }
-      ]
-    },
-    {
-      key: 'lesion_size_mm',
-      label: 'Tamano lesion (mm)',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'dermatoscopy_notes',
-      label: 'Notas de dermatoscopia',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'topical_treatment',
-      label: 'Tratamiento topico',
-      type: 'text',
-      target: 'payload'
-    }
-  ],
-  endocrinology: [
-    {
-      key: 'blood_glucose',
-      label: 'Glucemia',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'hba1c',
-      label: 'HbA1c (%)',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'tsh',
-      label: 'TSH',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '0.01'
-    },
-    {
-      key: 'bmi',
-      label: 'IMC',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'endocrine_plan',
-      label: 'Plan endocrinologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  gastroenterology: [
-    {
-      key: 'abdominal_pain_scale',
-      label: 'Dolor abdominal (0-10)',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'stool_pattern',
-      label: 'Patron evacuatorio',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'normal', label: 'Normal' },
-        { value: 'constipation', label: 'Estrenimiento' },
-        { value: 'diarrhea', label: 'Diarrea' },
-        { value: 'alternating', label: 'Alternante' }
-      ]
-    },
-    {
-      key: 'digestive_symptoms',
-      label: 'Sintomas digestivos',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'endoscopy_required',
-      label: 'Requiere endoscopia',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'digestive_plan',
-      label: 'Plan digestivo',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  pulmonology: [
-    {
-      key: 'spo2',
-      label: 'Saturacion O2 (%)',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'respiratory_rate',
-      label: 'Frecuencia respiratoria',
-      type: 'number',
-      target: 'vitals',
-      min: 0
-    },
-    {
-      key: 'cough_type',
-      label: 'Tipo de tos',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'none', label: 'Sin tos' },
-        { value: 'dry', label: 'Seca' },
-        { value: 'productive', label: 'Productiva' }
-      ]
-    },
-    {
-      key: 'dyspnea_scale',
-      label: 'Escala de disnea',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'inhaler_plan',
-      label: 'Plan inhalatorio',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  urology: [
-    {
-      key: 'urinary_frequency',
-      label: 'Frecuencia urinaria',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'normal', label: 'Normal' },
-        { value: 'increased', label: 'Aumentada' },
-        { value: 'decreased', label: 'Disminuida' }
-      ]
-    },
-    {
-      key: 'hematuria',
-      label: 'Hematuria',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'prostate_symptoms',
-      label: 'Sintomas prostáticos',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'urinalysis_summary',
-      label: 'Resumen de uroanalisis',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'urology_plan',
-      label: 'Plan urologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  nephrology: [
-    {
-      key: 'creatinine',
-      label: 'Creatinina',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '0.01'
-    },
-    {
-      key: 'egfr',
-      label: 'TFG estimada',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'proteinuria',
-      label: 'Proteinuria',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'negative', label: 'Negativa' },
-        { value: 'trace', label: 'Trazas' },
-        { value: 'positive', label: 'Positiva' }
-      ]
-    },
-    {
-      key: 'edema_grade',
-      label: 'Grado de edema',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'none', label: 'Sin edema' },
-        { value: 'mild', label: 'Leve' },
-        { value: 'moderate', label: 'Moderado' },
-        { value: 'severe', label: 'Severo' }
-      ]
-    },
-    {
-      key: 'renal_plan',
-      label: 'Plan nefrologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  oncology: [
-    {
-      key: 'staging',
-      label: 'Estadio oncologico',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'treatment_phase',
-      label: 'Fase de tratamiento',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'diagnosis', label: 'Diagnostico' },
-        { value: 'active', label: 'Tratamiento activo' },
-        { value: 'maintenance', label: 'Mantenimiento' },
-        { value: 'palliative', label: 'Paliativo' }
-      ]
-    },
-    {
-      key: 'pain_scale',
-      label: 'Dolor (0-10)',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'toxicity_grade',
-      label: 'Grado de toxicidad',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'g0', label: 'G0' },
-        { value: 'g1', label: 'G1' },
-        { value: 'g2', label: 'G2' },
-        { value: 'g3', label: 'G3' },
-        { value: 'g4', label: 'G4' }
-      ]
-    },
-    {
-      key: 'oncology_plan',
-      label: 'Plan oncologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  otolaryngology: [
-    {
-      key: 'affected_area',
-      label: 'Area afectada',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'ear', label: 'Oido' },
-        { value: 'nose', label: 'Nariz' },
-        { value: 'throat', label: 'Garganta' },
-        { value: 'multiple', label: 'Multiple' }
-      ]
-    },
-    {
-      key: 'hearing_loss',
-      label: 'Hipoacusia',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'vestibular_symptoms',
-      label: 'Sintomas vestibulares',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'throat_findings',
-      label: 'Hallazgos faringeos',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'ent_plan',
-      label: 'Plan ORL',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  ophthalmology: [
-    {
-      key: 'visual_acuity_od',
-      label: 'Agudeza visual OD',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'visual_acuity_oi',
-      label: 'Agudeza visual OI',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'intraocular_pressure_od',
-      label: 'PIO OD',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'intraocular_pressure_oi',
-      label: 'PIO OI',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'fundus_notes',
-      label: 'Notas de fondo de ojo',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  rheumatology: [
-    {
-      key: 'joint_count',
-      label: 'Articulaciones comprometidas',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'morning_stiffness_min',
-      label: 'Rigidez matinal (min)',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'inflammatory_markers',
-      label: 'Marcadores inflamatorios',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'autoimmune_profile',
-      label: 'Perfil autoinmune',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'rheuma_plan',
-      label: 'Plan reumatologico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  infectology: [
-    {
-      key: 'fever_c',
-      label: 'Temperatura (C)',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'suspected_pathogen',
-      label: 'Agente sospechado',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'infection_focus',
-      label: 'Foco infeccioso',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'isolation_needed',
-      label: 'Requiere aislamiento',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'no', label: 'No' },
-        { value: 'yes', label: 'Si' }
-      ]
-    },
-    {
-      key: 'antimicrobial_plan',
-      label: 'Plan antimicrobiano',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  nutrition: [
-    {
-      key: 'weight_kg',
-      label: 'Peso (kg)',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.01'
-    },
-    {
-      key: 'bmi',
-      label: 'IMC',
-      type: 'number',
-      target: 'vitals',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'body_fat_pct',
-      label: 'Grasa corporal (%)',
-      type: 'number',
-      target: 'payload',
-      min: 0,
-      step: '0.1'
-    },
-    {
-      key: 'nutrition_goal',
-      label: 'Objetivo nutricional',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'meal_plan',
-      label: 'Plan alimentario',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  physiotherapy: [
-    {
-      key: 'pain_scale',
-      label: 'Dolor (0-10)',
-      type: 'number',
-      target: 'payload',
-      min: 0
-    },
-    {
-      key: 'mobility_level',
-      label: 'Nivel de movilidad',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'independent', label: 'Independiente' },
-        { value: 'assisted', label: 'Asistida' },
-        { value: 'dependent', label: 'Dependiente' }
-      ]
-    },
-    {
-      key: 'session_objective',
-      label: 'Objetivo de sesion',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'exercises',
-      label: 'Ejercicios indicados',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'physio_plan',
-      label: 'Plan fisioterapeutico',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  nursing: [
-    {
-      key: 'nursing_diagnosis',
-      label: 'Diagnostico de enfermeria',
-      type: 'text',
-      target: 'payload'
-    },
-    {
-      key: 'care_priority',
-      label: 'Prioridad de cuidado',
-      type: 'select',
-      target: 'payload',
-      options: [
-        { value: 'low', label: 'Baja' },
-        { value: 'medium', label: 'Media' },
-        { value: 'high', label: 'Alta' }
-      ]
-    },
-    {
-      key: 'medication_administered',
-      label: 'Medicacion administrada',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'shift_observations',
-      label: 'Observaciones de turno',
-      type: 'textarea',
-      target: 'payload'
-    },
-    {
-      key: 'incident_report',
-      label: 'Incidentes / alertas',
-      type: 'textarea',
-      target: 'payload'
-    }
-  ],
-  'general-medicine': DEFAULT_SPECIALTY_FIELDS
-};
-
 @Component({
   selector: 'app-specialty-module-page',
   standalone: true,
@@ -951,11 +74,8 @@ const SPECIALTY_FIELD_TEMPLATES: Record<string, SpecialtyFieldDefinition[]> = {
             <a [routerLink]="['/budgets']" [queryParams]="buildScopeQueryParams()" class="quick-link">Presupuestos</a>
             <a [routerLink]="['/files']" [queryParams]="buildScopeQueryParams()" class="quick-link">Archivos</a>
             <a [routerLink]="['/payments']" [queryParams]="buildScopeQueryParams()" class="quick-link">Pagos</a>
-            @if (context.module.key === 'odontology') {
-              <a routerLink="/odontology" class="quick-link primary">Ir a Odontologia</a>
-            }
-            @if (context.module.key === 'psychology' || context.module.key === 'psychopedagogy') {
-              <a routerLink="/mental-health" class="quick-link primary">Ir a Salud Mental</a>
+            @if (primaryQuickAction; as action) {
+              <a [routerLink]="action.route" class="quick-link primary">{{ action.label }}</a>
             }
           </div>
         </article>
@@ -1020,6 +140,43 @@ const SPECIALTY_FIELD_TEMPLATES: Record<string, SpecialtyFieldDefinition[]> = {
             }
           </article>
         </div>
+
+        @if (specialtyInsightCards.length > 0) {
+          <article class="card lower-grid">
+            <h2 class="card-title">Indicadores clínicos del módulo</h2>
+            <div class="grid">
+              @for (insight of specialtyInsightCards; track insight.label) {
+                <article class="card">
+                  <h2 class="card-title">{{ insight.label }}</h2>
+                  <p class="metric">{{ insight.value }}</p>
+                  <p class="card-text">{{ insight.description }}</p>
+                </article>
+              }
+            </div>
+          </article>
+        }
+
+        @if (specialtyBoardSections.length > 0) {
+          <article class="card lower-grid">
+            <h2 class="card-title">Panel clínico del dominio</h2>
+            <div class="board-grid">
+              @for (section of specialtyBoardSections; track section.title) {
+                <section class="board-section">
+                  <h3>{{ section.title }}</h3>
+                  <p class="card-text">{{ section.description }}</p>
+                  <dl class="board-list">
+                    @for (item of section.items; track item.label) {
+                      <div>
+                        <dt>{{ item.label }}</dt>
+                        <dd>{{ item.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </section>
+              }
+            </div>
+          </article>
+        }
 
         @if (isClinicalModuleEnabled) {
           <article class="card lower-grid">
@@ -1307,6 +464,39 @@ const SPECIALTY_FIELD_TEMPLATES: Record<string, SpecialtyFieldDefinition[]> = {
         margin: 0;
       }
 
+      .board-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+
+      .board-section {
+        border: 1px solid var(--ms-border);
+        border-radius: 10px;
+        padding: 0.75rem;
+      }
+
+      .board-list {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0;
+      }
+
+      .board-list div + div { border-top: 1px dashed var(--ms-border); padding-top: 0.45rem; }
+
+      .board-list dt {
+        color: var(--ms-text-secondary);
+        font-size: 0.72rem;
+        margin: 0;
+        text-transform: uppercase;
+      }
+
+      .board-list dd {
+        color: var(--ms-text-strong);
+        font-size: 0.84rem;
+        margin: 0;
+      }
+
       .lower-grid {
         margin-top: 0.75rem;
       }
@@ -1489,6 +679,7 @@ export class SpecialtyModulePage implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(UntypedFormBuilder);
   private readonly specialtyModuleService = inject(SpecialtyModuleService);
+  private readonly dialog = inject(UiDialogService);
 
   loading = false;
   encounterSubmitting = false;
@@ -1525,6 +716,18 @@ export class SpecialtyModulePage implements OnInit {
   get isClinicalModuleEnabled(): boolean {
     const key = this.context?.module?.key;
     return Boolean(key) && !LEGACY_SPECIALTY_MODULES.has(String(key));
+  }
+
+  get specialtyInsightCards(): SpecialtyInsightCard[] {
+    return buildProfessionalSpecialtyInsightCards(this.context?.module?.key, this.encounters);
+  }
+
+  get specialtyBoardSections(): SpecialtyBoardSectionView[] {
+    return buildProfessionalSpecialtyBoardSections(this.context?.module?.key, this.encounters);
+  }
+
+  get primaryQuickAction(): SpecialtyPrimaryQuickAction | null {
+    return resolveProfessionalSpecialtyPrimaryQuickAction(this.context?.module?.key);
   }
 
   get filteredEncounters(): SpecialtyEncounter[] {
@@ -1714,8 +917,14 @@ export class SpecialtyModulePage implements OnInit {
     }
   }
 
-  deleteEncounter(encounterId: number): void {
-    const confirmed = globalThis.confirm(`Eliminar consulta #${encounterId}?`);
+  async deleteEncounter(encounterId: number): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar consulta',
+      message: `Eliminar consulta #${encounterId}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
@@ -1789,7 +998,7 @@ export class SpecialtyModulePage implements OnInit {
     }
 
     const moduleKey = this.context?.module?.key || 'general-medicine';
-    this.moduleFields = SPECIALTY_FIELD_TEMPLATES[moduleKey] || DEFAULT_SPECIALTY_FIELDS;
+    this.moduleFields = resolveProfessionalSpecialtyFields(moduleKey);
 
     for (const field of this.moduleFields) {
       this.encounterForm.addControl(field.key, new UntypedFormControl(''));

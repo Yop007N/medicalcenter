@@ -1,9 +1,13 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import { ClinicalFile, FileService } from '../core/services/file.service';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -42,6 +46,20 @@ type ApiErrorShape = {
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (activePatientId) {
+        <article class="scope-card">
+          <h2 class="scope-card__title">Workspace clinico paciente #{{ activePatientId }}</h2>
+          <p class="scope-card__text">Acceso rapido al resto de modulos bajo el mismo scope.</p>
+          <div class="scope-links">
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
+            <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
+          </div>
+        </article>
+      }
 
       @if (activeSpecialtyKey) {
         <p class="scope-text">
@@ -175,6 +193,47 @@ type ApiErrorShape = {
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-card {
+        border: 1px solid var(--ms-border);
+        background: var(--ms-surface-alt);
+        border-radius: 0.9rem;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem;
+      }
+
+      .scope-card__title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .scope-card__text {
+        margin: 0.3rem 0 0.7rem;
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .scope-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .scope-link {
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border-strong);
+        border-radius: 999px;
+        color: var(--ms-text-primary);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .scope-link--ghost {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .scope-text {
@@ -354,8 +413,12 @@ type ApiErrorShape = {
 })
 export class FilesPage implements OnInit {
   private readonly fileService = inject(FileService);
+  private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
   files: ClinicalFile[] = [];
   loading = false;
@@ -370,6 +433,8 @@ export class FilesPage implements OnInit {
   selectedFileName = '';
   downloadingIds = new Set<number>();
   deletingIds = new Set<number>();
+  readonly currentUser = this.authService.currentUserValue;
+  readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
   readonly uploadForm = this.fb.group({
     medical_record_id: [1, [Validators.required, Validators.min(1)]],
@@ -379,9 +444,14 @@ export class FilesPage implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((params) => {
-      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
-      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      const nextSpecialtyKey =
+        this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
+      const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
+      const scopeChanged =
+        nextSpecialtyKey !== this.activeSpecialtyKey ||
+        nextPatientId !== this.activePatientId;
       this.activeSpecialtyKey = nextSpecialtyKey;
+      this.activePatientId = nextPatientId;
 
       if (scopeChanged || this.files.length === 0) {
         this.loadFiles();
@@ -393,6 +463,26 @@ export class FilesPage implements OnInit {
     const patientId = Number(rawValue);
     this.activePatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
     this.loadFiles();
+  }
+
+  openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
+    if (!this.activePatientId) {
+      return;
+    }
+    this.router.navigate([`/${route}`], {
+      queryParams: buildClinicalScopeQueryParams({
+        patientId: this.activePatientId,
+        specialtyKey: this.activeSpecialtyKey
+      })
+    });
+  }
+
+  clearPatientScope(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { patient_id: null, patientId: null, mode: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   loadFiles(): void {
@@ -461,7 +551,8 @@ export class FilesPage implements OnInit {
         medicalRecordId: payload.medical_record_id,
         fileType: payload.file_type,
         description: payload.description,
-        patientId: this.activePatientId
+        patientId: this.activePatientId,
+        specialtyKey: this.activeSpecialtyKey,
       })
       .pipe(finalize(() => (this.uploading = false)))
       .subscribe({
@@ -480,7 +571,7 @@ export class FilesPage implements OnInit {
     this.downloadingIds.add(file.id);
     this.errorMessage = null;
 
-    this.fileService.downloadFile(file.id).subscribe({
+    this.fileService.downloadFile(file.id, this.activeSpecialtyKey).subscribe({
       next: (blob) => {
         const objectUrl = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
@@ -499,8 +590,14 @@ export class FilesPage implements OnInit {
     });
   }
 
-  deleteFile(file: ClinicalFile): void {
-    const confirmed = globalThis.confirm(`Eliminar archivo #${file.id} (${file.filename})?`);
+  async deleteFile(file: ClinicalFile): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar archivo',
+      message: `Eliminar archivo #${file.id} (${file.filename})?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
@@ -509,7 +606,7 @@ export class FilesPage implements OnInit {
     this.errorMessage = null;
     this.successMessage = null;
 
-    this.fileService.deleteFile(file.id).subscribe({
+    this.fileService.deleteFile(file.id, this.activeSpecialtyKey).subscribe({
       next: () => {
         this.files = this.files.filter((item) => item.id !== file.id);
         this.successMessage = `Archivo #${file.id} eliminado.`;
@@ -567,5 +664,17 @@ export class FilesPage implements OnInit {
     }
     const normalized = rawKey.trim().toLowerCase();
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
+  }
+
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private resolveSessionSpecialtyKey(): string | undefined {
+    if (this.currentUser?.role !== 'professional') {
+      return undefined;
+    }
+    return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
   }
 }

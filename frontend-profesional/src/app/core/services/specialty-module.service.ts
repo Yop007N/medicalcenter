@@ -53,6 +53,60 @@ export interface SpecialtyModuleOverview {
   generated_at: string;
 }
 
+export interface SpecialtyHistoryPayload {
+  actor: string;
+  specialty: string | null;
+  module: SpecialtyModuleDefinition;
+  filters: {
+    specialty_key: string | null;
+    patient_id: number | null;
+  };
+  totals: {
+    patients: number;
+    appointments: number;
+    medical_records: number;
+    budgets: number;
+    payments: number;
+    encounters: number;
+    documents: number;
+  };
+  patients: SpecialtyModuleOverview['patients'];
+  appointments: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    status: string;
+    appointment_type: string | null;
+    appointment_date: string;
+  }>;
+  medical_records: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    record_date: string | null;
+    diagnosis: string | null;
+    treatment: string | null;
+    chief_complaint: string | null;
+    notes: string | null;
+  }>;
+  specialty_encounters: SpecialtyEncounter[];
+  documents: Array<{
+    id: number;
+    medical_record_id: number;
+    patient_id: number | null;
+    patient_name: string | null;
+    filename: string;
+    file_type: string | null;
+    description: string | null;
+    created_at: string | null;
+  }>;
+  generated_at: string;
+}
+
 export interface SpecialtyEncounter {
   id: number;
   patient_id: number;
@@ -105,6 +159,10 @@ export class SpecialtyModuleService {
     return this.api.get<SpecialtyModuleOverview>(API_ENDPOINTS.specialties.myModuleOverview, {
       specialty_key: specialtyKey
     });
+  }
+
+  getHistory(params?: { specialty_key?: string; patient_id?: number }): Observable<SpecialtyHistoryPayload> {
+    return this.api.get<SpecialtyHistoryPayload>(API_ENDPOINTS.specialties.history, params);
   }
 
   listEncounters(params?: {

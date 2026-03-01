@@ -41,6 +41,24 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/medical-records.page').then((m) => m.MedicalRecordsPage)
   },
   {
+    path: 'budgets',
+    canActivate: [AuthGuard],
+    data: { roles: ['professional'] },
+    loadComponent: () => import('./pages/budgets.page').then((m) => m.BudgetsPage)
+  },
+  {
+    path: 'files',
+    canActivate: [AuthGuard],
+    data: { roles: ['professional'] },
+    loadComponent: () => import('./pages/files.page').then((m) => m.FilesPage)
+  },
+  {
+    path: 'payments',
+    canActivate: [AuthGuard],
+    data: { roles: ['professional'] },
+    loadComponent: () => import('./pages/payments.page').then((m) => m.PaymentsPage)
+  },
+  {
     path: 'odontology',
     canActivate: [AuthGuard],
     data: {

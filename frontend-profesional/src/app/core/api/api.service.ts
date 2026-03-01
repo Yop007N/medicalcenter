@@ -50,15 +50,18 @@ export class ApiService {
     });
   }
 
-  post<T>(path: string, body: any): Observable<T> {
-    return this.http.post<T>(`${this.API_URL}/${path}`, body);
+  post<T>(path: string, body: any, params?: Record<string, unknown>): Observable<T> {
+    const httpParams = this.buildParams(params);
+    return this.http.post<T>(`${this.API_URL}/${path}`, body, { params: httpParams });
   }
 
-  put<T>(path: string, body: any): Observable<T> {
-    return this.http.put<T>(`${this.API_URL}/${path}`, body);
+  put<T>(path: string, body: any, params?: Record<string, unknown>): Observable<T> {
+    const httpParams = this.buildParams(params);
+    return this.http.put<T>(`${this.API_URL}/${path}`, body, { params: httpParams });
   }
 
-  delete<T>(path: string): Observable<T> {
-    return this.http.delete<T>(`${this.API_URL}/${path}`);
+  delete<T>(path: string, params?: Record<string, unknown>): Observable<T> {
+    const httpParams = this.buildParams(params);
+    return this.http.delete<T>(`${this.API_URL}/${path}`, { params: httpParams });
   }
 }

@@ -12,6 +12,7 @@ import { LoadingBarComponent } from './shared/components/loading-bar/loading-bar
 type NavItem = {
   path: string;
   label: string;
+  queryParams?: Record<string, string>;
 };
 
 @Component({
@@ -68,11 +69,18 @@ export class AppComponent {
       });
     }
 
+    const scopeQueryParams = specialtyModule
+      ? { specialty_key: specialtyModule.key }
+      : undefined;
+
     items.push(
       { path: '/dashboard', label: 'Dashboard' },
-      { path: '/patients', label: 'Pacientes' },
-      { path: '/appointments', label: 'Citas' },
-      { path: '/medical-records', label: 'Registros' }
+      { path: '/patients', label: 'Pacientes', queryParams: scopeQueryParams },
+      { path: '/appointments', label: 'Citas', queryParams: scopeQueryParams },
+      { path: '/medical-records', label: 'Registros', queryParams: scopeQueryParams },
+      { path: '/budgets', label: 'Presupuestos', queryParams: scopeQueryParams },
+      { path: '/files', label: 'Archivos', queryParams: scopeQueryParams },
+      { path: '/payments', label: 'Pagos', queryParams: scopeQueryParams }
     );
 
     return items;

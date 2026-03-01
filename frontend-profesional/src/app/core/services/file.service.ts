@@ -25,6 +25,7 @@ export interface UploadFilePayload {
   fileType: string;
   description?: string;
   patientId?: number;
+  specialtyKey?: string;
 }
 
 @Injectable({
@@ -48,15 +49,24 @@ export class FileService {
     if (payload.patientId) {
       formData.append('patient_id', String(payload.patientId));
     }
+    if (payload.specialtyKey) {
+      formData.append('specialty_key', payload.specialtyKey);
+    }
 
     return this.api.post<ClinicalFile>(API_ENDPOINTS.files.upload, formData);
   }
 
-  downloadFile(fileId: number): Observable<Blob> {
-    return this.api.getBlob(API_ENDPOINTS.files.download(fileId));
+  downloadFile(fileId: number, specialtyKey?: string): Observable<Blob> {
+    return this.api.getBlob(
+      API_ENDPOINTS.files.download(fileId),
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 
-  deleteFile(fileId: number): Observable<void> {
-    return this.api.delete<void>(API_ENDPOINTS.files.byId(fileId));
+  deleteFile(fileId: number, specialtyKey?: string): Observable<void> {
+    return this.api.delete<void>(
+      API_ENDPOINTS.files.byId(fileId),
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 }

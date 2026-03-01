@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
 import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
@@ -163,6 +164,29 @@ type PatientFormMode = 'create' | 'edit';
             <p class="full-width"><strong>Alergias:</strong> {{ selectedPatient.allergies || '-' }}</p>
             <p class="full-width"><strong>Historial:</strong> {{ selectedPatient.medical_history || '-' }}</p>
           </div>
+          <div class="workspace-panel">
+            <div class="workspace-copy">
+              <h3>Workspace clinico</h3>
+              <p>Abre los modulos operativos del paciente manteniendo el scope de especialidad activo.</p>
+            </div>
+            <div class="workspace-actions">
+              <button class="table-action" type="button" (click)="openPatientWorkspace(selectedPatient.id, 'appointments', true)">
+                Nueva cita
+              </button>
+              <button class="table-action" type="button" (click)="openPatientWorkspace(selectedPatient.id, 'medical-records', true)">
+                Nuevo historial
+              </button>
+              <button class="table-action" type="button" (click)="openPatientWorkspace(selectedPatient.id, 'files')">
+                Archivos
+              </button>
+              <button class="table-action" type="button" (click)="openPatientWorkspace(selectedPatient.id, 'budgets', true)">
+                Nuevo presupuesto
+              </button>
+              <button class="table-action" type="button" (click)="openPatientWorkspace(selectedPatient.id, 'payments')">
+                Pagos
+              </button>
+            </div>
+          </div>
         </article>
       }
 
@@ -203,6 +227,12 @@ type PatientFormMode = 'create' | 'edit';
                   <td>
                     <div class="row-actions">
                       <button class="table-action" type="button" (click)="viewPatient(patient.id)">Ver</button>
+                      <button class="table-action" type="button" (click)="openPatientWorkspace(patient.id, 'appointments', true)">
+                        Cita
+                      </button>
+                      <button class="table-action" type="button" (click)="openPatientWorkspace(patient.id, 'medical-records', true)">
+                        Historial
+                      </button>
                       <button class="table-action" type="button" (click)="startEdit(patient)">Editar</button>
                     </div>
                   </td>
@@ -323,6 +353,36 @@ type PatientFormMode = 'create' | 'edit';
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
+      .workspace-panel {
+        border-top: 1px solid var(--ms-border);
+        display: grid;
+        gap: 0.7rem;
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+      }
+
+      .workspace-copy h3,
+      .workspace-copy p {
+        margin: 0;
+      }
+
+      .workspace-copy h3 {
+        font-size: 0.86rem;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+      }
+
+      .workspace-copy p {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .workspace-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
       .detail-grid p {
         margin: 0;
       }
@@ -425,6 +485,7 @@ export class PatientsPage implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly router = inject(Router);
   private readonly passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
   patients: Patient[] = [];
@@ -578,6 +639,22 @@ export class PatientsPage implements OnInit {
     });
   }
 
+  openPatientWorkspace(
+    patientId: number,
+    route: 'appointments' | 'medical-records' | 'files' | 'budgets' | 'payments',
+    createMode = false
+  ): void {
+    const queryParams: Record<string, string | number> = { patient_id: patientId };
+    if (this.activeSpecialtyKey) {
+      queryParams['specialty_key'] = this.activeSpecialtyKey;
+    }
+    if (createMode) {
+      queryParams['mode'] = 'create';
+    }
+
+    this.router.navigate([`/${route}`], { queryParams });
+  }
+
   submitForm(): void {
     if (this.patientForm.invalid) {
       this.patientForm.markAllAsTouched();
@@ -612,6 +689,7 @@ export class PatientsPage implements OnInit {
         last_name: lastName,
         email,
         password,
+        specialty_key: this.activeSpecialtyKey,
         date_of_birth: this.trimOrNull(formValue.date_of_birth),
         phone: this.trimOrNull(formValue.phone),
         address: this.trimOrNull(formValue.address),

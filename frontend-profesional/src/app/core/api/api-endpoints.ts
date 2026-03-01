@@ -88,6 +88,7 @@ export const API_ENDPOINTS = {
     catalog: 'specialties/catalog',
     myModule: 'specialties/my-module',
     myModuleOverview: 'specialties/my-module/overview',
+    history: 'specialties/history',
     encounters: 'specialties/encounters',
     encounterById: (id: number) => `specialties/encounters/${id}`
   }

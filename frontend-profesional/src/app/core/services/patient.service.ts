@@ -10,6 +10,7 @@ export interface CreatePatientPayload {
   password: string;
   first_name: string;
   last_name: string;
+  specialty_key?: string | null;
   date_of_birth?: string | null;
   phone?: string | null;
   address?: string | null;

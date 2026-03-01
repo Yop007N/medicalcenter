@@ -1,10 +1,14 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import { MedicalRecordService } from '../core/services/medical-record.service';
 import { MedicalRecord } from '../shared/models/medical-record.model';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -45,6 +49,20 @@ type FormMode = 'create' | 'edit';
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (activePatientId) {
+        <article class="scope-card">
+          <h2 class="scope-card__title">Workspace clinico paciente #{{ activePatientId }}</h2>
+          <p class="scope-card__text">Acceso directo a modulos del mismo paciente y especialidad.</p>
+          <div class="scope-links">
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
+            <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
+          </div>
+        </article>
+      }
 
       @if (activeSpecialtyKey) {
         <p class="scope-text">
@@ -169,6 +187,47 @@ type FormMode = 'create' | 'edit';
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-card {
+        border: 1px solid var(--ms-border);
+        background: var(--ms-surface-alt);
+        border-radius: 0.9rem;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem;
+      }
+
+      .scope-card__title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .scope-card__text {
+        margin: 0.3rem 0 0.7rem;
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .scope-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .scope-link {
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border-strong);
+        border-radius: 999px;
+        color: var(--ms-text-primary);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .scope-link--ghost {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .scope-text {
@@ -341,8 +400,12 @@ type FormMode = 'create' | 'edit';
 })
 export class MedicalRecordsPage implements OnInit {
   private readonly medicalRecordService = inject(MedicalRecordService);
+  private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
   records: MedicalRecord[] = [];
   loading = false;
@@ -355,6 +418,8 @@ export class MedicalRecordsPage implements OnInit {
   showForm = false;
   formMode: FormMode = 'create';
   editingRecordId: number | null = null;
+  readonly currentUser = this.authService.currentUserValue;
+  readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
   readonly recordForm = this.fb.group({
     patient_id: [1, [Validators.required, Validators.min(1)]],
@@ -367,12 +432,21 @@ export class MedicalRecordsPage implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((params) => {
-      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
-      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      const nextSpecialtyKey =
+        this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
+      const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
+      const shouldOpenCreate = params.get('mode') === 'create';
+      const scopeChanged =
+        nextSpecialtyKey !== this.activeSpecialtyKey ||
+        nextPatientId !== this.activePatientId;
       this.activeSpecialtyKey = nextSpecialtyKey;
+      this.activePatientId = nextPatientId ?? null;
 
       if (scopeChanged || this.records.length === 0) {
         this.loadRecords();
+      }
+      if (shouldOpenCreate && !this.showForm) {
+        this.openCreateForm();
       }
     });
   }
@@ -385,6 +459,26 @@ export class MedicalRecordsPage implements OnInit {
       this.activePatientId = null;
     }
     this.loadRecords();
+  }
+
+  openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
+    if (!this.activePatientId) {
+      return;
+    }
+    this.router.navigate([`/${route}`], {
+      queryParams: buildClinicalScopeQueryParams({
+        patientId: this.activePatientId,
+        specialtyKey: this.activeSpecialtyKey
+      })
+    });
+  }
+
+  clearPatientScope(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { patient_id: null, patientId: null, mode: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   loadRecords(): void {
@@ -512,8 +606,14 @@ export class MedicalRecordsPage implements OnInit {
       });
   }
 
-  deleteRecord(record: MedicalRecord): void {
-    const confirmed = window.confirm(`Eliminar registro medico #${record.id}?`);
+  async deleteRecord(record: MedicalRecord): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar registro medico',
+      message: `Eliminar registro medico #${record.id}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
@@ -552,6 +652,18 @@ export class MedicalRecordsPage implements OnInit {
     }
     const normalized = rawKey.trim().toLowerCase();
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
+  }
+
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private resolveSessionSpecialtyKey(): string | undefined {
+    if (this.currentUser?.role !== 'professional') {
+      return undefined;
+    }
+    return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
   }
 
   private resolveErrorMessage(error: unknown): string {

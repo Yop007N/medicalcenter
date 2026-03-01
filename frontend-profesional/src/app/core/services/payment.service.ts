@@ -24,29 +24,47 @@ export interface Payment {
 export class PaymentService {
   constructor(private api: ApiService) {}
 
-  getPayments(filters?: { budget_id?: number; status?: string; specialty_key?: string }): Observable<Payment[]> {
+  getPayments(filters?: { budget_id?: number; patient_id?: number; status?: string; specialty_key?: string }): Observable<Payment[]> {
     return this.api
       .get<CollectionResponse<Payment>>(API_ENDPOINTS.payments.base, filters)
       .pipe(mapCollectionItems<Payment>());
   }
 
-  getPaymentById(id: number): Observable<Payment> {
-    return this.api.get<Payment>(API_ENDPOINTS.payments.byId(id));
+  getPaymentById(id: number, specialtyKey?: string): Observable<Payment> {
+    return this.api.get<Payment>(
+      API_ENDPOINTS.payments.byId(id),
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 
-  createPayment(payment: Partial<Payment>): Observable<Payment> {
-    return this.api.post<Payment>(API_ENDPOINTS.payments.base, payment);
+  createPayment(payment: Partial<Payment>, specialtyKey?: string): Observable<Payment> {
+    return this.api.post<Payment>(
+      API_ENDPOINTS.payments.base,
+      payment,
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 
-  updatePayment(id: number, payment: Partial<Payment>): Observable<Payment> {
-    return this.api.put<Payment>(API_ENDPOINTS.payments.byId(id), payment);
+  updatePayment(id: number, payment: Partial<Payment>, specialtyKey?: string): Observable<Payment> {
+    return this.api.put<Payment>(
+      API_ENDPOINTS.payments.byId(id),
+      payment,
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 
-  deletePayment(id: number): Observable<void> {
-    return this.api.delete<void>(API_ENDPOINTS.payments.byId(id));
+  deletePayment(id: number, specialtyKey?: string): Observable<void> {
+    return this.api.delete<void>(
+      API_ENDPOINTS.payments.byId(id),
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 
-  processPayment(id: number): Observable<Payment> {
-    return this.api.post<Payment>(API_ENDPOINTS.payments.process(id), {});
+  processPayment(id: number, specialtyKey?: string): Observable<Payment> {
+    return this.api.post<Payment>(
+      API_ENDPOINTS.payments.process(id),
+      {},
+      specialtyKey ? { specialty_key: specialtyKey } : undefined,
+    );
   }
 }

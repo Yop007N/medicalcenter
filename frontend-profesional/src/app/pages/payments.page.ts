@@ -1,9 +1,13 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import { Payment, PaymentService } from '../core/services/payment.service';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -27,14 +31,26 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
 
       <div class="toolbar">
         <input
+          #patientInput
+          type="number"
+          min="1"
+          class="search-input"
+          placeholder="Filtrar por patient_id"
+          (keyup.enter)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
+        />
+        <input
           #budgetInput
           type="number"
           min="1"
           class="search-input"
           placeholder="Filtrar por budget_id"
-          (keyup.enter)="applyFilters(budgetInput.value, statusInput.value)"
+          (keyup.enter)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
         />
-        <select #statusInput class="search-input" (change)="applyFilters(budgetInput.value, statusInput.value)">
+        <select
+          #statusInput
+          class="search-input"
+          (change)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
+        >
           <option value="">Todos los estados</option>
           <option value="pending">pending</option>
           <option value="completed">completed</option>
@@ -48,6 +64,27 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (filterPatientId || filterBudgetId) {
+        <article class="scope-card">
+          <h2 class="scope-card__title">Workspace clinico contextual</h2>
+          <p class="scope-card__text">
+            @if (filterPatientId) { Paciente #{{ filterPatientId }}. }
+            @if (filterBudgetId) { Presupuesto #{{ filterBudgetId }}. }
+          </p>
+          <div class="scope-links">
+            @if (filterPatientId) {
+              <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
+              <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
+              <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
+              <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
+            } @else {
+              <button type="button" class="scope-link" (click)="openBudgetWorkspace()">Ver presupuesto</button>
+            }
+            <button type="button" class="scope-link scope-link--ghost" (click)="clearScope()">Quitar contexto</button>
+          </div>
+        </article>
+      }
 
       @if (activeSpecialtyKey) {
         <p class="scope-text">
@@ -166,6 +203,47 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-card {
+        border: 1px solid var(--ms-border);
+        background: var(--ms-surface-alt);
+        border-radius: 0.9rem;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem;
+      }
+
+      .scope-card__title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .scope-card__text {
+        margin: 0.3rem 0 0.7rem;
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .scope-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .scope-link {
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border-strong);
+        border-radius: 999px;
+        color: var(--ms-text-primary);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .scope-link--ghost {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .scope-text {
@@ -374,8 +452,12 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
 })
 export class PaymentsPage implements OnInit {
   private readonly paymentService = inject(PaymentService);
+  private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
   payments: Payment[] = [];
   loading = false;
@@ -384,10 +466,13 @@ export class PaymentsPage implements OnInit {
   successMessage: string | null = null;
   fieldError: string | null = null;
   showForm = false;
+  filterPatientId: number | undefined;
   filterBudgetId: number | undefined;
   filterStatus: string | undefined;
   activeSpecialtyKey: string | undefined;
   processingIds = new Set<number>();
+  readonly currentUser = this.authService.currentUserValue;
+  readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
   readonly paymentForm = this.fb.group({
     budget_id: [0],
@@ -398,28 +483,74 @@ export class PaymentsPage implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((params) => {
-      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
-      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      const nextSpecialtyKey =
+        this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
+      const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
+      const nextBudgetId = this.normalizePositiveNumber(params.get('budget_id') ?? params.get('budgetId'));
+      const shouldOpenCreate = params.get('mode') === 'create';
+      const scopeChanged =
+        nextSpecialtyKey !== this.activeSpecialtyKey ||
+        nextPatientId !== this.filterPatientId ||
+        nextBudgetId !== this.filterBudgetId;
       this.activeSpecialtyKey = nextSpecialtyKey;
+      this.filterPatientId = nextPatientId;
+      this.filterBudgetId = nextBudgetId;
 
       if (scopeChanged || this.payments.length === 0) {
         this.loadPayments();
       }
+      if (shouldOpenCreate && !this.showForm) {
+        this.openCreateForm();
+      }
     });
   }
 
-  applyFilters(rawBudgetId: string, status: string): void {
+  applyFilters(rawPatientId: string, rawBudgetId: string, status: string): void {
+    const patientId = Number(rawPatientId);
     const budgetId = Number(rawBudgetId);
+    this.filterPatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
     this.filterBudgetId = Number.isInteger(budgetId) && budgetId > 0 ? budgetId : undefined;
     this.filterStatus = status.trim() || undefined;
     this.loadPayments();
+  }
+
+  openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
+    if (!this.filterPatientId) {
+      return;
+    }
+    this.router.navigate([`/${route}`], {
+      queryParams: buildClinicalScopeQueryParams({
+        patientId: this.filterPatientId,
+        specialtyKey: this.activeSpecialtyKey
+      })
+    });
+  }
+
+  openBudgetWorkspace(): void {
+    this.router.navigate(['/budgets'], {
+      queryParams: buildClinicalScopeQueryParams({
+        budgetId: this.filterBudgetId,
+        specialtyKey: this.activeSpecialtyKey
+      })
+    });
+  }
+
+  clearScope(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { patient_id: null, patientId: null, budget_id: null, budgetId: null, mode: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   loadPayments(): void {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters: { budget_id?: number; status?: string; specialty_key?: string } = {};
+    const filters: { patient_id?: number; budget_id?: number; status?: string; specialty_key?: string } = {};
+    if (this.filterPatientId) {
+      filters.patient_id = this.filterPatientId;
+    }
     if (this.filterBudgetId) {
       filters.budget_id = this.filterBudgetId;
     }
@@ -448,7 +579,7 @@ export class PaymentsPage implements OnInit {
     this.fieldError = null;
     this.successMessage = null;
     this.paymentForm.reset({
-      budget_id: 0,
+      budget_id: this.filterBudgetId ?? 0,
       amount: 0,
       payment_method: 'cash',
       notes: ''
@@ -483,7 +614,7 @@ export class PaymentsPage implements OnInit {
     this.successMessage = null;
 
     this.paymentService
-      .createPayment(payload)
+      .createPayment(payload, this.activeSpecialtyKey)
       .pipe(finalize(() => (this.submitting = false)))
       .subscribe({
         next: (createdPayment) => {
@@ -506,7 +637,7 @@ export class PaymentsPage implements OnInit {
     this.errorMessage = null;
     this.successMessage = null;
 
-    this.paymentService.processPayment(payment.id).subscribe({
+    this.paymentService.processPayment(payment.id, this.activeSpecialtyKey).subscribe({
       next: (updatedPayment) => {
         this.payments = this.payments.map((item) =>
           item.id === payment.id ? { ...item, ...updatedPayment } : item
@@ -521,15 +652,21 @@ export class PaymentsPage implements OnInit {
     });
   }
 
-  deletePayment(payment: Payment): void {
-    const confirmed = window.confirm(`Eliminar pago #${payment.id}?`);
+  async deletePayment(payment: Payment): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar pago',
+      message: `Eliminar pago #${payment.id}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
 
     this.errorMessage = null;
     this.successMessage = null;
-    this.paymentService.deletePayment(payment.id).subscribe({
+    this.paymentService.deletePayment(payment.id, this.activeSpecialtyKey).subscribe({
       next: () => {
         this.payments = this.payments.filter((item) => item.id !== payment.id);
         this.successMessage = `Pago #${payment.id} eliminado correctamente.`;
@@ -565,5 +702,17 @@ export class PaymentsPage implements OnInit {
     }
     const normalized = rawKey.trim().toLowerCase();
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
+  }
+
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private resolveSessionSpecialtyKey(): string | undefined {
+    if (this.currentUser?.role !== 'professional') {
+      return undefined;
+    }
+    return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
   }
 }

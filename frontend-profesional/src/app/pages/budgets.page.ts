@@ -1,10 +1,14 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import { BudgetService } from '../core/services/budget.service';
 import { Budget } from '../shared/models/budget.model';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -54,6 +58,20 @@ type BudgetStatus = Budget['status'];
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (filterPatientId) {
+        <article class="scope-card">
+          <h2 class="scope-card__title">Workspace clinico paciente #{{ filterPatientId }}</h2>
+          <p class="scope-card__text">Navegacion rapida entre modulos conservando el contexto actual.</p>
+          <div class="scope-links">
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
+            <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
+          </div>
+        </article>
+      }
 
       @if (activeSpecialtyKey) {
         <p class="scope-text">
@@ -205,6 +223,47 @@ type BudgetStatus = Budget['status'];
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-card {
+        border: 1px solid var(--ms-border);
+        background: var(--ms-surface-alt);
+        border-radius: 0.9rem;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem;
+      }
+
+      .scope-card__title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .scope-card__text {
+        margin: 0.3rem 0 0.7rem;
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .scope-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .scope-link {
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border-strong);
+        border-radius: 999px;
+        color: var(--ms-text-primary);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .scope-link--ghost {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .scope-text {
@@ -420,8 +479,12 @@ type BudgetStatus = Budget['status'];
 })
 export class BudgetsPage implements OnInit {
   private readonly budgetService = inject(BudgetService);
+  private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
   budgets: Budget[] = [];
   loading = false;
@@ -437,6 +500,8 @@ export class BudgetsPage implements OnInit {
   activeSpecialtyKey: string | undefined;
   sendingIds = new Set<number>();
   deletingIds = new Set<number>();
+  readonly currentUser = this.authService.currentUserValue;
+  readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
   readonly budgetForm = this.fb.group({
     patient_id: [1, [Validators.required, Validators.min(1)]],
@@ -449,12 +514,21 @@ export class BudgetsPage implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((params) => {
-      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
-      const scopeChanged = nextSpecialtyKey !== this.activeSpecialtyKey;
+      const nextSpecialtyKey =
+        this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
+      const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
+      const shouldOpenCreate = params.get('mode') === 'create';
+      const scopeChanged =
+        nextSpecialtyKey !== this.activeSpecialtyKey ||
+        nextPatientId !== this.filterPatientId;
       this.activeSpecialtyKey = nextSpecialtyKey;
+      this.filterPatientId = nextPatientId;
 
       if (scopeChanged || this.budgets.length === 0) {
         this.loadBudgets();
+      }
+      if (shouldOpenCreate && !this.showForm) {
+        this.openCreateForm();
       }
     });
   }
@@ -464,6 +538,26 @@ export class BudgetsPage implements OnInit {
     this.filterPatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
     this.filterStatus = this.normalizeStatus(rawStatus);
     this.loadBudgets();
+  }
+
+  openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
+    if (!this.filterPatientId) {
+      return;
+    }
+    this.router.navigate([`/${route}`], {
+      queryParams: buildClinicalScopeQueryParams({
+        patientId: this.filterPatientId,
+        specialtyKey: this.activeSpecialtyKey
+      })
+    });
+  }
+
+  clearPatientScope(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { patient_id: null, patientId: null, mode: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   loadBudgets(): void {
@@ -557,8 +651,14 @@ export class BudgetsPage implements OnInit {
     this.updateBudget(payload);
   }
 
-  deleteBudget(budget: Budget): void {
-    const confirmed = globalThis.confirm(`Eliminar presupuesto #${budget.id}? Esta accion no se puede deshacer.`);
+  async deleteBudget(budget: Budget): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar presupuesto',
+      message: `Eliminar presupuesto #${budget.id}? Esta accion no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
@@ -567,7 +667,7 @@ export class BudgetsPage implements OnInit {
     this.errorMessage = null;
     this.successMessage = null;
 
-    this.budgetService.deleteBudget(budget.id).subscribe({
+    this.budgetService.deleteBudget(budget.id, this.activeSpecialtyKey).subscribe({
       next: () => {
         this.budgets = this.budgets.filter((item) => item.id !== budget.id);
         this.deletingIds.delete(budget.id);
@@ -589,7 +689,7 @@ export class BudgetsPage implements OnInit {
     this.errorMessage = null;
     this.successMessage = null;
 
-    this.budgetService.sendBudget(budgetId).subscribe({
+    this.budgetService.sendBudget(budgetId, this.activeSpecialtyKey).subscribe({
       next: (updatedBudget) => {
         this.budgets = this.budgets.map((budget) =>
           budget.id === budgetId ? { ...budget, ...updatedBudget } : budget
@@ -605,7 +705,7 @@ export class BudgetsPage implements OnInit {
   }
 
   private createBudget(payload: Partial<Budget>): void {
-    this.budgetService.createBudget(payload).subscribe({
+    this.budgetService.createBudget(payload, this.activeSpecialtyKey).subscribe({
       next: (budget) => {
         this.budgets = [budget, ...this.budgets];
         this.submitting = false;
@@ -626,7 +726,7 @@ export class BudgetsPage implements OnInit {
       return;
     }
 
-    this.budgetService.updateBudget(this.editingBudgetId, payload).subscribe({
+    this.budgetService.updateBudget(this.editingBudgetId, payload, this.activeSpecialtyKey).subscribe({
       next: (updatedBudget) => {
         this.budgets = this.budgets.map((budget) =>
           budget.id === updatedBudget.id ? { ...budget, ...updatedBudget } : budget
@@ -681,6 +781,18 @@ export class BudgetsPage implements OnInit {
     }
     const normalized = rawKey.trim().toLowerCase();
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
+  }
+
+  private resolveSessionSpecialtyKey(): string | undefined {
+    if (this.currentUser?.role !== 'professional') {
+      return undefined;
+    }
+    return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
+  }
+
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
   }
 
   private normalizeDateValue(rawDate: string): string | undefined {

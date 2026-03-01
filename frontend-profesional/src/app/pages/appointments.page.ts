@@ -1,11 +1,13 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
+import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
 import { AppointmentService } from '../core/services/appointment.service';
 import { Appointment } from '../shared/models/appointment.model';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -55,6 +57,20 @@ type AppointmentStatus = Appointment['status'];
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
+
+      @if (filterPatientId) {
+        <article class="scope-card">
+          <h2 class="scope-card__title">Workspace clinico paciente #{{ filterPatientId }}</h2>
+          <p class="scope-card__text">Navegacion rapida entre modulos conservando el mismo contexto.</p>
+          <div class="scope-links">
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
+            <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
+          </div>
+        </article>
+      }
 
       @if (filterSpecialtyKey) {
         <p class="scope-text">
@@ -229,6 +245,47 @@ type AppointmentStatus = Appointment['status'];
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-bottom: 0.75rem;
+      }
+
+      .scope-card {
+        border: 1px solid var(--ms-border);
+        background: var(--ms-surface-alt);
+        border-radius: 0.9rem;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem;
+      }
+
+      .scope-card__title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .scope-card__text {
+        margin: 0.3rem 0 0.7rem;
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+      }
+
+      .scope-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .scope-link {
+        background: var(--ms-bg-card);
+        border: 1px solid var(--ms-border-strong);
+        border-radius: 999px;
+        color: var(--ms-text-primary);
+        cursor: pointer;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+      }
+
+      .scope-link--ghost {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .scope-text {
@@ -444,8 +501,10 @@ type AppointmentStatus = Appointment['status'];
 export class AppointmentsPage implements OnInit {
   private readonly appointmentService = inject(AppointmentService);
   private readonly authService = inject(AuthService);
+  private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   appointments: Appointment[] = [];
   loading = false;
@@ -464,6 +523,7 @@ export class AppointmentsPage implements OnInit {
 
   readonly currentUser = this.authService.currentUserValue;
   readonly isProfessionalSession = this.currentUser?.role === 'professional';
+  readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
   readonly appointmentForm = this.fb.group({
     patient_id: [1, [Validators.required, Validators.min(1)]],
@@ -482,12 +542,21 @@ export class AppointmentsPage implements OnInit {
       this.appointmentForm.patchValue({ professional_id: sessionUserId });
     }
     this.route.queryParamMap.subscribe((params) => {
-      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
-      const scopeChanged = nextSpecialtyKey !== this.filterSpecialtyKey;
+      const nextSpecialtyKey =
+        this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
+      const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
+      const shouldOpenCreate = params.get('mode') === 'create';
+      const scopeChanged =
+        nextSpecialtyKey !== this.filterSpecialtyKey ||
+        nextPatientId !== this.filterPatientId;
       this.filterSpecialtyKey = nextSpecialtyKey;
+      this.filterPatientId = nextPatientId;
 
       if (scopeChanged || this.appointments.length === 0) {
         this.loadAppointments();
+      }
+      if (shouldOpenCreate && !this.showForm) {
+        this.openCreateForm();
       }
     });
   }
@@ -497,6 +566,26 @@ export class AppointmentsPage implements OnInit {
     this.filterPatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
     this.filterStatus = this.normalizeStatus(rawStatus);
     this.loadAppointments();
+  }
+
+  openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
+    if (!this.filterPatientId) {
+      return;
+    }
+    this.router.navigate([`/${route}`], {
+      queryParams: buildClinicalScopeQueryParams({
+        patientId: this.filterPatientId,
+        specialtyKey: this.filterSpecialtyKey
+      })
+    });
+  }
+
+  clearPatientScope(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { patient_id: null, patientId: null, mode: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   loadAppointments(): void {
@@ -722,6 +811,18 @@ export class AppointmentsPage implements OnInit {
     }
     const normalized = rawKey.trim().toLowerCase();
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
+  }
+
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private resolveSessionSpecialtyKey(): string | undefined {
+    if (this.currentUser?.role !== 'professional') {
+      return undefined;
+    }
+    return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
   }
 
   private normalizeDateTimeValue(rawDate: string): string {
