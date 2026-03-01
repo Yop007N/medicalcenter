@@ -101,6 +101,15 @@ docker run --rm --network host \
   node /work/scripts/professional_ui_smoke.mjs
 ```
 
+### Profesional (suite E2E propia del frontend profesional)
+```bash
+cd frontend-profesional
+BASE_URL=http://<IP_SERVIDOR> \
+E2E_PROFESSIONAL_EMAIL=doctor@medical.com \
+E2E_PROFESSIONAL_PASSWORD=doctor123 \
+npm run e2e:chromium
+```
+
 ### Admin/Profesional (suite critica frontend principal)
 Desde el repo:
 
@@ -109,6 +118,15 @@ cd frontend-admin-profesional
 BASE_URL=http://localhost:4200 \
 LD_LIBRARY_PATH=$HOME/.local/playwright-deps/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH \
 npx playwright test --config=e2e/playwright.config.ts --project=chromium --no-deps e2e/tests/critical-smoke.spec.ts
+```
+
+### Paciente (suite E2E propia del PWA)
+```bash
+cd frontend-paciente
+BASE_URL=http://<IP_SERVIDOR>:8100 \
+E2E_PATIENT_EMAIL=patient@medical.com \
+E2E_PATIENT_PASSWORD=patient123 \
+npm run e2e:chromium
 ```
 
 Si el host no tiene `libasound.so.2` y no hay sudo disponible:

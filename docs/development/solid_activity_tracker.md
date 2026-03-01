@@ -1,6 +1,6 @@
 # SOLID Activity Tracker
 
-Updated: 2026-02-25
+Updated: 2026-02-26
 
 ## Objetivo
 Evitar trabajo duplicado y medir avance real por modulo con evidencia ejecutable.
@@ -50,6 +50,32 @@ Un item se considera terminado solo cuando tiene al menos:
 | backend `logs` split services | backend | DONE | `LogsService` + recurso HTTP delgado + `tests/test_logs_frontend.py` | 2026-02-24 |
 | backend `sync_service` TODOs | backend | DONE | estados `pending/in_progress/completed/failed` + tests `test_sync_service.py` | 2026-02-24 |
 | backend `notification_service` TODOs | backend | DONE | proveedores `log/disabled` para sms/push + tests `test_notification_service.py` | 2026-02-24 |
+| compose/prod healthchecks hardening | ops/devops | DONE | healthchecks + `depends_on: service_healthy` + `docker compose ps` con todos `healthy` | 2026-02-26 |
+| backend `auth/logout` token revocation | backend/security | DONE | blocklist JWT (Redis + fallback), callback `token_in_blocklist_loader`, test de token revocado | 2026-02-26 |
+| frontend-profesional `e2e` suite propia | professional | DONE | Playwright config + smoke login/dashboard/patients(create)/appointments | 2026-02-26 |
+| frontend-paciente `e2e` suite propia | patient | DONE | Playwright config + smoke login/dashboard/turnos disponibilidad/historia odontograma | 2026-02-26 |
+| frontend-paciente disponibilidad cercana real | patient | DONE | orden y selección automática por slot más cercano + filtros por especialidad/profesional | 2026-02-26 |
+| frontend-admin módulo especialidades (timeline/docs) | admin/professional | DONE | overview con `recent_specialty_encounters` y `recent_documents` filtrados por especialidad | 2026-02-26 |
+| logout revocado integrado en frontend-profesional/frontend-paciente | professional/patient | DONE | ambos clientes llaman `POST /api/auth/logout` y limpian sesión en `finalize` | 2026-02-26 |
+| P3 lane A1 módulos dedicados por especialidad (admin/professional) | admin/professional | IN_PROGRESS | navegación consolidada por especialidad con home dedicado + redirect legacy + factoría de rutas (pendiente sustituir `workspace` genérico) | 2026-03-01 |
+| P3 lane A2 segmentación de historiales por especialidad | admin/professional | IN_PROGRESS | filtros server-side + fallback profesional por especialidad propia en `appointments/medical-records/files/budgets/payments/patients` | 2026-03-01 |
+| P3 lane A3 unificación UI transversal (modales/tokens) | admin/professional | PENDING | eliminación de modales nativos + tokens únicos aplicados globalmente | 2026-02-26 |
+| P3 lane A4 archivos contextuales por paciente | admin/professional | IN_PROGRESS | `/files` vacío sin selección + listado exclusivo del paciente seleccionado | 2026-02-26 |
+| P3 lane B1 workspace profesional por asignación | professional | IN_PROGRESS | validación create/update de citas contra asignación real + auto-asignación solo en primer contacto sin owner | 2026-03-01 |
+| P3 lane B2 alta de paciente con credenciales y asignación | professional | PENDING | create paciente -> login paciente válido -> relación con profesional | 2026-02-26 |
+| P3 lane B3 módulo clínico por especialidad en web profesional | professional | PENDING | flujo clínico especializado operativo por rol/especialidad | 2026-02-26 |
+| P3 lane B4 E2E profundo frontend-profesional | professional | PENDING | CRUD real en patients/appointments/records/files/budgets/payments | 2026-02-26 |
+| P3 lane C1 agenda inteligente paciente por slot real | patient | IN_PROGRESS | búsqueda por especialidad/profesional + slot libre más cercano | 2026-02-26 |
+| P3 lane C2 historia clínica paciente por especialidad | patient | PENDING | timeline especializado + odontograma lectura + documentos por área | 2026-02-26 |
+| P3 lane C3 UX/UI paciente premium | patient | PENDING | mejora visual y de interacción mobile-first consistente | 2026-02-26 |
+| P3 lane C4 E2E profundo frontend-paciente | patient | PENDING | journeys completos de turnos/historia/presupuestos/perfil | 2026-02-26 |
+| P3 lane D1 asignación profesional-paciente-especialidad backend | backend | IN_PROGRESS | modelo y reglas centralizadas en servicios de acceso + filtros server-side por `specialty_key` | 2026-02-26 |
+| P3 lane D2 motor disponibilidad + anti double-booking | backend | IN_PROGRESS | endpoint de slots + validación transaccional de reserva por rango horario | 2026-02-26 |
+| P3 lane D3 endpoints clínicos especializados | backend | PENDING | timeline/documentos/resumen por especialidad | 2026-02-26 |
+| P3 lane D4 seed clínico realista no hardcodeado | backend/db | PENDING | script reproducible de datos por especialidad/actor | 2026-02-26 |
+| P3 lane E1 matriz E2E por actor/especialidad | qa/release | PENDING | evidencia automatizada consolidada por lane | 2026-02-26 |
+| P3 lane E2 contract tests APIs compartidas | qa/backend/frontend | PENDING | validación de contrato en CI para evitar regresiones | 2026-02-26 |
+| P3 lane E3 checklist release/rollback por lane | ops/devops | PENDING | checklist ejecutable + rollback validado por actor | 2026-02-26 |
 
 ## Regla operativa para no duplicar
 Antes de empezar un item:
@@ -100,3 +126,40 @@ Antes de empezar un item:
 - `docker run --rm --network host ... node /work/scripts/professional_ui_smoke.mjs` (BASE_URL `http://10.4.33.184`) -> `PASS` en `/dashboard,/professionals,/patients,/appointments,/medical-records,/budgets,/payments,/reports`.
 - `cd frontend-admin-profesional && BASE_URL=http://10.4.33.184:4200 ... npx playwright test --config=e2e/playwright.config.ts --project=chromium --no-deps e2e/tests/critical-smoke.spec.ts` -> `5 passed`.
 - `docker run --rm --network host ... node patient_ui_smoke.mjs` (BASE_URL `http://10.4.33.184:8100`) -> `PASS` en `/dashboard,/my-appointments,/my-budgets,/my-history,/my-profile`.
+
+## Evidencia ejecutada (2026-02-26)
+- `docker compose config` -> `DEV_CONFIG_OK`.
+- `docker compose -f docker-compose.prod.yml config` -> `PROD_CONFIG_OK`.
+- `docker compose up -d` -> arranque con gating por `service_healthy`.
+- `docker compose ps` -> `postgres/redis/backend/celery/frontend-web/frontend-admin/frontend-pwa` en `healthy`.
+- `docker compose exec -T backend pytest -q tests/test_auth.py tests/test_specialties.py` -> `32 passed`.
+- `cd frontend-admin-profesional && npm run build` -> `PASS`.
+- `cd frontend-profesional && npm run build` -> `PASS`.
+- `cd frontend-paciente && npm run build` -> `PASS`.
+- `cd frontend-profesional && BASE_URL=http://10.4.33.184 npm run e2e:chromium` -> `3 passed`.
+- `cd frontend-paciente && BASE_URL=http://10.4.33.184:8100 npm run e2e:chromium` -> `3 passed`.
+
+## Evidencia ejecutada (2026-03-01)
+- `npm --prefix frontend-admin-profesional run build` -> `PASS`.
+- `cd frontend-admin-profesional && LD_LIBRARY_PATH=/home/cfernanv/workspace/pro/empresas/medical-services/frontend-profesional/.local-libs/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH BASE_URL=http://10.4.33.184:4200 npm run e2e:critical` -> `5 passed`.
+- refactor A1 aplicado:
+  - `frontend-admin-profesional/src/app/features/specialties/specialty-home/specialty-routes.factory.ts`
+  - `frontend-admin-profesional/src/app/features/specialties/legacy-specialty-redirect.page.ts`
+  - `frontend-admin-profesional/src/app/core/constants/specialty-navigation.ts`
+  - `frontend-admin-profesional/src/app/layouts/main-layout/main-layout.component.ts`
+  - `frontend-admin-profesional/src/app/app.routes.ts`
+  - 21 archivos `*.routes.ts` de especialidades migrados a `buildSpecialtyHomeRoutes(...)`.
+- `cd frontend-admin-profesional && BASE_URL=http://10.4.33.184:4200 npm run e2e:critical` -> `5 passed`.
+- `docker compose exec -T backend pytest -q tests/test_patients.py tests/test_appointments.py tests/test_professionals.py tests/test_medical_records.py` -> `92 passed`.
+- `docker compose exec -T backend pytest -q tests/test_auth.py` -> `28 passed`.
+- `docker compose exec -T backend pytest -q tests/test_patients.py` -> `29 passed` (incluye create paciente -> login con credenciales nuevas).
+- `npm --prefix frontend-profesional run build` -> `PASS`.
+- `npm --prefix frontend-admin-profesional run build` -> `PASS`.
+- `npm --prefix frontend-paciente run build` -> `PASS`.
+- `cd frontend-profesional && BASE_URL=http://127.0.0.1 LD_LIBRARY_PATH=$HOME/.local/playwright-deps/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH npm run e2e:chromium` -> `3 passed`.
+- `cd frontend-paciente && BASE_URL=http://127.0.0.1:8100 LD_LIBRARY_PATH=$HOME/.local/playwright-deps/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH npm run e2e:chromium` -> `3 passed`.
+- `cd frontend-admin-profesional && BASE_URL=http://127.0.0.1:4200 LD_LIBRARY_PATH=$HOME/.local/playwright-deps/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH npm run e2e:critical` -> `5 passed`.
+- `PYTHONDONTWRITEBYTECODE=1 pytest -q -o addopts= backend/tests/test_appointments.py::TestCreateAppointment::test_create_appointment_auto_assigns_unlinked_patient_for_professional backend/tests/test_appointments.py::TestCreateAppointment::test_create_appointment_rejects_patient_owned_by_other_professional backend/tests/test_appointments.py::TestUpdateAppointment::test_update_appointment_rejects_patient_outside_professional_scope` -> `3 passed`.
+- `PYTHONDONTWRITEBYTECODE=1 pytest -q -o addopts= backend/tests/test_appointments.py::TestCreateAppointment::test_create_appointment_success backend/tests/test_budgets.py::TestListBudgets::test_professional_can_list_budgets_scoped_by_own_specialty backend/tests/test_files.py::TestListFilesScope::test_professional_can_list_files_scoped_by_own_specialty backend/tests/test_payments.py::TestListPayments::test_professional_can_list_payments_scoped_by_own_specialty backend/tests/test_patients.py::TestListPatients::test_professional_list_patients_filtered_by_specialty_key backend/tests/test_medical_records.py::TestListMedicalRecords::test_list_medical_records_filter_by_specialty_key_for_admin` -> `6 passed`.
+- `npm --prefix frontend-profesional run build` -> `PASS`.
+- `cd frontend-profesional && BASE_URL=http://10.4.33.184 LD_LIBRARY_PATH=/home/cfernanv/workspace/pro/empresas/medical-services/frontend-profesional/.local-libs/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH npm run e2e -- e2e/tests/specialty-scope-smoke.spec.ts --project=chromium` -> `1 passed`.

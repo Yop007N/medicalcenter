@@ -1,6 +1,6 @@
 # Auditoria Docker Compose
 
-Actualizado: 2026-02-14
+Actualizado: 2026-02-26
 
 ## Archivos auditados
 - `docker-compose.yml`
@@ -32,9 +32,10 @@ Comando de validacion sintactica ejecutado:
 - `S3_ACCESS_KEY`
 - `S3_SECRET_KEY`
 
-4. Healthchecks:
-- Solo `docker-compose.db.yml` define `healthcheck` explicito (PostgreSQL).
-- `docker-compose.yml` y `docker-compose.prod.yml` no tienen healthchecks de backend/redis/nginx.
+4. Healthchecks y gating de arranque:
+- `docker-compose.yml`: `DONE` (postgres/redis/backend/celery/frontend-web/frontend-admin/frontend-pwa con `healthcheck` + `depends_on.condition=service_healthy`).
+- `docker-compose.prod.yml`: `DONE` (postgres/redis/backend/celery/nginx con `healthcheck` + `depends_on.condition=service_healthy`).
+- `version` obsoleta removida de ambos compose para eliminar warning operativo.
 
 ## Checklist minimo de healthchecks recomendado
 - `postgres`: `pg_isready`.
@@ -42,6 +43,21 @@ Comando de validacion sintactica ejecutado:
 - `backend`: `GET /health` o endpoint equivalente.
 - `nginx`: check HTTP 200 de upstream.
 - `celery`: ping de worker (`celery inspect ping`) o probe de liveness del proceso.
+
+## Cierre tecnico (2026-02-26)
+- Validacion sintactica:
+  - `docker compose config` -> `DEV_CONFIG_OK`.
+  - `docker compose -f docker-compose.prod.yml config` -> `PROD_CONFIG_OK`.
+- Validacion runtime:
+  - `docker compose up -d`.
+  - `docker compose ps` -> servicios en `healthy`:
+    - `medical-services-db`
+    - `medical-services-redis`
+    - `medical-services-backend`
+    - `medical-services-celery`
+    - `medical-services-frontend-web`
+    - `medical-services-frontend-admin`
+    - `medical-services-frontend-pwa`
 
 ## Validacion runtime dev (2026-02-14)
 - Stack completo levantado con `docker compose -f docker-compose.yml up -d` y override `FRONTEND_WEB_PORT=4201`.
@@ -61,5 +77,4 @@ Comando de validacion sintactica ejecutado:
 ## Acciones de cierre propuestas
 1. Estandarizar red y credenciales de desarrollo para evitar divergencia de entorno.
 2. Consolidar variables de entorno root en `.env.compose.example`.
-3. Agregar healthchecks graduales en `docker-compose.yml` y `docker-compose.prod.yml`.
-4. Definir un perfil unico de arranque local (`db-only`, `full-stack`) con comandos documentados.
+3. Definir un perfil unico de arranque local (`db-only`, `full-stack`) con comandos documentados.
