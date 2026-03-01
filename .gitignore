@@ -36,6 +36,7 @@ docs/roadmap/
 
 # Logs
 logs/
+backend/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -75,6 +76,22 @@ frontend-paciente/www/
 frontend-admin-profesional/demo-gifs/DEMO-COMPLETO-MEDICAL-SERVICES.gif
 coverage/
 *.tsbuildinfo
+frontend-profesional/test-results/
+frontend-admin-profesional/test-results/
+frontend-paciente/test-results/
+docs/development/wave_reports/
+frontend-profesional/e2e/playwright-artifacts/
+frontend-profesional/e2e/playwright-html-report/
+frontend-profesional/e2e/playwright-report/
+frontend-profesional/.local-libs/
+frontend-admin-profesional/e2e/playwright-artifacts/
+frontend-admin-profesional/e2e/playwright-html-report/
+frontend-admin-profesional/e2e/playwright-report/
+frontend-paciente/e2e/playwright-artifacts/
+frontend-paciente/e2e/playwright-html-report/
+frontend-paciente/e2e/playwright-report/
+playwright-artifacts/
+playwright-report/
 
 # Database
 *.db
