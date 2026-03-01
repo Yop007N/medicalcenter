@@ -1,9 +1,9 @@
 # Synchronization Strategy (estado real)
 
-Actualizado: 2026-02-25
+Actualizado: 2026-03-01
 
 ## Objetivo
-Documentar el estado implementado de sync y las brechas reales de cierre productivo.
+Documentar el estado implementado de sync, su cobertura efectiva y brechas reales de release.
 
 ## Implementado
 
@@ -47,7 +47,7 @@ Documentar el estado implementado de sync y las brechas reales de cierre product
 ## Brechas pendientes reales
 - E2E offline/online mas profundo en frontends contra entorno de despliegue.
 - Cobertura sync para entidades adicionales si entran al alcance final.
-- Politicas de merge de negocio para casos donde `server_wins` no sea suficiente.
+- Politicas de merge de negocio por dominio (cuando `server_wins` no sea suficiente).
 
 ## Criterio de cierre de sync para release
 - Smoke sync por actor en entorno de despliegue.

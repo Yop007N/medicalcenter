@@ -1,6 +1,6 @@
 # Flujo Operativo del Sistema
 
-Actualizado: 2026-02-25
+Actualizado: 2026-03-01
 Sistema: Medical Services
 
 ## 1. Objetivo
@@ -26,8 +26,8 @@ El flujo esta alineado con los casos de uso UC-MS-001..UC-MS-017 y con los endpo
 
 | Frontend | Stack | Actor habilitado | Regla de acceso |
 |---|---|---|---|
-| `frontend-admin-profesional` | Angular | Administrador | Acceso exclusivo para `admin` (gobierno total de modulos). |
-| `frontend-profesional` | Angular | Profesional | Acceso exclusivo para `professional`; modulos de especialidad visibles/operables segun `specialty`. |
+| `frontend-admin-profesional` | Angular | Administrador y Profesional | App principal para gobierno (`admin`) y operacion clinica avanzada (`professional`) por especialidad. |
+| `frontend-profesional` | Angular | Profesional | Workspace profesional web con scope por pacientes asignados y `specialty_key`. |
 | `frontend-paciente` | Ionic (PWA) | Paciente | Acceso exclusivo para `patient`; solo datos propios y profesionales vinculados. |
 
 ## 3. Flujo operativo end-to-end (secuencia)
@@ -46,6 +46,8 @@ Fuente editable: `docs/uml/operational_flow_cycle.mmd`
 
 - Autenticacion JWT en endpoints operativos.
 - RBAC en operaciones sensibles (`admin_required`, `professional_required`).
+- Revocacion de token en `logout` via blocklist.
+- Scope clinico por especialidad (`specialty_key`) y asignacion profesional-paciente.
 - Trazabilidad por auditoria y `sync_logs`.
 - Limites de lote e idempotencia en sincronizacion.
 - Persistencia central en PostgreSQL y soporte asyncrono con Redis/Celery.

@@ -1,6 +1,6 @@
 # Endpoints, Acceso y Smoke Playwright
 
-Actualizado: 2026-02-25
+Actualizado: 2026-03-01
 
 ## Objetivo
 Consolidar en un solo documento:

@@ -1,6 +1,6 @@
 # Requisitos Funcionales y Casos de Uso Reales
 
-Actualizado: 2026-02-23
+Actualizado: 2026-03-01
 Proyecto: Medical Services
 Autor: Enrique Bobadilla
 

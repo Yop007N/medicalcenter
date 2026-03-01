@@ -1,6 +1,6 @@
 # Auditoria Backup/Restore Operativa
 
-Actualizado: 2026-02-14
+Actualizado: 2026-03-01
 
 ## Alcance auditado
 - `backend/app/tasks/backup_tasks.py`
@@ -38,15 +38,15 @@ Actualizado: 2026-02-14
 ## Procedimiento operativo recomendado
 ### Backup DB manual (contenedor postgres en compose)
 ```bash
-docker exec medical-services-postgres \
-  pg_dump -U ${POSTGRES_USER:-medical_user} ${POSTGRES_DB:-medical_services_dev} \
+docker compose exec -T postgres \
+  pg_dump -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-medical_services_dev} \
   > storage/backups/database/manual_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### Restore DB manual
 ```bash
-cat storage/backups/database/<backup>.sql | docker exec -i medical-services-postgres \
-  psql -U ${POSTGRES_USER:-medical_user} ${POSTGRES_DB:-medical_services_dev}
+cat storage/backups/database/<backup>.sql | docker compose exec -T postgres \
+  psql -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-medical_services_dev}
 ```
 
 ### Backup de archivos
@@ -71,4 +71,3 @@ tar -xzf storage/backups/files/<backup>.tar.gz -C .
 2. Publicar backup offsite (S3/objeto equivalente) cifrado.
 3. Programar prueba mensual de restore de punta a punta.
 4. Incorporar hash/verificacion de integridad post-backup.
-

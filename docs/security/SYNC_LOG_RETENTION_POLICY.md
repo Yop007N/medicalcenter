@@ -1,6 +1,6 @@
 # Politica de Retencion de Sync Logs
 
-Actualizado: 2026-02-14
+Actualizado: 2026-03-01
 
 ## Objetivo
 Definir retencion operativa de `sync_logs` para balancear trazabilidad, costo y privacidad.
@@ -38,4 +38,3 @@ Definir retencion operativa de `sync_logs` para balancear trazabilidad, costo y 
 ## Riesgos y mitigacion
 - Riesgo: borrar evidencia util para incidentes activos.
 - Mitigacion: excluir estados no terminales y exigir export de evidencia antes de cambios de retencion.
-

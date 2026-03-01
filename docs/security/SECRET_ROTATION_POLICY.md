@@ -1,6 +1,6 @@
 # Politica de Rotacion de Secretos
 
-Actualizado: 2026-02-14
+Actualizado: 2026-03-01
 
 ## Objetivo
 Reducir riesgo por exposicion de credenciales y estandarizar rotacion de secretos en `development`, `staging` y `production`.
@@ -43,4 +43,3 @@ Reducir riesgo por exposicion de credenciales y estandarizar rotacion de secreto
 - revocacion inmediata,
 - nuevo secreto,
 - registro de incidente.
-

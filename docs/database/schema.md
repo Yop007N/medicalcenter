@@ -1,56 +1,58 @@
-﻿# Medical Services - Database Schema (Estado real)
+# Medical Services - Database Schema (estado real)
 
-Actualizado: 2026-02-14
+Actualizado: 2026-03-01
 
 ## Fuente de verdad
 - Modelos SQLAlchemy en `backend/app/models/`
 - Migraciones en `backend/migrations/`
 
-Este documento reemplaza la version anterior simplificada de 9 tablas.
-
 ## Inventario actual
-- Total: 25 tablas de negocio
+- Total: 27 tablas de negocio
 
-### 1) Identidad
-- `users`: usuario base (email unico, rol, user_type)
-- `professionals`: extension de `users` para profesionales
-- `patients`: extension de `users` para pacientes
+### 1) Identidad y asignacion
+- `users`
+- `professionals`
+- `patients`
+- `professional_patient_assignments` (relacion profesional-paciente por especialidad)
 
 ### 2) Operacion clinica core
-- `appointments`: turnos
-- `medical_records`: fichas medicas
-- `files`: archivos vinculados a ficha
-- `budgets`: presupuestos
-- `payments`: pagos
-- `sync_logs`: trazas de sincronizacion
-- `audit_logs`: trazas de auditoria
+- `appointments`
+- `medical_records`
+- `files`
+- `budgets`
+- `payments`
+- `sync_logs`
+- `audit_logs`
+- `specialty_encounters`
 
 ### 3) Odontologia
-- `odontograms`: cabecera de odontograma
-- `teeth`: detalle por pieza dental
-- `dental_treatments`: tratamientos dentales
+- `odontograms`
+- `teeth`
+- `dental_treatments`
 
 ### 4) Psicologia
-- `psychological_evaluations`: evaluacion psicologica
-- `therapy_sessions`: sesiones terapeuticas
+- `psychological_evaluations`
+- `therapy_sessions`
 
 ### 5) Psicopedagogia
-- `psychopedagogical_evaluations`: evaluacion psicopedagogica
-- `intervention_sessions`: sesiones de intervencion
+- `psychopedagogical_evaluations`
+- `intervention_sessions`
 
 ### 6) Historia clinica odontologica
-- `evolutions`: evoluciones
-- `anamnesis`: anamnesis (1 por paciente)
-- `periodontal_records`: periodontograma por pieza/fecha
-- `patient_documents`: documentos de paciente
-- `prescriptions`: recetas
-- `clinical_documents`: documentos clinicos
-- `informed_consents`: consentimientos informados
-- `clinical_history_events`: eventos timeline
+- `evolutions`
+- `anamnesis`
+- `periodontal_records`
+- `patient_documents`
+- `prescriptions`
+- `clinical_documents`
+- `informed_consents`
+- `clinical_history_events`
 
 ## Relaciones principales
 - `professionals.id` -> `users.id`
 - `patients.id` -> `users.id`
+- `professional_patient_assignments.professional_id` -> `professionals.id`
+- `professional_patient_assignments.patient_id` -> `patients.id`
 - `appointments.patient_id` -> `patients.id`
 - `appointments.professional_id` -> `professionals.id`
 - `medical_records.patient_id` -> `patients.id`
@@ -61,20 +63,14 @@ Este documento reemplaza la version anterior simplificada de 9 tablas.
 - `budgets.patient_id` -> `patients.id`
 - `budgets.created_by` -> `users.id`
 - `payments.budget_id` -> `budgets.id`
+- `specialty_encounters.patient_id` -> `patients.id`
+- `specialty_encounters.professional_id` -> `professionals.id`
 
-Relaciones de especialidad:
-- Odontologia: `odontograms`, `teeth`, `dental_treatments`
-- Psicologia: `psychological_evaluations`, `therapy_sessions`
-- Psicopedagogia: `psychopedagogical_evaluations`, `intervention_sessions`
-- Historia clinica: `evolutions`, `anamnesis`, `periodontal_records`, `patient_documents`, `prescriptions`, `clinical_documents`, `informed_consents`, `clinical_history_events`
-
-## Indices declarados en modelos
+## Indices y restricciones clave
 - `appointments`: `idx_professional_date`, `idx_patient_date`, `idx_status_date`
 - `medical_records`: `idx_patient_record_date`, `idx_professional_record_date`
-- `audit_logs`: `idx_audit_user_timestamp`, `idx_audit_entity`, `idx_audit_action_timestamp`, `idx_audit_timestamp`
-
-## Constraints relevantes declarados
-- Unicos:
+- `audit_logs`: indices por usuario/entidad/accion/timestamp
+- Restricciones unicas:
   - `users.email`
   - `professionals.license_number`
   - `payments.transaction_id`
@@ -83,15 +79,6 @@ Relaciones de especialidad:
   - `anamnesis.patient_id`
 
 ## Notas de alineacion
-- El modelo `files.storage_type` mantiene default `cloud`, pero los endpoints y servicios actuales guardan en almacenamiento local (`storage/files`).
-- La estrategia de sincronizacion tiene endpoints funcionales, pero la aplicacion por entidad todavia esta simplificada (ver `docs/architecture/sync-strategy.md`).
-
-## Sync Logs (detalle relevante)
-`sync_logs` incluye campos para trazabilidad de idempotencia y conflictos:
-- `idempotency_key`
-- `external_entity_ref`
-- `result_entity_id`
-- `conflict_payload`
-
-## Recomendacion operativa
-Para dudas de consistencia entre documentacion y codigo, tomar como autoridad el codigo en `backend/app/models/`.
+- `files.storage_type` mantiene default `cloud`, pero el flujo actual persiste archivos en `storage/files`.
+- El scope clinico por especialidad usa `specialty_key` en asignaciones y encuentros.
+- Para decisiones de diseño, prevalece el codigo en `backend/app/models/`.

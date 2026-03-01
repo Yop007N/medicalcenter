@@ -1,6 +1,6 @@
 # Alcance del Sistema - Medical Services
 
-Actualizado: 2026-02-25
+Actualizado: 2026-03-01
 
 ## 1. Objetivo general
 Plataforma de gestion clinica para centralizar operacion asistencial, administrativa y trazabilidad de pacientes, turnos, historia clinica, archivos y cobranza.
@@ -22,6 +22,7 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 - Odontologia (odontogramas, dientes y tratamientos).
 - Psicologia (evaluaciones y sesiones).
 - Psicopedagogia (evaluaciones e intervenciones).
+- Catalogo ampliado de especialidades medicas con modulo operativo por `specialty_key` (cardiologia, pediatria, ginecologia, traumatologia, neurologia, medicina interna, dermatologia, endocrinologia, gastroenterologia, neumologia, urologia, nefrologia, oncologia, otorrinolaringologia, oftalmologia, reumatologia, infectologia, nutricion, fisioterapia, enfermeria y medicina general).
 
 ### Gobierno operativo
 - Dashboard y reportes.
@@ -38,7 +39,7 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 ## 5. Estado funcional actual
 - Casos de uso UC-MS-001..UC-MS-017 verificados como implementados.
 - Referencia: `docs/development/UC_RF_VERIFICATION_2026-02-24.md`.
-- Estado de modulos por sprint/evidencia: `docs/development/SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md` y `docs/development/solid_activity_tracker.md`.
+- Estado de modulos por sprint/evidencia: `docs/development/SPRINT_BACKLOG_P3_PARALLEL_2026-02-26.md` y `docs/development/solid_activity_tracker.md`.
 
 ## 6. Fuera de alcance actual
 - Integraciones productivas completas con pasarelas de pago externas.
@@ -47,9 +48,9 @@ Plataforma de gestion clinica para centralizar operacion asistencial, administra
 - Observabilidad/alertas de nivel productivo completamente cerradas en compose/prod.
 
 ## 7. Brechas activas de cierre (no funcionales)
-- Hardening operativo de release (P2.2): healthchecks avanzados, alertas, validacion periodica de rollback/restore.
-- Cobertura E2E integral offline/online por actor en entorno de despliegue estable.
-- Endurecimiento adicional de autenticacion de salida (`logout` con revocacion real de token) segun estrategia final de sesiones.
+- Cobertura E2E profunda por actor/especialidad (CRUD completo y regresion funcional).
+- Contratos API automatizados en CI para evitar drift entre backend y frontends.
+- Consolidacion UX/UI transversal final en modulos clinicos restantes.
 
 ## 8. Criterio de cierre de producto
 - Build y suites criticas en verde de backend y 3 frontends.

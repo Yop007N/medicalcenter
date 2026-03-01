@@ -12,8 +12,8 @@ Actualizado: 2026-03-01
 
 ## Documentos archivados (no vigentes)
 Se movieron a `docs/archive/legacy/development/`:
-- `SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md`
-- `solid_parallel_backlog_2026-02-24.md`
+- `docs/archive/legacy/development/SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md`
+- `docs/archive/legacy/development/solid_parallel_backlog_2026-02-24.md`
 
 ## Regla operativa
 - No crear nuevos reportes/versiones dentro del repo para outputs efimeros (logs, reportes de test, reportes Playwright).

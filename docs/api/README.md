@@ -1,6 +1,6 @@
 # Medical Services API - Referencia Operativa
 
-Actualizado: 2026-02-25
+Actualizado: 2026-03-01
 
 ## Base URL
 - Desarrollo: `http://localhost:5000/api`
@@ -9,6 +9,9 @@ Actualizado: 2026-02-25
 ## Autenticacion
 - JWT Bearer en `Authorization: Bearer <token>`
 - Publicos principales: `POST /api/auth/login`, `POST /api/auth/register`
+- Sesion:
+  - `POST /api/auth/refresh`
+  - `POST /api/auth/logout` (revoca token actual en blocklist)
 - Scopes por actor: `admin`, `professional`, `patient` (con restricciones de acceso por modulo/especialidad).
 
 ## Modulos de endpoints (prefijos)
@@ -21,6 +24,7 @@ Actualizado: 2026-02-25
 - `files`: `/api/files/*`
 - `budgets`: `/api/budgets/*`
 - `payments`: `/api/payments/*`
+- `specialties`: `/api/specialties/*`
 - `sync`: `/api/sync/*`
 - `dashboard`: `/api/dashboard/*`
 - `audit`: `/api/audit/*`
@@ -40,6 +44,11 @@ Actualizado: 2026-02-25
 - Registro de blueprints: `backend/app/__init__.py`
 
 ## Notas
+- Alcance por especialidad:
+  - endpoints clinicos/financieros soportan `specialty_key` para scope server-side.
+  - aplica sobre `patients`, `appointments`, `medical-records`, `files`, `budgets`, `payments`, `specialties`.
+- Disponibilidad:
+  - `GET /api/professionals/available-slots` devuelve slots libres por profesional/especialidad/rango.
 - Sync:
   - `POST /api/sync/push` valida JSON objeto y limita `changes` a `500`.
   - `POST /api/sync/push` expone mensaje generico en errores internos y preserva detalle en logs de servidor.

@@ -1,6 +1,6 @@
 # Runbook de Rollback de Incidentes
 
-Actualizado: 2026-02-14
+Actualizado: 2026-03-01
 
 ## Objetivo
 Recuperar servicio de Medical Services ante despliegue fallido o degradacion critica, minimizando downtime y perdida de datos.
@@ -53,8 +53,8 @@ docker compose -f docker-compose.db.yml up -d
 ```
 3. Restaurar base:
 ```bash
-cat storage/backups/database/<backup>.sql | docker exec -i medical-services-postgres \
-  psql -U ${POSTGRES_USER:-medical_user} ${POSTGRES_DB:-medical_services_dev}
+cat storage/backups/database/<backup>.sql | docker compose exec -T postgres \
+  psql -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-medical_services_dev}
 ```
 4. Restaurar archivos:
 ```bash

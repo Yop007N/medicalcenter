@@ -1,6 +1,6 @@
 # Auditoria Docker Compose
 
-Actualizado: 2026-02-26
+Actualizado: 2026-03-01
 
 ## Archivos auditados
 - `docker-compose.yml`
