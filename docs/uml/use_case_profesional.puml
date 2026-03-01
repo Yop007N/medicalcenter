@@ -4,45 +4,24 @@ skinparam packageStyle rectangle
 skinparam shadowing false
 skinparam actorStyle awesome
 
-actor Admin as A
 actor Profesional as P
-actor Paciente as C
-actor "Cliente Offline" as O
 
-rectangle "Medical Services API" {
+rectangle "Medical Services - Actor Profesional" {
   usecase "UC-MS-001\nAutenticar usuario" as UC1
-  usecase "UC-MS-002\nRegistro publico\n(patient/professional)" as UC2
-  usecase "UC-MS-003\nAdministrar usuarios" as UC3
-  usecase "UC-MS-004\nGestionar profesionales" as UC4
-  usecase "UC-MS-005\nGestionar pacientes" as UC5
-  usecase "UC-MS-006\nGestionar turnos" as UC6
+  usecase "UC-MS-002\nRegistro publico\n(professional)" as UC2
+  usecase "UC-MS-005\nGestionar pacientes\nasignados" as UC5
+  usecase "UC-MS-006\nGestionar agenda y\nconfirmaciones" as UC6
   usecase "UC-MS-007\nGestionar historial medico\n(base)" as UC7
   usecase "UC-MS-008\nHistoria clinica\nodontologica avanzada" as UC8
-  usecase "UC-MS-009\nGestionar archivos\nclinicos" as UC9
+  usecase "UC-MS-009\nGestionar archivos clinicos" as UC9
   usecase "UC-MS-010\nOdontogramas y\ntratamientos dentales" as UC10
   usecase "UC-MS-011\nPsicologia y\npsicopedagogia" as UC11
   usecase "UC-MS-012\nGestionar presupuestos" as UC12
   usecase "UC-MS-013\nGestionar pagos" as UC13
   usecase "UC-MS-014\nConsultar dashboard" as UC14
   usecase "UC-MS-015\nGenerar reportes" as UC15
-  usecase "UC-MS-016\nAuditoria y compliance" as UC16
   usecase "UC-MS-017\nSincronizar local-nube" as UC17
 }
-
-A --> UC1
-A --> UC2
-A --> UC3
-A --> UC4
-A --> UC5
-A --> UC6
-A --> UC7
-A --> UC9
-A --> UC12
-A --> UC13
-A --> UC14
-A --> UC15
-A --> UC16
-A --> UC17
 
 P --> UC1
 P --> UC2
@@ -58,14 +37,4 @@ P --> UC13
 P --> UC14
 P --> UC15
 P --> UC17
-
-C --> UC1
-C --> UC2
-C --> UC5
-C --> UC6
-C --> UC7
-C --> UC12
-C --> UC14
-
-O --> UC17
 @enduml

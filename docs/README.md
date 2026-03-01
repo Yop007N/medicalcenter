@@ -4,7 +4,6 @@ Actualizado: 2026-03-01
 
 ## Regla de vigencia
 - `docs/` contiene solo documentacion operativa vigente.
-- `docs/archive/legacy/` contiene historico y no se usa para decisiones nuevas.
 - Si existe diferencia entre codigo y documentacion, prevalece el codigo.
 
 ## Fuente de verdad funcional
@@ -43,6 +42,6 @@ Actualizado: 2026-03-01
 - `frontend-paciente/README.md` (PWA paciente)
 
 ## Limpieza aplicada en esta iteracion
-- backlog historico movido a `docs/archive/legacy/development/`.
+- documentacion legacy removida del arbol activo.
 - reportes de ejecucion por ola excluidos del repositorio (`docs/development/wave_reports/`).
 - artefactos de tests/E2E excluidos via `.gitignore`.

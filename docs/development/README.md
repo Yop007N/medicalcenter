@@ -10,10 +10,9 @@ Actualizado: 2026-03-01
 - `coding-standards.md`: convenciones de desarrollo.
 - `WAVE_EXECUTION_AUTONOMA.md`: operacion por olas con orquestador.
 
-## Documentos archivados (no vigentes)
-Se movieron a `docs/archive/legacy/development/`:
-- `docs/archive/legacy/development/SPRINT_BACKLOG_P0_P1_P2_2026-02-24.md`
-- `docs/archive/legacy/development/solid_parallel_backlog_2026-02-24.md`
+## Documentos removidos
+- Se eliminaron del arbol activo los backlogs legacy previos para evitar doble fuente.
+- El backlog vigente de ejecucion es `SPRINT_BACKLOG_P3_PARALLEL_2026-02-26.md`.
 
 ## Regla operativa
 - No crear nuevos reportes/versiones dentro del repo para outputs efimeros (logs, reportes de test, reportes Playwright).
