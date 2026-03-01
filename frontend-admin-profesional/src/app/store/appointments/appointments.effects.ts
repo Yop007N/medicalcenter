@@ -17,8 +17,8 @@ export class AppointmentsEffects {
   loadAppointments$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.loadAppointments),
-      switchMap(() =>
-        this.appointmentsApi.list().pipe(
+      switchMap(({ patientId, professionalId, specialtyKey }) =>
+        this.appointmentsApi.list(patientId, professionalId, specialtyKey).pipe(
           map((appointments) => AppointmentsActions.loadAppointmentsSuccess({ appointments })),
           catchError(error => of(AppointmentsActions.loadAppointmentsFailure({
             error: getApiErrorMessage(error, 'Error al cargar citas')
@@ -45,9 +45,12 @@ export class AppointmentsEffects {
   createAppointment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.createAppointment),
-      switchMap(({ appointment }) =>
+      switchMap(({ appointment, navigationQueryParams }) =>
         this.appointmentsApi.create(appointment).pipe(
-          map(newAppointment => AppointmentsActions.createAppointmentSuccess({ appointment: newAppointment })),
+          map(newAppointment => AppointmentsActions.createAppointmentSuccess({
+            appointment: newAppointment,
+            navigationQueryParams
+          })),
           catchError(error => of(AppointmentsActions.createAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al crear cita')
           })))
@@ -59,9 +62,9 @@ export class AppointmentsEffects {
   createAppointmentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.createAppointmentSuccess),
-      tap(({ appointment }) => {
+      tap(({ appointment, navigationQueryParams }) => {
         this.notification.showSuccess('Cita creada correctamente');
-        this.router.navigate(['/appointments', appointment.id]);
+        this.router.navigate(['/appointments', appointment.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -70,9 +73,12 @@ export class AppointmentsEffects {
   updateAppointment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.updateAppointment),
-      switchMap(({ id, appointment }) =>
+      switchMap(({ id, appointment, navigationQueryParams }) =>
         this.appointmentsApi.update(id, appointment).pipe(
-          map(updatedAppointment => AppointmentsActions.updateAppointmentSuccess({ appointment: updatedAppointment })),
+          map(updatedAppointment => AppointmentsActions.updateAppointmentSuccess({
+            appointment: updatedAppointment,
+            navigationQueryParams
+          })),
           catchError(error => of(AppointmentsActions.updateAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al actualizar cita')
           })))
@@ -84,9 +90,9 @@ export class AppointmentsEffects {
   updateAppointmentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.updateAppointmentSuccess),
-      tap(({ appointment }) => {
+      tap(({ appointment, navigationQueryParams }) => {
         this.notification.showSuccess('Cita actualizada correctamente');
-        this.router.navigate(['/appointments', appointment.id]);
+        this.router.navigate(['/appointments', appointment.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -95,9 +101,9 @@ export class AppointmentsEffects {
   deleteAppointment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.deleteAppointment),
-      switchMap(({ id }) =>
+      switchMap(({ id, navigationQueryParams }) =>
         this.appointmentsApi.delete(id).pipe(
-          map(() => AppointmentsActions.deleteAppointmentSuccess({ id })),
+          map(() => AppointmentsActions.deleteAppointmentSuccess({ id, navigationQueryParams })),
           catchError(error => of(AppointmentsActions.deleteAppointmentFailure({
             error: getApiErrorMessage(error, 'Error al eliminar cita')
           })))
@@ -109,9 +115,9 @@ export class AppointmentsEffects {
   deleteAppointmentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AppointmentsActions.deleteAppointmentSuccess),
-      tap(() => {
+      tap(({ navigationQueryParams }) => {
         this.notification.showSuccess('Cita eliminada correctamente');
-        this.router.navigate(['/appointments']);
+        this.router.navigate(['/appointments'], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }

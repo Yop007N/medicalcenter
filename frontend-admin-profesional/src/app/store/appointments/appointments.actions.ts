@@ -2,7 +2,10 @@ import { createAction, props } from '@ngrx/store';
 import { Appointment } from '../../models';
 
 // Load Appointments
-export const loadAppointments = createAction('[Appointments] Load Appointments');
+export const loadAppointments = createAction(
+  '[Appointments] Load Appointments',
+  props<{ patientId?: number; professionalId?: number; specialtyKey?: string }>()
+);
 export const loadAppointmentsSuccess = createAction(
   '[Appointments] Load Appointments Success',
   props<{ appointments: Appointment[] }>()
@@ -29,11 +32,17 @@ export const loadAppointmentFailure = createAction(
 // Create Appointment
 export const createAppointment = createAction(
   '[Appointments] Create Appointment',
-  props<{ appointment: Partial<Appointment> }>()
+  props<{
+    appointment: Partial<Appointment>;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const createAppointmentSuccess = createAction(
   '[Appointments] Create Appointment Success',
-  props<{ appointment: Appointment }>()
+  props<{
+    appointment: Appointment;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const createAppointmentFailure = createAction(
   '[Appointments] Create Appointment Failure',
@@ -43,11 +52,18 @@ export const createAppointmentFailure = createAction(
 // Update Appointment
 export const updateAppointment = createAction(
   '[Appointments] Update Appointment',
-  props<{ id: number; appointment: Partial<Appointment> }>()
+  props<{
+    id: number;
+    appointment: Partial<Appointment>;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const updateAppointmentSuccess = createAction(
   '[Appointments] Update Appointment Success',
-  props<{ appointment: Appointment }>()
+  props<{
+    appointment: Appointment;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const updateAppointmentFailure = createAction(
   '[Appointments] Update Appointment Failure',
@@ -57,11 +73,17 @@ export const updateAppointmentFailure = createAction(
 // Delete Appointment
 export const deleteAppointment = createAction(
   '[Appointments] Delete Appointment',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const deleteAppointmentSuccess = createAction(
   '[Appointments] Delete Appointment Success',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { patient_id?: number; professional_id?: number; specialty_key?: string };
+  }>()
 );
 export const deleteAppointmentFailure = createAction(
   '[Appointments] Delete Appointment Failure',

@@ -31,8 +31,8 @@ export class PaymentsEffects {
   loadPayments$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.loadPayments),
-      switchMap(({ budgetId }) =>
-        this.paymentsApi.list(budgetId).pipe(
+      switchMap(({ budgetId, patientId, specialtyKey }) =>
+        this.paymentsApi.list(budgetId, patientId, specialtyKey).pipe(
           map((payments) => PaymentsActions.loadPaymentsSuccess({
             payments: payments.map((payment) => normalizePayment(payment))
           })),
@@ -61,12 +61,13 @@ export class PaymentsEffects {
   createPayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.createPayment),
-      switchMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess }) =>
+      switchMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess, navigationQueryParams }) =>
         this.paymentsApi.create(payment).pipe(
           map(newPayment => PaymentsActions.createPaymentSuccess({
             payment: normalizePayment(newPayment),
             autoProcessOnCreate,
-            navigateToBudgetOnSuccess
+            navigateToBudgetOnSuccess,
+            navigationQueryParams
           })),
           catchError(error => of(PaymentsActions.createPaymentFailure({
             error: getApiErrorMessage(error, 'Error al registrar pago')
@@ -79,7 +80,7 @@ export class PaymentsEffects {
   createPaymentAutoProcess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.createPaymentSuccess),
-      mergeMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess }) => {
+      mergeMap(({ payment, autoProcessOnCreate, navigateToBudgetOnSuccess, navigationQueryParams }) => {
         if (!autoProcessOnCreate) {
           return EMPTY;
         }
@@ -88,7 +89,8 @@ export class PaymentsEffects {
           id: payment.id,
           budgetId: payment.budget_id,
           redirectToBudget: navigateToBudgetOnSuccess !== false,
-          silentSuccess: true
+          silentSuccess: true,
+          navigationQueryParams
         }));
       })
     )
@@ -97,12 +99,12 @@ export class PaymentsEffects {
   createPaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.createPaymentSuccess),
-      tap(({ payment, autoProcessOnCreate }) => {
+      tap(({ payment, autoProcessOnCreate, navigationQueryParams }) => {
         if (autoProcessOnCreate) {
           return;
         }
         this.notification.showSuccess('Pago registrado correctamente');
-        this.router.navigate(['/payments', payment.id]);
+        this.router.navigate(['/payments', payment.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -111,9 +113,12 @@ export class PaymentsEffects {
   updatePayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.updatePayment),
-      switchMap(({ id, payment }) =>
+      switchMap(({ id, payment, navigationQueryParams }) =>
         this.paymentsApi.update(id, payment).pipe(
-          map(updatedPayment => PaymentsActions.updatePaymentSuccess({ payment: normalizePayment(updatedPayment) })),
+          map(updatedPayment => PaymentsActions.updatePaymentSuccess({
+            payment: normalizePayment(updatedPayment),
+            navigationQueryParams
+          })),
           catchError(error => of(PaymentsActions.updatePaymentFailure({
             error: getApiErrorMessage(error, 'Error al actualizar pago')
           })))
@@ -125,8 +130,9 @@ export class PaymentsEffects {
   updatePaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.updatePaymentSuccess),
-      tap(() => {
+      tap(({ payment, navigationQueryParams }) => {
         this.notification.showSuccess('Pago actualizado correctamente');
+        this.router.navigate(['/payments', payment.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -135,9 +141,9 @@ export class PaymentsEffects {
   deletePayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.deletePayment),
-      switchMap(({ id }) =>
+      switchMap(({ id, navigationQueryParams }) =>
         this.paymentsApi.delete(id).pipe(
-          map(() => PaymentsActions.deletePaymentSuccess({ id })),
+          map(() => PaymentsActions.deletePaymentSuccess({ id, navigationQueryParams })),
           catchError(error => of(PaymentsActions.deletePaymentFailure({
             error: getApiErrorMessage(error, 'Error al eliminar pago')
           })))
@@ -149,9 +155,9 @@ export class PaymentsEffects {
   deletePaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.deletePaymentSuccess),
-      tap(() => {
+      tap(({ navigationQueryParams }) => {
         this.notification.showSuccess('Pago eliminado correctamente');
-        this.router.navigate(['/payments']);
+        this.router.navigate(['/payments'], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -160,13 +166,14 @@ export class PaymentsEffects {
   processPayment$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.processPayment),
-      switchMap(({ id, budgetId, redirectToBudget, silentSuccess }) =>
+      switchMap(({ id, budgetId, redirectToBudget, silentSuccess, navigationQueryParams }) =>
         this.paymentsApi.process(id).pipe(
           map(payment => PaymentsActions.processPaymentSuccess({
             payment: normalizePayment(payment),
             budgetId,
             redirectToBudget,
-            silentSuccess
+            silentSuccess,
+            navigationQueryParams
           })),
           catchError(error => of(PaymentsActions.processPaymentFailure({
             error: getApiErrorMessage(error, 'Error al procesar pago')
@@ -179,14 +186,14 @@ export class PaymentsEffects {
   processPaymentSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(PaymentsActions.processPaymentSuccess),
-      tap(({ payment, budgetId, redirectToBudget, silentSuccess }) => {
+      tap(({ payment, budgetId, redirectToBudget, silentSuccess, navigationQueryParams }) => {
         this.notification.showSuccess(
           silentSuccess ? 'Pago registrado y completado correctamente' : 'Pago procesado correctamente'
         );
 
         const targetBudgetId = budgetId ?? payment.budget_id;
         if (redirectToBudget && targetBudgetId) {
-          this.router.navigate(['/budgets', targetBudgetId]);
+          this.router.navigate(['/budgets', targetBudgetId], { queryParams: navigationQueryParams });
         }
       })
     ),

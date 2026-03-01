@@ -32,6 +32,7 @@ export interface MedicalFile {
 export interface FileUpload {
   patient_id: number;
   category: FileCategory;
+  specialty_key?: string;
   description?: string;
   is_private?: boolean;
   medical_record_id?: number;

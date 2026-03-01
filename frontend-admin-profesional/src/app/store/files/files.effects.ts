@@ -17,8 +17,8 @@ export class FilesEffects {
   loadFiles$ = createEffect(() =>
     this.actions$.pipe(
       ofType(FilesActions.loadFiles),
-      switchMap(({ patientId }) =>
-        this.filesApi.list(patientId).pipe(
+      switchMap(({ patientId, specialtyKey }) =>
+        this.filesApi.list(patientId, specialtyKey).pipe(
           map(files => FilesActions.loadFilesSuccess({ files })),
           catchError(error => of(FilesActions.loadFilesFailure({
             error: getApiErrorMessage(error, 'Error al cargar archivos')
@@ -50,7 +50,8 @@ export class FilesEffects {
           map(uploadedFile => FilesActions.uploadFileSuccess({ file: uploadedFile })),
           catchError(error => of(FilesActions.uploadFileFailure({
             error: getApiErrorMessage(error, 'Error al subir archivo'),
-            patientId: metadata.patient_id
+            patientId: metadata.patient_id,
+            specialtyKey: metadata.specialty_key
           })))
         )
       )
@@ -130,7 +131,10 @@ export class FilesEffects {
         ) {
           this.notification.showWarning('El paciente no tiene historial medico. Te redirigimos para crearlo.');
           this.router.navigate(['/medical-records/new'], {
-            queryParams: { patient_id: action.patientId }
+            queryParams: {
+              patient_id: action.patientId,
+              specialty_key: action.specialtyKey
+            }
           });
           return;
         }

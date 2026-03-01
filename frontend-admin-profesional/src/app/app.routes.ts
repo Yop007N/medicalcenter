@@ -213,8 +213,8 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['admin'] },
         loadComponent: () =>
-          import('./features/specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
+          import('./features/specialties/legacy-specialty-redirect.page').then(
+            (m) => m.LegacySpecialtyRedirectPage
           )
       },
       {

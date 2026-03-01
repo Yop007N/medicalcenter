@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const GENERAL_MEDICINE_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./general-medicine-home/general-medicine-home.page').then((m) => m.GeneralMedicineHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'general-medicine' }
-      }
-    ]
-  }
-];
+export const GENERAL_MEDICINE_ROUTES = buildSpecialtyHomeRoutes('general-medicine');

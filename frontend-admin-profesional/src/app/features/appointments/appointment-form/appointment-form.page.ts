@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -9,8 +9,8 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
+  IonIcon,
   IonItem,
   IonInput,
   IonSelect,
@@ -21,7 +21,7 @@ import {
   IonNote
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { saveOutline } from 'ionicons/icons';
+import { chevronBackOutline, saveOutline } from 'ionicons/icons';
 import { PatientsApiService, ProfessionalsApiService } from '../../../core/services';
 import * as AppointmentsActions from '../../../store/appointments/appointments.actions';
 import { selectSelectedAppointment, selectAppointmentsLoading, selectAppointmentsError } from '../../../store/appointments/appointments.selectors';
@@ -32,14 +32,15 @@ import { Patient, Professional } from '../../../models';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
+    IonIcon,
     IonItem,
     IonInput,
     IonSelect,
@@ -53,7 +54,9 @@ import { Patient, Professional } from '../../../models';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/appointments"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/appointments']" [queryParams]="scopeQueryParams" aria-label="Volver a citas">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>{{ isEditMode ? 'Editar Cita' : 'Nueva Cita' }}</ion-title>
         <ion-buttons slot="end">
@@ -353,6 +356,9 @@ export class AppointmentFormPage implements OnInit {
   patients: Patient[] = [];
   professionals: Professional[] = [];
   minDateOnly = new Date().toISOString().split('T')[0];
+  currentPatientId?: number;
+  currentProfessionalId?: number;
+  currentSpecialtyKey?: string;
 
   appointmentForm: FormGroup = this.fb.group({
     patient_id: [null, [Validators.required]],
@@ -367,12 +373,15 @@ export class AppointmentFormPage implements OnInit {
   });
 
   constructor() {
-    addIcons({ saveOutline });
+    addIcons({ saveOutline, chevronBackOutline });
   }
 
   ngOnInit(): void {
     this.loadPatients();
     this.loadProfessionals();
+    this.currentPatientId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.currentProfessionalId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('professional_id'));
+    this.currentSpecialtyKey = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
 
     const idParam = this.route.snapshot.paramMap.get('id');
 
@@ -403,9 +412,8 @@ export class AppointmentFormPage implements OnInit {
     }
 
     // Check for query params (e.g., from patient detail)
-    const patientIdParam = this.route.snapshot.queryParamMap.get('patient_id');
-    if (patientIdParam) {
-      this.appointmentForm.patchValue({ patient_id: parseInt(patientIdParam, 10) });
+    if (this.currentPatientId) {
+      this.appointmentForm.patchValue({ patient_id: this.currentPatientId });
     }
   }
 
@@ -449,11 +457,32 @@ export class AppointmentFormPage implements OnInit {
       if (this.isEditMode && this.appointmentId) {
         this.store.dispatch(AppointmentsActions.updateAppointment({
           id: this.appointmentId,
-          appointment
+          appointment,
+          navigationQueryParams: this.scopeQueryParams
         }));
       } else {
-        this.store.dispatch(AppointmentsActions.createAppointment({ appointment }));
+        this.store.dispatch(AppointmentsActions.createAppointment({
+          appointment,
+          navigationQueryParams: this.scopeQueryParams
+        }));
       }
     }
+  }
+
+  get scopeQueryParams(): { patient_id?: number; professional_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      professional_id: this.currentProfessionalId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

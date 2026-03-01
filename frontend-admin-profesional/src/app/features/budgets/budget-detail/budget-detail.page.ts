@@ -9,7 +9,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonCard,
@@ -37,7 +36,8 @@ import {
   receiptOutline,
   calendarOutline,
   cardOutline,
-  checkmarkDoneOutline
+  checkmarkDoneOutline,
+  chevronBackOutline
 } from 'ionicons/icons';
 import * as BudgetsActions from '../../../store/budgets/budgets.actions';
 import { selectSelectedBudget, selectBudgetsLoading, selectBudgetsError } from '../../../store/budgets/budgets.selectors';
@@ -56,7 +56,6 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonCard,
@@ -75,20 +74,22 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/budgets"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/budgets']" [queryParams]="scopeQueryParams" aria-label="Volver a presupuestos">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>Detalle de Presupuesto</ion-title>
         <ion-buttons slot="end">
           @if (budget$ | async; as budget) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/budgets', budget.id, 'edit']" class="hide-desktop">
+            <ion-button [routerLink]="['/budgets', budget.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
             <ion-button color="danger" (click)="confirmDelete(budget.id)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
-            <ion-button [routerLink]="['/budgets', budget.id, 'edit']" fill="outline" class="hide-mobile">
+            <ion-button [routerLink]="['/budgets', budget.id, 'edit']" [queryParams]="scopeQueryParams" fill="outline" class="hide-mobile">
               <ion-icon slot="start" name="create-outline"></ion-icon>
               Editar
             </ion-button>
@@ -131,7 +132,7 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
                 </ion-card-header>
                 <ion-card-content>
                   <div class="info-grid">
-                    <div class="info-item" [routerLink]="budget.patient_id ? ['/patients', budget.patient_id] : null" [class.clickable]="!!budget.patient_id">
+                    <div class="info-item" [routerLink]="budget.patient_id ? ['/patients', budget.patient_id] : null" [queryParams]="scopeQueryParams" [class.clickable]="!!budget.patient_id">
                       <ion-icon name="person-outline" color="primary"></ion-icon>
                       <div class="info-content">
                         <span class="info-label">Paciente</span>
@@ -203,7 +204,7 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
                       Historial de Pagos
                     </ion-card-title>
                     @if (budget.status === 'accepted') {
-                      <ion-button size="small" routerLink="/payments/new" [queryParams]="{budget_id: budget.id}">
+                      <ion-button size="small" routerLink="/payments/new" [queryParams]="paymentQueryParams">
                         <ion-icon slot="start" name="cash-outline"></ion-icon>
                         Nuevo Pago
                       </ion-button>
@@ -214,7 +215,7 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
                   @if (payments.length > 0) {
                     <ion-list lines="none" class="payments-list">
                       @for (payment of payments; track payment.id) {
-                        <ion-item button [routerLink]="['/payments', payment.id]" detail="true">
+                        <ion-item button [routerLink]="['/payments', payment.id]" [queryParams]="paymentQueryParams" detail="true">
                           <ion-icon name="card-outline" slot="start" [color]="getPaymentStatusColor(payment.payment_status)"></ion-icon>
                           <ion-label>
                             <h3>{{ payment.amount | currency:payment.currency:'symbol':'1.2-2' }}</h3>
@@ -231,7 +232,7 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
                       <ion-icon name="card-outline"></ion-icon>
                       <p>No hay pagos registrados</p>
                       @if (budget.status === 'accepted') {
-                        <ion-button size="small" routerLink="/payments/new" [queryParams]="{budget_id: budget.id}">
+                        <ion-button size="small" routerLink="/payments/new" [queryParams]="paymentQueryParams">
                           Registrar primer pago
                         </ion-button>
                       }
@@ -585,6 +586,8 @@ export class BudgetDetailPage implements OnInit {
   budgetId: number | null = null;
   resolvedPatientName: string | null = null;
   private resolvedPatientId: number | null = null;
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({
@@ -598,11 +601,14 @@ export class BudgetDetailPage implements OnInit {
       receiptOutline,
       calendarOutline,
       cardOutline,
-      checkmarkDoneOutline
+      checkmarkDoneOutline,
+      chevronBackOutline
     });
   }
 
   ngOnInit(): void {
+    this.currentPatientId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.currentSpecialtyKey = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.budgetId = parseInt(id, 10);
@@ -625,11 +631,40 @@ export class BudgetDetailPage implements OnInit {
 
   loadPayments(): void {
     if (!this.budgetId) return;
-    this.paymentsApi.list(this.budgetId)
+    this.paymentsApi
+      .list(
+        this.budgetId,
+        this.currentPatientId ?? this.resolvedPatientId ?? undefined,
+        this.currentSpecialtyKey
+      )
       .subscribe({
         next: (payments) => this.payments = payments,
         error: () => this.payments = []
       });
+  }
+
+  get scopeQueryParams(): { patient_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId ?? this.resolvedPatientId ?? undefined,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  get paymentQueryParams(): { budget_id?: number; patient_id?: number; specialty_key?: string } {
+    return {
+      budget_id: this.budgetId ?? undefined,
+      patient_id: this.currentPatientId ?? this.resolvedPatientId ?? undefined,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   getTotalPaid(budget: any): number {
@@ -745,7 +780,10 @@ export class BudgetDetailPage implements OnInit {
           text: 'Eliminar',
           role: 'destructive',
           handler: () => {
-            this.store.dispatch(BudgetsActions.deleteBudget({ id }));
+            this.store.dispatch(BudgetsActions.deleteBudget({
+              id,
+              navigationQueryParams: this.scopeQueryParams
+            }));
           }
         }
       ]

@@ -32,8 +32,8 @@ export class BudgetsEffects {
   loadBudgets$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.loadBudgets),
-      switchMap(({ patientId }) =>
-        this.budgetsApi.list(patientId).pipe(
+      switchMap(({ patientId, specialtyKey }) =>
+        this.budgetsApi.list(patientId, specialtyKey).pipe(
           map((budgets) => BudgetsActions.loadBudgetsSuccess({
             budgets: budgets.map((budget) => normalizeBudget(budget))
           })),
@@ -62,9 +62,12 @@ export class BudgetsEffects {
   createBudget$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.createBudget),
-      switchMap(({ budget }) =>
+      switchMap(({ budget, navigationQueryParams }) =>
         this.budgetsApi.create(budget).pipe(
-          map(newBudget => BudgetsActions.createBudgetSuccess({ budget: normalizeBudget(newBudget) })),
+          map(newBudget => BudgetsActions.createBudgetSuccess({
+            budget: normalizeBudget(newBudget),
+            navigationQueryParams
+          })),
           catchError(error => of(BudgetsActions.createBudgetFailure({
             error: getApiErrorMessage(error, 'Error al crear presupuesto')
           })))
@@ -76,9 +79,9 @@ export class BudgetsEffects {
   createBudgetSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.createBudgetSuccess),
-      tap(({ budget }) => {
+      tap(({ budget, navigationQueryParams }) => {
         this.notification.showSuccess('Presupuesto creado correctamente');
-        this.router.navigate(['/budgets', budget.id]);
+        this.router.navigate(['/budgets', budget.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -87,9 +90,12 @@ export class BudgetsEffects {
   updateBudget$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.updateBudget),
-      switchMap(({ id, budget }) =>
+      switchMap(({ id, budget, navigationQueryParams }) =>
         this.budgetsApi.update(id, budget).pipe(
-          map(updatedBudget => BudgetsActions.updateBudgetSuccess({ budget: normalizeBudget(updatedBudget) })),
+          map(updatedBudget => BudgetsActions.updateBudgetSuccess({
+            budget: normalizeBudget(updatedBudget),
+            navigationQueryParams
+          })),
           catchError(error => of(BudgetsActions.updateBudgetFailure({
             error: getApiErrorMessage(error, 'Error al actualizar presupuesto')
           })))
@@ -101,9 +107,9 @@ export class BudgetsEffects {
   updateBudgetSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.updateBudgetSuccess),
-      tap(({ budget }) => {
+      tap(({ budget, navigationQueryParams }) => {
         this.notification.showSuccess('Presupuesto actualizado correctamente');
-        this.router.navigate(['/budgets', budget.id]);
+        this.router.navigate(['/budgets', budget.id], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }
@@ -112,9 +118,9 @@ export class BudgetsEffects {
   deleteBudget$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.deleteBudget),
-      switchMap(({ id }) =>
+      switchMap(({ id, navigationQueryParams }) =>
         this.budgetsApi.delete(id).pipe(
-          map(() => BudgetsActions.deleteBudgetSuccess({ id })),
+          map(() => BudgetsActions.deleteBudgetSuccess({ id, navigationQueryParams })),
           catchError(error => of(BudgetsActions.deleteBudgetFailure({
             error: getApiErrorMessage(error, 'Error al eliminar presupuesto')
           })))
@@ -126,9 +132,9 @@ export class BudgetsEffects {
   deleteBudgetSuccess$ = createEffect(() =>
     this.actions$.pipe(
       ofType(BudgetsActions.deleteBudgetSuccess),
-      tap(() => {
+      tap(({ navigationQueryParams }) => {
         this.notification.showSuccess('Presupuesto eliminado correctamente');
-        this.router.navigate(['/budgets']);
+        this.router.navigate(['/budgets'], { queryParams: navigationQueryParams });
       })
     ),
     { dispatch: false }

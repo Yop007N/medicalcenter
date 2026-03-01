@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef, HostListener, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
@@ -10,7 +10,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonItem,
@@ -25,14 +24,14 @@ import {
   IonNote
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { saveOutline, addCircleOutline, trashOutline } from 'ionicons/icons';
+import { chevronBackOutline, saveOutline, addCircleOutline, trashOutline } from 'ionicons/icons';
 import * as BudgetsActions from '../../../store/budgets/budgets.actions';
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedBudget, selectBudgetsLoading, selectBudgetsError } from '../../../store/budgets/budgets.selectors';
 import { selectAllPatients } from '../../../store/patients/patients.selectors';
 import { BudgetCreate, BudgetUpdate } from '../../../models/budget.model';
 import { Patient } from '../../../models/patient.model';
-import { PatientsApiService } from '../../../core/services/patients-api.service';
+import { NotificationService, PatientsApiService } from '../../../core/services';
 
 type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
 
@@ -41,13 +40,13 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonItem,
@@ -65,7 +64,9 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/budgets"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/budgets']" [queryParams]="scopeQueryParams" aria-label="Volver a presupuestos">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>{{ isEdit ? 'Editar' : 'Nuevo' }} Presupuesto</ion-title>
         <ion-buttons slot="end">
@@ -581,6 +582,7 @@ export class BudgetFormPage implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
   private patientsApi = inject(PatientsApiService);
+  private notification = inject(NotificationService);
 
   budget$ = this.store.select(selectSelectedBudget);
   loading$ = this.store.select(selectBudgetsLoading);
@@ -601,9 +603,11 @@ export class BudgetFormPage implements OnInit {
   itemTotals: number[] = [];
   grandTotal = 0;
   private itemIdCounter = 0;
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
-    addIcons({ saveOutline, addCircleOutline, trashOutline });
+    addIcons({ saveOutline, addCircleOutline, trashOutline, chevronBackOutline });
 
     this.form = this.fb.group({
       title: ['', Validators.required],
@@ -641,6 +645,8 @@ export class BudgetFormPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.currentPatientId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.currentSpecialtyKey = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
     this.patients$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((patients) => {
@@ -693,9 +699,8 @@ export class BudgetFormPage implements OnInit {
       });
     } else {
       // Check for patient_id in query params (when coming from patient detail)
-      const patientId = this.route.snapshot.queryParamMap.get('patient_id');
-      if (patientId) {
-        this.form.patchValue({ patient_id: parseInt(patientId, 10) });
+      if (this.currentPatientId) {
+        this.form.patchValue({ patient_id: this.currentPatientId });
       }
       // Add one empty item by default
       this.addItem();
@@ -833,12 +838,12 @@ export class BudgetFormPage implements OnInit {
 
     if (this.form.invalid) {
       console.log('Form errors:', this.getFormValidationErrors());
-      alert('Por favor complete todos los campos requeridos');
+      void this.notification.showWarning('Por favor complete todos los campos requeridos');
       return;
     }
 
     if (this.items.length === 0) {
-      alert('Debe agregar al menos un item');
+      void this.notification.showWarning('Debe agregar al menos un item');
       return;
     }
 
@@ -893,7 +898,11 @@ export class BudgetFormPage implements OnInit {
         total_amount: this.calculateTotal()
       };
       console.log('Dispatching updateBudget:', budget);
-      this.store.dispatch(BudgetsActions.updateBudget({ id: this.budgetId, budget }));
+      this.store.dispatch(BudgetsActions.updateBudget({
+        id: this.budgetId,
+        budget,
+        navigationQueryParams: this.scopeQueryParams
+      }));
     } else {
       const budget: BudgetCreate = {
         title: formValue.title,
@@ -905,7 +914,10 @@ export class BudgetFormPage implements OnInit {
         total_amount: this.calculateTotal()
       };
       console.log('Dispatching createBudget:', budget);
-      this.store.dispatch(BudgetsActions.createBudget({ budget }));
+      this.store.dispatch(BudgetsActions.createBudget({
+        budget,
+        navigationQueryParams: this.scopeQueryParams
+      }));
     }
     console.log('=== DISPATCH DONE ===');
   }
@@ -945,6 +957,22 @@ export class BudgetFormPage implements OnInit {
     });
     this.applyPatientFilter();
     this.patientsLoadError = null;
+  }
+
+  get scopeQueryParams(): { patient_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   private applyPatientFilter(): void {

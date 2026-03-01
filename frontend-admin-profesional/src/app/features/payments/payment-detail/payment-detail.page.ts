@@ -8,7 +8,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonCard,
@@ -30,7 +29,8 @@ import {
   calendarOutline,
   cardOutline,
   documentTextOutline,
-  chevronForwardOutline
+  chevronForwardOutline,
+  chevronBackOutline
 } from 'ionicons/icons';
 import * as PaymentsActions from '../../../store/payments/payments.actions';
 import { selectSelectedPayment, selectPaymentsLoading, selectPaymentsError } from '../../../store/payments/payments.selectors';
@@ -47,7 +47,6 @@ import { PaymentStatus, PaymentMethod } from '../../../models/budget.model';
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonCard,
@@ -62,18 +61,20 @@ import { PaymentStatus, PaymentMethod } from '../../../models/budget.model';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/payments"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/payments']" [queryParams]="scopeQueryParams" aria-label="Volver a pagos">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>Detalle de Pago</ion-title>
         <ion-buttons slot="end">
           @if (payment$ | async; as payment) {
             @if (payment.payment_status === 'pending') {
               <!-- Mobile: solo iconos -->
-              <ion-button [routerLink]="['/payments', payment.id, 'edit']" class="hide-desktop">
+              <ion-button [routerLink]="['/payments', payment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
                 <ion-icon slot="icon-only" name="create-outline"></ion-icon>
               </ion-button>
               <!-- Desktop: con texto -->
-              <ion-button [routerLink]="['/payments', payment.id, 'edit']" fill="outline" class="hide-mobile">
+              <ion-button [routerLink]="['/payments', payment.id, 'edit']" [queryParams]="scopeQueryParams" fill="outline" class="hide-mobile">
                 <ion-icon slot="start" name="create-outline"></ion-icon>
                 Editar
               </ion-button>
@@ -172,7 +173,7 @@ import { PaymentStatus, PaymentMethod } from '../../../models/budget.model';
             <div class="detail-layout__side">
               <!-- Budget Association -->
               @if (payment.budget_id) {
-                <ion-card class="budget-link-card" [routerLink]="['/budgets', payment.budget_id]">
+                <ion-card class="budget-link-card" [routerLink]="['/budgets', payment.budget_id]" [queryParams]="scopeQueryParams">
                   <ion-card-header>
                     <ion-card-title>
                       <ion-icon name="wallet-outline"></ion-icon>
@@ -350,6 +351,9 @@ export class PaymentDetailPage implements OnInit {
   payment$ = this.store.select(selectSelectedPayment);
   loading$ = this.store.select(selectPaymentsLoading);
   error$ = this.store.select(selectPaymentsError);
+  currentBudgetId?: number;
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({
@@ -361,11 +365,15 @@ export class PaymentDetailPage implements OnInit {
       calendarOutline,
       cardOutline,
       documentTextOutline,
-      chevronForwardOutline
+      chevronForwardOutline,
+      chevronBackOutline
     });
   }
 
   ngOnInit(): void {
+    this.currentBudgetId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('budget_id'));
+    this.currentPatientId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.currentSpecialtyKey = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.store.dispatch(PaymentsActions.loadPayment({ id: parseInt(id, 10) }));
@@ -423,7 +431,10 @@ export class PaymentDetailPage implements OnInit {
           text: 'Eliminar',
           role: 'destructive',
           handler: () => {
-            this.store.dispatch(PaymentsActions.deletePayment({ id }));
+            this.store.dispatch(PaymentsActions.deletePayment({
+              id,
+              navigationQueryParams: this.scopeQueryParams
+            }));
           }
         }
       ]
@@ -432,6 +443,27 @@ export class PaymentDetailPage implements OnInit {
   }
 
   processPayment(id: number): void {
-    this.store.dispatch(PaymentsActions.processPayment({ id }));
+    this.store.dispatch(PaymentsActions.processPayment({
+      id,
+      budgetId: this.currentBudgetId,
+      navigationQueryParams: this.scopeQueryParams
+    }));
+  }
+
+  get scopeQueryParams(): { budget_id?: number; patient_id?: number; specialty_key?: string } {
+    return {
+      budget_id: this.currentBudgetId,
+      patient_id: this.currentPatientId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

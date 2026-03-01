@@ -1,6 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -67,7 +69,7 @@ import { MedicalRecord } from '../../../models/medical-record.model';
         </ion-buttons>
         <ion-title>Historiales Médicos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/medical-records/new">
+          <ion-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -103,7 +105,7 @@ import { MedicalRecord } from '../../../models/medical-record.model';
           <div class="ion-text-center ion-padding">
             <ion-icon name="document-text-outline" style="font-size: 64px; color: var(--ion-color-medium);"></ion-icon>
             <p>No hay historiales médicos</p>
-            <ion-button routerLink="/medical-records/new">
+            <ion-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams">
               <ion-icon slot="start" name="add-outline"></ion-icon>
               Crear Historial
             </ion-button>
@@ -111,7 +113,7 @@ import { MedicalRecord } from '../../../models/medical-record.model';
         } @else {
           <ion-list>
             @for (record of filteredRecords; track record.id) {
-              <ion-item [routerLink]="['/medical-records', record.id]" detail>
+              <ion-item [routerLink]="['/medical-records', record.id]" [queryParams]="scopeQueryParams" detail>
                 <ion-icon name="document-text-outline" slot="start" color="primary"></ion-icon>
                 <ion-label>
                   <h2>
@@ -142,14 +144,14 @@ import { MedicalRecord } from '../../../models/medical-record.model';
 
       <!-- FAB para crear (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/medical-records/new">
+        <ion-fab-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
 
       <!-- Boton para crear (desktop) -->
       <div class="desktop-create-btn hide-mobile">
-        <ion-button routerLink="/medical-records/new" shape="round" expand="block">
+        <ion-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams" shape="round" expand="block">
           <ion-icon slot="start" name="add-outline"></ion-icon>
           Crear Historial
         </ion-button>
@@ -203,6 +205,8 @@ import { MedicalRecord } from '../../../models/medical-record.model';
 })
 export class MedicalRecordsListPage implements OnInit {
   private store = inject(Store);
+  private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   records$ = this.store.select(selectAllMedicalRecords);
   loading$ = this.store.select(selectMedicalRecordsLoading);
@@ -211,21 +215,37 @@ export class MedicalRecordsListPage implements OnInit {
   allRecords: MedicalRecord[] = [];
   filteredRecords: MedicalRecord[] = [];
   searchTerm = '';
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({ addOutline, documentTextOutline, personOutline, calendarOutline });
   }
 
   ngOnInit(): void {
-    this.loadRecords();
-    this.records$.subscribe(records => {
-      this.allRecords = records;
-      this.applyFilter();
-    });
+    this.records$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(records => {
+        this.allRecords = records;
+        this.applyFilter();
+      });
+
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const patientIdRaw = params.get('patient_id') ?? params.get('patientId');
+        const patientId = patientIdRaw ? Number(patientIdRaw) : NaN;
+        this.currentPatientId = Number.isFinite(patientId) && patientId > 0 ? patientId : undefined;
+        this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.loadRecords();
+      });
   }
 
   loadRecords(): void {
-    this.store.dispatch(MedicalRecordsActions.loadMedicalRecords({}));
+    this.store.dispatch(MedicalRecordsActions.loadMedicalRecords({
+      patientId: this.currentPatientId,
+      specialtyKey: this.currentSpecialtyKey
+    }));
   }
 
   doRefresh(event: any): void {
@@ -253,5 +273,12 @@ export class MedicalRecordsListPage implements OnInit {
                complaint.includes(this.searchTerm);
       });
     }
+  }
+
+  get scopeQueryParams(): { patient_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      specialty_key: this.currentSpecialtyKey
+    };
   }
 }

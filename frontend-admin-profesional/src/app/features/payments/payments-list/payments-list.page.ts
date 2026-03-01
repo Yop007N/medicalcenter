@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -67,7 +68,7 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
         </ion-buttons>
         <ion-title>Pagos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/payments/new">
+          <ion-button routerLink="/payments/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -103,7 +104,7 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
           <div class="ion-text-center ion-padding">
             <ion-icon name="cash-outline" style="font-size: 64px; color: var(--ion-color-medium);"></ion-icon>
             <p>No hay pagos</p>
-            <ion-button routerLink="/payments/new">
+            <ion-button routerLink="/payments/new" [queryParams]="scopeQueryParams">
               <ion-icon slot="start" name="add-outline"></ion-icon>
               Registrar Pago
             </ion-button>
@@ -111,7 +112,7 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
         } @else {
           <ion-list>
             @for (payment of filteredPayments; track payment.id) {
-              <ion-item [routerLink]="['/payments', payment.id]" detail>
+              <ion-item [routerLink]="['/payments', payment.id]" [queryParams]="scopeQueryParams" detail>
                 <ion-icon name="cash-outline" slot="start" color="primary"></ion-icon>
                 <ion-label>
                   <h2>{{ payment.amount | currency:payment.currency:'symbol':'1.2-2' }}</h2>
@@ -129,14 +130,14 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
 
       <!-- FAB para crear nuevo pago (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/payments/new">
+        <ion-fab-button routerLink="/payments/new" [queryParams]="scopeQueryParams">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
 
       <!-- Boton para crear nuevo pago (desktop) -->
       <div class="desktop-create-btn hide-mobile">
-        <ion-button routerLink="/payments/new" shape="round" expand="block">
+        <ion-button routerLink="/payments/new" [queryParams]="scopeQueryParams" shape="round" expand="block">
           <ion-icon slot="start" name="add-outline"></ion-icon>
           Registrar Pago
         </ion-button>
@@ -190,6 +191,8 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
 })
 export class PaymentsListPage implements OnInit {
   private store = inject(Store);
+  private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   payments$ = this.store.select(selectAllPayments);
   loading$ = this.store.select(selectPaymentsLoading);
@@ -198,21 +201,37 @@ export class PaymentsListPage implements OnInit {
   allPayments: Payment[] = [];
   filteredPayments: Payment[] = [];
   selectedStatus = 'all';
+  currentBudgetId?: number;
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({ addOutline, cashOutline, checkmarkCircleOutline, timeOutline, closeCircleOutline });
   }
 
   ngOnInit(): void {
-    this.loadPayments();
-    this.payments$.subscribe(payments => {
-      this.allPayments = payments;
-      this.filterByStatus();
-    });
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.currentBudgetId = this.parseNumberParam(params.get('budget_id') ?? params.get('budgetId'));
+        this.currentPatientId = this.parseNumberParam(params.get('patient_id') ?? params.get('patientId'));
+        this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.loadPayments();
+      });
+    this.payments$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(payments => {
+        this.allPayments = payments;
+        this.filterByStatus();
+      });
   }
 
   loadPayments(): void {
-    this.store.dispatch(PaymentsActions.loadPayments({}));
+    this.store.dispatch(PaymentsActions.loadPayments({
+      budgetId: this.currentBudgetId,
+      patientId: this.currentPatientId,
+      specialtyKey: this.currentSpecialtyKey
+    }));
   }
 
   doRefresh(event: any): void {
@@ -257,5 +276,22 @@ export class PaymentsListPage implements OnInit {
       case 'other': return 'Otro';
       default: return method || 'No especificado';
     }
+  }
+
+  get scopeQueryParams(): { budget_id?: number; patient_id?: number; specialty_key?: string } {
+    return {
+      budget_id: this.currentBudgetId,
+      patient_id: this.currentPatientId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

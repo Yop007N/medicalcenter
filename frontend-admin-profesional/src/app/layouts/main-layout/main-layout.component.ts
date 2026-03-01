@@ -49,6 +49,10 @@ import {
   SpecialtiesApiService,
   SpecialtyModuleDefinition
 } from '../../core/services/specialties-api.service';
+import {
+  resolveSpecialtyFrontendRoute,
+  resolveSpecialtyMenuIcon,
+} from '../../core/constants/specialty-navigation';
 import { OfflineIndicatorComponent } from '../../shared/components/offline-indicator/offline-indicator.component';
 import { User } from '../../models';
 
@@ -571,40 +575,10 @@ export class MainLayoutComponent {
 
     return sourceModules.map((module) => ({
       title: module.label,
-      url: this.resolveSpecialtyRoute(module.key),
-      icon: this.resolveSpecialtyIcon(module.key),
+      url: resolveSpecialtyFrontendRoute(module.key),
+      icon: resolveSpecialtyMenuIcon(module.key),
       roles: ['admin']
     }));
-  }
-
-  private resolveSpecialtyRoute(moduleKey: string): string {
-    if (moduleKey === 'odontology') {
-      return '/odontology';
-    }
-    if (moduleKey === 'psychology') {
-      return '/psychology';
-    }
-    if (moduleKey === 'psychopedagogy') {
-      return '/psychopedagogy';
-    }
-    const normalized = String(moduleKey || '').trim().toLowerCase();
-    if (normalized) {
-      return `/${normalized}`;
-    }
-    return `/specialties/${moduleKey}`;
-  }
-
-  private resolveSpecialtyIcon(moduleKey: string): string {
-    if (moduleKey === 'odontology') {
-      return 'fitness-outline';
-    }
-    if (moduleKey === 'psychology') {
-      return 'happy-outline';
-    }
-    if (moduleKey === 'psychopedagogy') {
-      return 'school-outline';
-    }
-    return 'medkit-outline';
   }
 
   private canAccess(roles: string[] | undefined, role?: string): boolean {

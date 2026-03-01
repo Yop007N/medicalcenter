@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const ENDOCRINOLOGY_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./endocrinology-home/endocrinology-home.page').then((m) => m.EndocrinologyHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'endocrinology' }
-      }
-    ]
-  }
-];
+export const ENDOCRINOLOGY_ROUTES = buildSpecialtyHomeRoutes('endocrinology');

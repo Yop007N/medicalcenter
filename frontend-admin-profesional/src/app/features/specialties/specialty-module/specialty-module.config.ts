@@ -1,3 +1,5 @@
+import { resolveSpecialtyFrontendRoute as resolveSpecialtyFrontendRouteFromNav } from '../../../core/constants/specialty-navigation';
+
 export type SpecialtyFieldType = 'text' | 'textarea' | 'select' | 'number';
 
 export const LEGACY_MODULES = new Set(['odontology', 'psychology', 'psychopedagogy']);
@@ -37,6 +39,43 @@ export interface SpecialtyWorkspaceItem {
   description: string;
   route: string;
 }
+
+export interface SpecialtyPrimaryQuickAction {
+  label: string;
+  route: string;
+}
+
+export interface SpecialtyInsightCard {
+  label: string;
+  value: string;
+  description: string;
+}
+
+export interface SpecialtyBoardFieldValue {
+  label: string;
+  value: string;
+}
+
+export interface SpecialtyBoardSectionView {
+  title: string;
+  description: string;
+  items: SpecialtyBoardFieldValue[];
+}
+
+type SpecialtyEncounterLike = {
+  status?: string | null;
+  diagnosis?: string | null;
+  chief_complaint?: string | null;
+  visit_date?: string | null;
+  payload?: Record<string, unknown> | null;
+  vitals?: Record<string, unknown> | null;
+};
+
+type SpecialtyBoardSectionConfig = {
+  title: string;
+  description: string;
+  fieldKeys: string[];
+};
 
 const SEVERITY_OPTIONS: SpecialtyFieldOption[] = [
   { value: 'low', label: 'Bajo' },
@@ -388,6 +427,246 @@ const SPECIALTY_BRIEFS: Record<
   },
 };
 
+const SPECIALTY_BOARD_SECTIONS: Record<string, SpecialtyBoardSectionConfig[]> = {
+  'general-medicine': [
+    {
+      title: 'Prioridad y riesgo',
+      description: 'Triage clínico y alertas del último control general.',
+      fieldKeys: ['clinical_priority', 'risk_flags'],
+    },
+    {
+      title: 'Seguimiento',
+      description: 'Plan general de continuidad y reevaluación.',
+      fieldKeys: ['followup_plan'],
+    },
+  ],
+  cardiology: [
+    {
+      title: 'Hemodinámica',
+      description: 'Signos y variables cardiovasculares del último control.',
+      fieldKeys: ['clinical_priority', 'functional_class'],
+    },
+    {
+      title: 'Riesgo y hallazgos',
+      description: 'Resumen de riesgo, ECG y alertas relevantes.',
+      fieldKeys: ['risk_flags', 'ecg_summary'],
+    },
+  ],
+  pediatrics: [
+    {
+      title: 'Crecimiento y desarrollo',
+      description: 'Seguimiento del desarrollo y percentiles del menor.',
+      fieldKeys: ['growth_percentile', 'vaccination_status'],
+    },
+    {
+      title: 'Indicaciones al cuidador',
+      description: 'Alertas y notas operativas para acompañamiento familiar.',
+      fieldKeys: ['caregiver_notes'],
+    },
+  ],
+  gynecology: [
+    {
+      title: 'Contexto gineco-obstétrico',
+      description: 'Estado del ciclo y contexto gestacional reciente.',
+      fieldKeys: ['cycle_status', 'gestational_status'],
+    },
+    {
+      title: 'Prevención y tamizaje',
+      description: 'Seguimiento de controles, screening y plan.',
+      fieldKeys: ['screening_plan'],
+    },
+  ],
+  traumatology: [
+    {
+      title: 'Lesión y dolor',
+      description: 'Foco traumático, mecanismo y percepción de dolor.',
+      fieldKeys: ['injury_site', 'injury_mechanism', 'pain_scale'],
+    },
+    {
+      title: 'Funcionalidad',
+      description: 'Estado de movilidad y plan de recuperación.',
+      fieldKeys: ['mobility_status'],
+    },
+  ],
+  neurology: [
+    {
+      title: 'Estado neurológico',
+      description: 'Foco, Glasgow y actividad convulsiva del último encuentro.',
+      fieldKeys: ['neurological_focus', 'glasgow_scale', 'seizure_activity'],
+    },
+    {
+      title: 'Hallazgos y plan',
+      description: 'Notas clínicas relevantes del seguimiento neurológico.',
+      fieldKeys: ['neurology_notes'],
+    },
+  ],
+  'internal-medicine': [
+    {
+      title: 'Complejidad clínica',
+      description: 'Comorbilidades, conciliación y riesgo global reciente.',
+      fieldKeys: ['chronic_conditions', 'medication_reconciliation', 'risk_level'],
+    },
+  ],
+  dermatology: [
+    {
+      title: 'Lesión dermatológica',
+      description: 'Topografía, tipo y caracterización morfológica reciente.',
+      fieldKeys: ['lesion_location', 'lesion_type'],
+    },
+    {
+      title: 'Dermatoscopía',
+      description: 'Hallazgos y conducta del último control de piel.',
+      fieldKeys: ['dermoscopy_findings'],
+    },
+  ],
+  endocrinology: [
+    {
+      title: 'Control metabólico',
+      description: 'Foco endocrino, HbA1c y orientación del tratamiento.',
+      fieldKeys: ['metabolic_focus', 'hba1c'],
+    },
+    {
+      title: 'Plan endocrino',
+      description: 'Estrategia de seguimiento y objetivos metabólicos.',
+      fieldKeys: ['endocrine_plan'],
+    },
+  ],
+  gastroenterology: [
+    {
+      title: 'Síntomas digestivos',
+      description: 'Patrón digestivo y evacuatorio del último episodio.',
+      fieldKeys: ['symptom_pattern', 'stool_pattern'],
+    },
+    {
+      title: 'Estudios y conducta',
+      description: 'Solicitudes diagnósticas y continuidad del plan.',
+      fieldKeys: ['endoscopy_request'],
+    },
+  ],
+  pulmonology: [
+    {
+      title: 'Estado respiratorio',
+      description: 'Patrón, saturación y control clínico pulmonar reciente.',
+      fieldKeys: ['respiratory_pattern', 'oxygen_saturation'],
+    },
+    {
+      title: 'Adherencia terapéutica',
+      description: 'Uso de inhaladores y continuidad del tratamiento.',
+      fieldKeys: ['inhaler_adherence'],
+    },
+  ],
+  urology: [
+    {
+      title: 'Síntomas urológicos',
+      description: 'Sintomatología urinaria y datos de screening recientes.',
+      fieldKeys: ['urinary_symptoms', 'psa_value'],
+    },
+    {
+      title: 'Plan urológico',
+      description: 'Conducta específica y seguimiento del módulo.',
+      fieldKeys: ['urology_plan'],
+    },
+  ],
+  nephrology: [
+    {
+      title: 'Función renal',
+      description: 'Estadio renal, TFG y necesidad de soporte sustitutivo.',
+      fieldKeys: ['ckd_stage', 'gfr_value', 'dialysis_status'],
+    },
+  ],
+  oncology: [
+    {
+      title: 'Estado oncológico',
+      description: 'Estadificación y línea de tratamiento en curso.',
+      fieldKeys: ['staging', 'treatment_line'],
+    },
+    {
+      title: 'Tolerancia',
+      description: 'Eventos adversos del último control terapéutico.',
+      fieldKeys: ['adverse_events'],
+    },
+  ],
+  otolaryngology: [
+    {
+      title: 'Área ORL',
+      description: 'Región predominante y riesgo funcional de vía aérea.',
+      fieldKeys: ['ent_region', 'airway_risk'],
+    },
+    {
+      title: 'Hallazgos ORL',
+      description: 'Resumen clínico documentado del último control.',
+      fieldKeys: ['orl_notes'],
+    },
+  ],
+  ophthalmology: [
+    {
+      title: 'Función visual',
+      description: 'Agudeza visual y presión intraocular reciente.',
+      fieldKeys: ['visual_acuity', 'intraocular_pressure'],
+    },
+    {
+      title: 'Fondo de ojo',
+      description: 'Hallazgos retinianos del último estudio.',
+      fieldKeys: ['retinal_findings'],
+    },
+  ],
+  rheumatology: [
+    {
+      title: 'Actividad inflamatoria',
+      description: 'Estado clínico y carga articular reciente.',
+      fieldKeys: ['inflammatory_activity', 'joint_count'],
+    },
+    {
+      title: 'Terapia',
+      description: 'Tratamiento biológico o estrategia de control activa.',
+      fieldKeys: ['biologic_therapy'],
+    },
+  ],
+  infectology: [
+    {
+      title: 'Foco infeccioso',
+      description: 'Origen sospechado y severidad del cuadro actual.',
+      fieldKeys: ['suspected_focus', 'infection_severity'],
+    },
+    {
+      title: 'Cobertura antimicrobiana',
+      description: 'Esquema y continuidad del manejo infectológico.',
+      fieldKeys: ['antimicrobial_plan'],
+    },
+  ],
+  nutrition: [
+    {
+      title: 'Estado nutricional',
+      description: 'IMC y objetivo nutricional del último seguimiento.',
+      fieldKeys: ['bmi', 'nutritional_goal'],
+    },
+    {
+      title: 'Plan dietario',
+      description: 'Conducta alimentaria documentada en el módulo.',
+      fieldKeys: ['dietary_plan'],
+    },
+  ],
+  physiotherapy: [
+    {
+      title: 'Rehabilitación funcional',
+      description: 'Objetivo funcional, dolor y carga terapéutica planificada.',
+      fieldKeys: ['functional_goal', 'pain_scale', 'planned_sessions'],
+    },
+  ],
+  nursing: [
+    {
+      title: 'Cuidados activos',
+      description: 'Plan de cuidados y administración de tratamientos.',
+      fieldKeys: ['care_plan', 'medication_admin'],
+    },
+    {
+      title: 'Alertas de turno',
+      description: 'Incidencias y observaciones de enfermería recientes.',
+      fieldKeys: ['nursing_alerts'],
+    },
+  ],
+};
+
 const SPECIALTY_UI_CONFIG: Record<string, Partial<SpecialtyUiConfig>> = {
   'general-medicine': {
     intakeTitle: 'Nueva consulta de medicina general',
@@ -736,5 +1015,175 @@ export function resolveSpecialtyUiConfig(moduleKey: string | null | undefined): 
     ...(override || {}),
     ...(brief || {}),
     specialtyFields: override?.specialtyFields || DEFAULT_UI_CONFIG.specialtyFields,
+  };
+}
+
+function formatInsightValue(
+  value: unknown,
+  options?: SpecialtyFieldOption[],
+): string | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const option = options?.find((item) => item.value === normalized);
+  if (option) {
+    return option.label;
+  }
+
+  if (normalized === 'yes') {
+    return 'Sí';
+  }
+  if (normalized === 'no') {
+    return 'No';
+  }
+  if (normalized === 'open') {
+    return 'Abierto';
+  }
+  if (normalized === 'in_progress') {
+    return 'En progreso';
+  }
+  if (normalized === 'closed') {
+    return 'Cerrado';
+  }
+
+  return normalized;
+}
+
+function findFieldDefinition(
+  moduleKey: string | null | undefined,
+  fieldKey: string,
+): SpecialtyFieldDefinition | null {
+  const uiConfig = resolveSpecialtyUiConfig(moduleKey);
+  return uiConfig.specialtyFields.find((field) => field.key === fieldKey) || null;
+}
+
+export function buildSpecialtyInsightCards(
+  moduleKey: string | null | undefined,
+  encounters: SpecialtyEncounterLike[],
+): SpecialtyInsightCard[] {
+  if (!encounters.length) {
+    return [];
+  }
+
+  const uiConfig = resolveSpecialtyUiConfig(moduleKey);
+  const sortedEncounters = [...encounters].sort((left, right) =>
+    String(right.visit_date || '').localeCompare(String(left.visit_date || ''))
+  );
+  const latestEncounter = sortedEncounters[0];
+  const activeCases = encounters.filter((encounter) => encounter.status !== 'closed').length;
+  const cards: SpecialtyInsightCard[] = [
+    {
+      label: 'Casos activos',
+      value: String(activeCases),
+      description: 'Atenciones abiertas o en seguimiento dentro del módulo.',
+    },
+  ];
+
+  const latestFocus = latestEncounter.diagnosis || latestEncounter.chief_complaint;
+  if (latestFocus) {
+    cards.push({
+      label: 'Último foco clínico',
+      value: latestFocus,
+      description: 'Resumen del último encuentro clínico registrado.',
+    });
+  }
+
+  for (const field of uiConfig.specialtyFields) {
+    const rawValue = latestEncounter.payload?.[field.key] ?? latestEncounter.vitals?.[field.key];
+    const formattedValue = formatInsightValue(rawValue, field.options);
+    if (!formattedValue) {
+      continue;
+    }
+
+    cards.push({
+      label: field.label,
+      value: formattedValue,
+      description: 'Dato clínico más reciente informado en esta especialidad.',
+    });
+
+    if (cards.length >= 4) {
+      break;
+    }
+  }
+
+  return cards.slice(0, 4);
+}
+
+export function buildSpecialtyBoardSections(
+  moduleKey: string | null | undefined,
+  encounters: SpecialtyEncounterLike[],
+): SpecialtyBoardSectionView[] {
+  const normalizedKey = String(moduleKey || '').trim().toLowerCase();
+  const sectionConfig = SPECIALTY_BOARD_SECTIONS[normalizedKey];
+  if (!sectionConfig?.length || !encounters.length) {
+    return [];
+  }
+
+  const latestEncounter = [...encounters].sort((left, right) =>
+    String(right.visit_date || '').localeCompare(String(left.visit_date || ''))
+  )[0];
+
+  return sectionConfig
+    .map((section) => {
+      const items = section.fieldKeys
+        .map((fieldKey) => {
+          const fieldDefinition = findFieldDefinition(moduleKey, fieldKey);
+          if (!fieldDefinition) {
+            return null;
+          }
+
+          const rawValue =
+            latestEncounter.payload?.[fieldKey] ?? latestEncounter.vitals?.[fieldKey];
+          const formattedValue = formatInsightValue(rawValue, fieldDefinition.options);
+          if (!formattedValue) {
+            return null;
+          }
+
+          return {
+            label: fieldDefinition.label,
+            value: formattedValue,
+          };
+        })
+        .filter((item): item is SpecialtyBoardFieldValue => Boolean(item));
+
+      if (!items.length) {
+        return null;
+      }
+
+      return {
+        title: section.title,
+        description: section.description,
+        items,
+      };
+    })
+    .filter((item): item is SpecialtyBoardSectionView => Boolean(item));
+}
+
+export function resolveSpecialtyFrontendRoute(moduleKey: string | null | undefined): string {
+  return resolveSpecialtyFrontendRouteFromNav(moduleKey);
+}
+
+export function resolveSpecialtyPrimaryQuickAction(
+  moduleKey: string | null | undefined,
+): SpecialtyPrimaryQuickAction | null {
+  const normalized = String(moduleKey || '').trim().toLowerCase();
+  if (!normalized || !LEGACY_MODULES.has(normalized)) {
+    return null;
+  }
+
+  return {
+    route: resolveSpecialtyFrontendRoute(normalized),
+    label:
+      normalized === 'odontology'
+        ? 'Abrir Odontología'
+        : normalized === 'psychology'
+          ? 'Abrir Psicología'
+          : 'Abrir Psicopedagogía',
   };
 }

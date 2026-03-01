@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const CARDIOLOGY_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./cardiology-home/cardiology-home.page').then((m) => m.CardiologyHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'cardiology' }
-      }
-    ]
-  }
-];
+export const CARDIOLOGY_ROUTES = buildSpecialtyHomeRoutes('cardiology');

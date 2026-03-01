@@ -4,7 +4,7 @@ import { MedicalRecord, MedicalRecordCreate, MedicalFile } from '../../models/me
 // Load Medical Records
 export const loadMedicalRecords = createAction(
   '[Medical Records] Load Medical Records',
-  props<{ patientId?: number; professionalId?: number }>()
+  props<{ patientId?: number; professionalId?: number; specialtyKey?: string }>()
 );
 export const loadMedicalRecordsSuccess = createAction(
   '[Medical Records] Load Medical Records Success',

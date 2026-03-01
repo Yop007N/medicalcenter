@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnIn
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -10,7 +10,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonSegment,
@@ -68,7 +67,6 @@ interface CalendarDay {
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonSegment,
@@ -90,7 +88,9 @@ interface CalendarDay {
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/appointments"></ion-back-button>
+          <ion-button fill="clear" aria-label="Volver a citas" (click)="goToAppointmentsList()">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>Calendario de Citas</ion-title>
       </ion-toolbar>
@@ -503,6 +503,7 @@ interface CalendarDay {
 export class AppointmentsCalendarPage implements OnInit {
   private readonly store = inject(Store<AppState>);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -515,6 +516,9 @@ export class AppointmentsCalendarPage implements OnInit {
   esLocale = es;
   format = format;
   hasAppointments = false;
+  currentPatientId?: number;
+  currentProfessionalId?: number;
+  currentSpecialtyKey?: string;
 
   readonly appointments$ = this.store.select(selectAllAppointments);
   readonly loading$ = this.store.select(selectAppointmentsLoading);
@@ -537,7 +541,14 @@ export class AppointmentsCalendarPage implements OnInit {
 
   ngOnInit(): void {
     this.updateCurrentPeriodLabel();
-    this.loadAppointments();
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.currentPatientId = this.parseNumberParam(params.get('patient_id') ?? params.get('patientId'));
+        this.currentProfessionalId = this.parseNumberParam(params.get('professional_id') ?? params.get('professionalId'));
+        this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.loadAppointments();
+      });
 
     this.appointments$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -551,7 +562,11 @@ export class AppointmentsCalendarPage implements OnInit {
   }
 
   loadAppointments(): void {
-    this.store.dispatch(AppointmentsActions.loadAppointments());
+    this.store.dispatch(AppointmentsActions.loadAppointments({
+      patientId: this.currentPatientId,
+      professionalId: this.currentProfessionalId,
+      specialtyKey: this.currentSpecialtyKey
+    }));
   }
 
   generateCalendar(): void {
@@ -689,19 +704,43 @@ export class AppointmentsCalendarPage implements OnInit {
     this.selectedDay = day;
   }
 
+  goToAppointmentsList(): void {
+    this.router.navigate(['/appointments'], { queryParams: this.scopeQueryParams });
+  }
+
   viewAppointment(id: number): void {
-    this.router.navigate(['/appointments', id]);
+    this.router.navigate(['/appointments', id], { queryParams: this.scopeQueryParams });
   }
 
   createAppointment(date?: Date): void {
     if (date) {
       this.router.navigate(['/appointments/new'], {
-        queryParams: { date: format(date, 'yyyy-MM-dd') }
+        queryParams: {
+          date: format(date, 'yyyy-MM-dd'),
+          ...this.scopeQueryParams
+        }
       });
       return;
     }
 
-    this.router.navigate(['/appointments/new']);
+    this.router.navigate(['/appointments/new'], { queryParams: this.scopeQueryParams });
+  }
+
+  get scopeQueryParams(): { patient_id?: number; professional_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      professional_id: this.currentProfessionalId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   getStatusColor(status: string): string {

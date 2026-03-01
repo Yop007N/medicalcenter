@@ -74,7 +74,7 @@ import { Appointment } from '../../../models';
         </ion-buttons>
         <ion-title>Agenda de Citas</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Crear nueva cita" routerLink="/appointments/new">
+          <ion-button aria-label="Crear nueva cita" routerLink="/appointments/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -167,7 +167,7 @@ import { Appointment } from '../../../models';
             <h3>No hay citas</h3>
             <p>{{ selectedFilter === 'all' ? 'Agenda tu primera cita para comenzar' : 'No hay citas con este estado' }}</p>
             @if (selectedFilter === 'all') {
-              <ion-button routerLink="/appointments/new" shape="round">
+              <ion-button routerLink="/appointments/new" [queryParams]="scopeQueryParams" shape="round">
                 <ion-icon slot="start" name="add-outline"></ion-icon>
                 Nueva Cita
               </ion-button>
@@ -176,7 +176,7 @@ import { Appointment } from '../../../models';
         } @else {
           <div class="appointments-list">
             @for (appointment of filteredAppointments; track appointment.id) {
-              <ion-card class="appointment-card" [routerLink]="['/appointments', appointment.id]">
+              <ion-card class="appointment-card" [routerLink]="['/appointments', appointment.id]" [queryParams]="scopeQueryParams">
                 <ion-card-content>
                   <div class="appointment-header">
                     <div class="date-badge">
@@ -223,14 +223,14 @@ import { Appointment } from '../../../models';
 
       <!-- FAB para crear nueva cita (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button aria-label="Crear nueva cita" routerLink="/appointments/new">
+        <ion-fab-button aria-label="Crear nueva cita" routerLink="/appointments/new" [queryParams]="scopeQueryParams">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
 
       <!-- Boton para crear nueva cita (desktop) -->
       <div class="desktop-create-btn hide-mobile">
-        <ion-button routerLink="/appointments/new" shape="round" expand="block">
+        <ion-button routerLink="/appointments/new" [queryParams]="scopeQueryParams" shape="round" expand="block">
           <ion-icon slot="start" name="add-outline"></ion-icon>
           Crear Cita
         </ion-button>
@@ -646,6 +646,9 @@ export class AppointmentsListPage implements OnInit {
   loading = true;
   errorMessage: string | null = null;
   selectedFilter = 'all';
+  currentPatientId?: number;
+  currentProfessionalId?: number;
+  currentSpecialtyKey?: string;
   private readonly allowedFilters = new Set([
     'all',
     'pending',
@@ -679,16 +682,19 @@ export class AppointmentsListPage implements OnInit {
         this.selectedFilter = requestedStatus && this.allowedFilters.has(requestedStatus)
           ? requestedStatus
           : 'all';
-        this.filterAppointments();
+        this.currentPatientId = this.parseNumberParam(params.get('patient_id') ?? params.get('patientId'));
+        this.currentProfessionalId = this.parseNumberParam(params.get('professional_id') ?? params.get('professionalId'));
+        this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.loadAppointments();
       });
-
-    this.loadAppointments();
   }
 
   loadAppointments(): void {
     this.loading = true;
     this.errorMessage = null;
-    this.appointmentsApi.list().subscribe({
+    this.appointmentsApi
+      .list(this.currentPatientId, this.currentProfessionalId, this.currentSpecialtyKey)
+      .subscribe({
       next: (appointments) => {
         this.appointments = appointments;
         this.filterAppointments();
@@ -701,6 +707,23 @@ export class AppointmentsListPage implements OnInit {
         this.errorMessage = err.error?.msg || err.error?.message || 'No se pudo cargar la agenda';
       }
     });
+  }
+
+  get scopeQueryParams(): { patient_id?: number; professional_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      professional_id: this.currentProfessionalId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   filterAppointments(): void {

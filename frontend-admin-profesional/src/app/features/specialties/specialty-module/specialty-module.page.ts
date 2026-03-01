@@ -12,10 +12,17 @@ import {
   SpecialtyModuleContext,
   SpecialtyModuleOverview
 } from '../../../core/services/specialties-api.service';
+import { NotificationService } from '../../../core/services';
 import {
+  buildSpecialtyInsightCards,
+  buildSpecialtyBoardSections,
   LEGACY_MODULES,
+  SpecialtyBoardSectionView,
   SpecialtyUiConfig,
+  SpecialtyInsightCard,
   SpecialtyWorkspaceItem,
+  resolveSpecialtyFrontendRoute,
+  resolveSpecialtyPrimaryQuickAction,
   resolveSpecialtyUiConfig,
 } from './specialty-module.config';
 
@@ -77,20 +84,14 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
             }
           </div>
           <div class="quick-actions">
-            <a routerLink="/patients" class="quick-link">Pacientes</a>
-            <a routerLink="/appointments" class="quick-link">Citas</a>
-            <a routerLink="/medical-records" class="quick-link">Historiales</a>
-            <a routerLink="/files" class="quick-link">Archivos</a>
-            <a routerLink="/budgets" class="quick-link">Presupuestos</a>
-            <a routerLink="/payments" class="quick-link">Pagos</a>
-            @if (context.module.key === 'odontology') {
-              <a routerLink="/odontology" class="quick-link primary">Abrir Odontología</a>
-            }
-            @if (context.module.key === 'psychology') {
-              <a routerLink="/psychology" class="quick-link primary">Abrir Psicología</a>
-            }
-            @if (context.module.key === 'psychopedagogy') {
-              <a routerLink="/psychopedagogy" class="quick-link primary">Abrir Psicopedagogía</a>
+            <a routerLink="/patients" [queryParams]="scopeQueryParams" class="quick-link">Pacientes</a>
+            <a routerLink="/appointments" [queryParams]="scopeQueryParams" class="quick-link">Citas</a>
+            <a routerLink="/medical-records" [queryParams]="scopeQueryParams" class="quick-link">Historiales</a>
+            <a routerLink="/files" [queryParams]="scopeQueryParams" class="quick-link">Archivos</a>
+            <a routerLink="/budgets" [queryParams]="scopeQueryParams" class="quick-link">Presupuestos</a>
+            <a routerLink="/payments" [queryParams]="scopeQueryParams" class="quick-link">Pagos</a>
+            @if (primaryQuickAction; as action) {
+              <a [routerLink]="action.route" class="quick-link primary">{{ action.label }}</a>
             }
           </div>
         </article>
@@ -140,11 +141,58 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
             <small>Historial clínico</small>
           </article>
           <article class="card stat">
+            <h3>Atenciones módulo</h3>
+            <strong>{{ overview.totals.specialty_encounters }}</strong>
+            <small>Encuentros clínicos filtrados</small>
+          </article>
+          <article class="card stat">
+            <h3>Documentos módulo</h3>
+            <strong>{{ overview.totals.documents }}</strong>
+            <small>Archivos clínicos asociados</small>
+          </article>
+          <article class="card stat">
             <h3>Facturación</h3>
             <strong>{{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'ARS'):'symbol':'1.0-2' }}</strong>
             <small>Pagos: {{ overview.totals.payments_completed }}</small>
           </article>
         </div>
+      }
+
+      @if (specialtyInsightCards.length > 0) {
+        <article class="card">
+          <h2 class="card-title">Indicadores clínicos del módulo</h2>
+          <div class="stats-grid">
+            @for (insight of specialtyInsightCards; track insight.label) {
+              <article class="card stat insight-card">
+                <h3>{{ insight.label }}</h3>
+                <strong>{{ insight.value }}</strong>
+                <small>{{ insight.description }}</small>
+              </article>
+            }
+          </div>
+        </article>
+      }
+
+      @if (specialtyBoardSections.length > 0) {
+        <article class="card">
+          <h2 class="card-title">Panel clínico del dominio</h2>
+          <div class="board-grid">
+            @for (section of specialtyBoardSections; track section.title) {
+              <section class="board-section">
+                <h3>{{ section.title }}</h3>
+                <p>{{ section.description }}</p>
+                <dl class="board-list">
+                  @for (item of section.items; track item.label) {
+                    <div>
+                      <dt>{{ item.label }}</dt>
+                      <dd>{{ item.value }}</dd>
+                    </div>
+                  }
+                </dl>
+              </section>
+            }
+          </div>
+        </article>
       }
 
       @if (overview && context) {
@@ -198,6 +246,54 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
                         {{ patient.first_name }} {{ patient.last_name }}
                       </a>
                       <small>{{ patient.email }} · @if (patient.is_active) { Activo } @else { Inactivo }</small>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            <div class="insight-block">
+              <h3>Timeline clínico por especialidad</h3>
+              @if (overview.recent_specialty_encounters.length === 0) {
+                <p class="empty">Sin atenciones registradas para este módulo.</p>
+              } @else {
+                <ul class="mini-list">
+                  @for (encounter of overview.recent_specialty_encounters.slice(0, 6); track encounter.id) {
+                    <li>
+                      <a [routerLink]="['/patients', encounter.patient_id]">
+                        {{ encounter.patient_name }}
+                      </a>
+                      <small>
+                        {{ encounter.visit_date | date:'short' }} ·
+                        {{ toEncounterStatusLabel(encounter.status) }} ·
+                        {{ encounter.diagnosis || encounter.chief_complaint }}
+                      </small>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            <div class="insight-block">
+              <h3>Documentos recientes por módulo</h3>
+              @if (overview.recent_documents.length === 0) {
+                <p class="empty">Sin documentos clínicos para esta especialidad.</p>
+              } @else {
+                <ul class="mini-list">
+                  @for (document of overview.recent_documents.slice(0, 6); track document.id) {
+                    <li>
+                      <a
+                        [routerLink]="['/files']"
+                        [queryParams]="{
+                          specialty_key: context.module.key,
+                          patient_id: document.patient_id || undefined
+                        }"
+                      >
+                        {{ document.filename }}
+                      </a>
+                      <small>
+                        {{ document.patient_name || 'Paciente no definido' }} ·
+                        {{ document.created_at | date:'short' }} ·
+                        {{ document.file_type || 'documento' }}
+                      </small>
                     </li>
                   }
                 </ul>
@@ -455,6 +551,15 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
     .specialty-brief .brief-column ul { margin: 0; padding-left: 1rem; }
     .specialty-brief .brief-column li { color: var(--ion-color-medium); font-size: 0.82rem; margin-bottom: 0.3rem; }
     .specialty-brief .brief-column p { color: var(--ion-color-medium); font-size: 0.82rem; margin: 0; }
+    .board-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 0.2rem; }
+    .board-section { border: 1px solid var(--medical-border-light); border-radius: 10px; padding: 0.75rem; }
+    .board-section h3 { color: var(--ion-color-dark); font-size: 0.82rem; margin: 0 0 0.35rem; text-transform: uppercase; }
+    .board-section p { color: var(--ion-color-medium); font-size: 0.78rem; margin: 0 0 0.55rem; }
+    .board-list { display: grid; gap: 0.45rem; margin: 0; }
+    .board-list div { border-top: 1px dashed var(--medical-border-light); display: grid; gap: 0.15rem; padding-top: 0.45rem; }
+    .board-list div:first-child { border-top: none; padding-top: 0; }
+    .board-list dt { color: var(--ion-color-medium); font-size: 0.73rem; font-weight: 600; margin: 0; text-transform: uppercase; }
+    .board-list dd { color: var(--ion-color-dark); font-size: 0.84rem; font-weight: 600; margin: 0; }
     .form-grid, .filter-grid { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
     .filter-grid { border: 1px solid var(--medical-border-light); border-radius: 10px; margin-bottom: 0.7rem; padding: 0.6rem; }
     label { color: var(--ion-color-dark); display: grid; font-size: 0.8rem; font-weight: 600; gap: 0.3rem; }
@@ -481,6 +586,7 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
   private readonly specialtiesApi = inject(SpecialtiesApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly notification = inject(NotificationService);
   private readonly fb = inject(FormBuilder);
   private routeParamSubscription?: Subscription;
 
@@ -537,19 +643,24 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       {
         title: `Pacientes de ${moduleLabel}`,
         description: 'Acceso a pacientes, historial y continuidad del cuidado.',
-        route: '/patients',
+        route: this.buildScopedRoute('/patients'),
       },
       {
         title: `Agenda de ${moduleLabel}`,
         description: 'Control de turnos, seguimiento y pendientes asistenciales.',
-        route: '/appointments',
+        route: this.buildScopedRoute('/appointments'),
       },
       {
         title: `Registros y documentos`,
         description: 'Historiales, archivos y evidencias clínicas del módulo.',
-        route: '/medical-records',
+        route: this.buildScopedRoute('/medical-records'),
       },
     ];
+  }
+
+  get scopeQueryParams(): Record<string, string> {
+    const specialtyKey = this.context?.module?.key;
+    return specialtyKey ? { specialty_key: specialtyKey } : {};
   }
 
   get primaryWorkspaceActionLabel(): string {
@@ -559,10 +670,11 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
 
   get primaryWorkspaceRoute(): string {
     const moduleKey = this.context?.module?.key;
-    if (!moduleKey) {
-      return '/dashboard';
-    }
-    return this.resolveFrontendRoute(moduleKey);
+    return resolveSpecialtyFrontendRoute(moduleKey);
+  }
+
+  get primaryQuickAction(): { label: string; route: string } | null {
+    return resolveSpecialtyPrimaryQuickAction(this.context?.module?.key);
   }
 
   get filteredEncounters(): SpecialtyEncounter[] {
@@ -604,6 +716,14 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       }
       return true;
     });
+  }
+
+  get specialtyInsightCards(): SpecialtyInsightCard[] {
+    return buildSpecialtyInsightCards(this.context?.module?.key, this.encounters);
+  }
+
+  get specialtyBoardSections(): SpecialtyBoardSectionView[] {
+    return buildSpecialtyBoardSections(this.context?.module?.key, this.encounters);
   }
 
   ngOnInit(): void {
@@ -729,8 +849,27 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
     return fallback.join(' · ');
   }
 
-  deleteEncounter(encounterId: number): void {
-    if (!globalThis.confirm(`Eliminar consulta #${encounterId}?`)) {
+  toEncounterStatusLabel(status: string): string {
+    const normalized = String(status || '').trim().toLowerCase();
+    if (normalized === 'open') {
+      return 'Abierto';
+    }
+    if (normalized === 'in_progress') {
+      return 'En progreso';
+    }
+    if (normalized === 'closed') {
+      return 'Cerrado';
+    }
+    return status || 'Sin estado';
+  }
+
+  async deleteEncounter(encounterId: number): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar consulta',
+      `Eliminar consulta #${encounterId}?`,
+      'Eliminar'
+    );
+    if (!confirmed) {
       return;
     }
     this.specialtiesApi.deleteEncounter(encounterId).subscribe({
@@ -853,6 +992,11 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       notes: String(raw.notes || '').trim() || undefined,
       payload: Object.keys(payloadObject).length > 0 ? payloadObject : undefined
     };
+  }
+
+  private buildScopedRoute(path: string): string {
+    const specialtyKey = this.context?.module?.key;
+    return specialtyKey ? `${path}?specialty_key=${encodeURIComponent(specialtyKey)}` : path;
   }
 
   private resetForm(): void {
@@ -981,25 +1125,8 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       return;
     }
     if (routeSpecialtyKey !== context.module.key) {
-      void this.router.navigateByUrl(this.resolveFrontendRoute(context.module.key));
+      void this.router.navigateByUrl(resolveSpecialtyFrontendRoute(context.module.key));
     }
-  }
-
-  private resolveFrontendRoute(moduleKey: string): string {
-    if (moduleKey === 'odontology') {
-      return '/odontology';
-    }
-    if (moduleKey === 'psychology') {
-      return '/psychology';
-    }
-    if (moduleKey === 'psychopedagogy') {
-      return '/psychopedagogy';
-    }
-    const normalized = String(moduleKey || '').trim().toLowerCase();
-    if (normalized) {
-      return `/${normalized}`;
-    }
-    return `/specialties/${moduleKey}`;
   }
 
   private formatDateForInput(date: Date): string {

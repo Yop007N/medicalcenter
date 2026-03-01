@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -9,7 +9,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonItem,
@@ -21,7 +20,7 @@ import {
   IonText
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { saveOutline } from 'ionicons/icons';
+import { chevronBackOutline, saveOutline } from 'ionicons/icons';
 import * as PaymentsActions from '../../../store/payments/payments.actions';
 import { selectSelectedPayment, selectPaymentsLoading, selectPaymentsError } from '../../../store/payments/payments.selectors';
 import { PaymentCreate, PaymentUpdate } from '../../../models/budget.model';
@@ -31,13 +30,13 @@ import { PaymentCreate, PaymentUpdate } from '../../../models/budget.model';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonItem,
@@ -52,7 +51,9 @@ import { PaymentCreate, PaymentUpdate } from '../../../models/budget.model';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/payments"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/payments']" [queryParams]="scopeQueryParams" aria-label="Volver a pagos">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>{{ isEdit ? 'Editar' : 'Nuevo' }} Pago</ion-title>
         <ion-buttons slot="end">
@@ -315,9 +316,11 @@ export class PaymentFormPage implements OnInit {
   isEdit = false;
   paymentId?: number;
   private budgetIdFromRoute?: number;
+  private patientIdFromRoute?: number;
+  private specialtyKeyFromRoute?: string;
 
   constructor() {
-    addIcons({ saveOutline });
+    addIcons({ saveOutline, chevronBackOutline });
 
     this.form = this.fb.group({
       amount: [null, [Validators.required, Validators.min(0.01)]],
@@ -331,10 +334,12 @@ export class PaymentFormPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.patientIdFromRoute = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.specialtyKeyFromRoute = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
     // Check for budget_id in query params (when coming from budget detail)
-    const budgetId = this.route.snapshot.queryParamMap.get('budget_id');
+    const budgetId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('budget_id'));
     if (budgetId) {
-      this.budgetIdFromRoute = parseInt(budgetId, 10);
+      this.budgetIdFromRoute = budgetId;
       this.form.patchValue({ budget_id: this.budgetIdFromRoute });
     }
 
@@ -384,7 +389,11 @@ export class PaymentFormPage implements OnInit {
         transaction_reference: formValue.transaction_reference || undefined,
         notes: formValue.notes || undefined
       };
-      this.store.dispatch(PaymentsActions.updatePayment({ id: this.paymentId, payment }));
+      this.store.dispatch(PaymentsActions.updatePayment({
+        id: this.paymentId,
+        payment,
+        navigationQueryParams: this.scopeQueryParams
+      }));
     } else {
       const payment: PaymentCreate = {
         amount: formValue.amount,
@@ -398,8 +407,26 @@ export class PaymentFormPage implements OnInit {
       this.store.dispatch(PaymentsActions.createPayment({
         payment,
         autoProcessOnCreate: !!this.budgetIdFromRoute,
-        navigateToBudgetOnSuccess: !!this.budgetIdFromRoute
+        navigateToBudgetOnSuccess: !!this.budgetIdFromRoute,
+        navigationQueryParams: this.scopeQueryParams
       }));
     }
+  }
+
+  get scopeQueryParams(): { budget_id?: number; patient_id?: number; specialty_key?: string } {
+    return {
+      budget_id: this.budgetIdFromRoute,
+      patient_id: this.patientIdFromRoute,
+      specialty_key: this.specialtyKeyFromRoute
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

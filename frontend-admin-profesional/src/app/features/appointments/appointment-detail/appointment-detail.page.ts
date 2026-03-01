@@ -8,7 +8,6 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
-  IonBackButton,
   IonButton,
   IonIcon,
   IonCard,
@@ -36,7 +35,8 @@ import {
   checkmarkCircleOutline,
   closeCircleOutline,
   ellipsisVerticalOutline,
-  documentTextOutline
+  documentTextOutline,
+  chevronBackOutline
 } from 'ionicons/icons';
 import * as AppointmentsActions from '../../../store/appointments/appointments.actions';
 import { selectSelectedAppointment, selectAppointmentsLoading } from '../../../store/appointments/appointments.selectors';
@@ -52,7 +52,6 @@ import { selectSelectedAppointment, selectAppointmentsLoading } from '../../../s
     IonTitle,
     IonContent,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonCard,
@@ -71,20 +70,22 @@ import { selectSelectedAppointment, selectAppointmentsLoading } from '../../../s
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/appointments"></ion-back-button>
+          <ion-button fill="clear" [routerLink]="['/appointments']" [queryParams]="scopeQueryParams" aria-label="Volver a citas">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
         </ion-buttons>
         <ion-title>Detalle de Cita</ion-title>
         <ion-buttons slot="end">
           @if (appointment$ | async; as appointment) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/appointments', appointment.id, 'edit']" class="hide-desktop">
+            <ion-button [routerLink]="['/appointments', appointment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
             <ion-button (click)="showActions(appointment)" class="hide-desktop">
               <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
-            <ion-button [routerLink]="['/appointments', appointment.id, 'edit']" fill="outline" class="hide-mobile">
+            <ion-button [routerLink]="['/appointments', appointment.id, 'edit']" [queryParams]="scopeQueryParams" fill="outline" class="hide-mobile">
               <ion-icon slot="start" name="create-outline"></ion-icon>
               Editar
             </ion-button>
@@ -159,7 +160,7 @@ import { selectSelectedAppointment, selectAppointmentsLoading } from '../../../s
                 </ion-card-header>
                 <ion-card-content>
                   @if (appointment.patient) {
-                    <ion-item [routerLink]="['/patients', appointment.patient.id]" detail lines="none">
+                    <ion-item [routerLink]="['/patients', appointment.patient.id]" [queryParams]="scopeQueryParams" detail lines="none">
                       <ion-label>
                         <h2>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</h2>
                         <p>{{ appointment.patient.email }}</p>
@@ -409,6 +410,9 @@ export class AppointmentDetailPage implements OnInit {
   loading$ = this.store.select(selectAppointmentsLoading);
 
   appointmentId: number | null = null;
+  currentPatientId?: number;
+  currentProfessionalId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({
@@ -421,11 +425,15 @@ export class AppointmentDetailPage implements OnInit {
       checkmarkCircleOutline,
       closeCircleOutline,
       ellipsisVerticalOutline,
-      documentTextOutline
+      documentTextOutline,
+      chevronBackOutline
     });
   }
 
   ngOnInit(): void {
+    this.currentPatientId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('patient_id'));
+    this.currentProfessionalId = this.parseNumberParam(this.route.snapshot.queryParamMap.get('professional_id'));
+    this.currentSpecialtyKey = this.route.snapshot.queryParamMap.get('specialty_key') || undefined;
     const idParam = this.route.snapshot.paramMap.get('id');
     if (idParam) {
       this.appointmentId = parseInt(idParam, 10);
@@ -438,6 +446,23 @@ export class AppointmentDetailPage implements OnInit {
       this.store.dispatch(AppointmentsActions.loadAppointment({ id: this.appointmentId }));
     }
     setTimeout(() => event.target.complete(), 1000);
+  }
+
+  get scopeQueryParams(): { patient_id?: number; professional_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      professional_id: this.currentProfessionalId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   async showActions(appointment: any): Promise<void> {

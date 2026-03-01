@@ -4,7 +4,7 @@ import { Budget, BudgetCreate } from '../../models/budget.model';
 // Load Budgets
 export const loadBudgets = createAction(
   '[Budgets] Load Budgets',
-  props<{ patientId?: number }>()
+  props<{ patientId?: number; specialtyKey?: string }>()
 );
 export const loadBudgetsSuccess = createAction(
   '[Budgets] Load Budgets Success',
@@ -32,11 +32,17 @@ export const loadBudgetFailure = createAction(
 // Create Budget
 export const createBudget = createAction(
   '[Budgets] Create Budget',
-  props<{ budget: BudgetCreate }>()
+  props<{
+    budget: BudgetCreate;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const createBudgetSuccess = createAction(
   '[Budgets] Create Budget Success',
-  props<{ budget: Budget }>()
+  props<{
+    budget: Budget;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const createBudgetFailure = createAction(
   '[Budgets] Create Budget Failure',
@@ -46,11 +52,18 @@ export const createBudgetFailure = createAction(
 // Update Budget
 export const updateBudget = createAction(
   '[Budgets] Update Budget',
-  props<{ id: number; budget: Partial<BudgetCreate> }>()
+  props<{
+    id: number;
+    budget: Partial<BudgetCreate>;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const updateBudgetSuccess = createAction(
   '[Budgets] Update Budget Success',
-  props<{ budget: Budget }>()
+  props<{
+    budget: Budget;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const updateBudgetFailure = createAction(
   '[Budgets] Update Budget Failure',
@@ -60,11 +73,17 @@ export const updateBudgetFailure = createAction(
 // Delete Budget
 export const deleteBudget = createAction(
   '[Budgets] Delete Budget',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const deleteBudgetSuccess = createAction(
   '[Budgets] Delete Budget Success',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const deleteBudgetFailure = createAction(
   '[Budgets] Delete Budget Failure',

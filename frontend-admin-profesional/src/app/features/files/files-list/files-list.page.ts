@@ -46,7 +46,7 @@ import {
   getFileIcon
 } from '../../../models/file.model';
 import { Patient } from '../../../models/patient.model';
-import { PatientsApiService } from '../../../core/services/patients-api.service';
+import { NotificationService, PatientsApiService } from '../../../core/services';
 import * as FilesActions from '../../../store/files/files.actions';
 import {
   selectAllFiles,
@@ -327,6 +327,7 @@ export class FilesListPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly notification = inject(NotificationService);
 
   readonly loading$ = this.store.select(selectFilesLoading);
   readonly uploading$ = this.store.select(selectFilesUploading);
@@ -341,6 +342,7 @@ export class FilesListPage implements OnInit {
 
   uploadPatientId: number | null = null;
   backPatientId: number | null = null;
+  specialtyKey: string | null = null;
   uploadCategory: FileCategory = 'medical';
   uploadDescription = '';
 
@@ -371,6 +373,7 @@ export class FilesListPage implements OnInit {
       .subscribe((params) => {
         const patientIdRaw = params.get('patient_id') ?? params.get('patientId');
         const patientId = patientIdRaw ? Number(patientIdRaw) : NaN;
+        this.specialtyKey = params.get('specialty_key');
 
         if (Number.isFinite(patientId) && patientId > 0) {
           this.backPatientId = patientId;
@@ -380,9 +383,8 @@ export class FilesListPage implements OnInit {
         }
 
         this.backPatientId = null;
-        if (!this.uploadPatientId) {
-          this.loadFiles(undefined);
-        }
+        this.uploadPatientId = null;
+        this.loadFiles(undefined);
       });
   }
 
@@ -399,12 +401,16 @@ export class FilesListPage implements OnInit {
       this.store.dispatch(FilesActions.clearFilesState());
       return;
     }
-    this.store.dispatch(FilesActions.loadFiles({ patientId }));
+    this.store.dispatch(FilesActions.loadFiles({
+      patientId,
+      specialtyKey: this.specialtyKey || undefined
+    }));
   }
 
-  onUploadPatientChange(value: number | null): void {
-    this.uploadPatientId = value;
-    this.loadFiles(value || undefined);
+  onUploadPatientChange(value: unknown): void {
+    const nextValue = Number(value);
+    this.uploadPatientId = Number.isFinite(nextValue) && nextValue > 0 ? nextValue : null;
+    this.loadFiles(this.uploadPatientId || undefined);
   }
 
   onFileSelected(event: Event): void {
@@ -423,6 +429,7 @@ export class FilesListPage implements OnInit {
         metadata: {
           patient_id: this.uploadPatientId,
           category: this.uploadCategory,
+          specialty_key: this.specialtyKey || undefined,
           description: this.uploadDescription.trim() || undefined
         }
       })
@@ -441,8 +448,12 @@ export class FilesListPage implements OnInit {
     );
   }
 
-  remove(file: MedicalFile): void {
-    const confirmed = window.confirm(`Eliminar archivo "${file.original_filename || file.filename}"?`);
+  async remove(file: MedicalFile): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar archivo',
+      `Eliminar archivo "${file.original_filename || file.filename}"?`,
+      'Eliminar'
+    );
     if (!confirmed) {
       return;
     }

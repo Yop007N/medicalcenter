@@ -48,7 +48,13 @@ import {
 import * as PatientsActions from '../../../store/patients/patients.actions';
 import { selectSelectedPatient, selectPatientsLoading } from '../../../store/patients/patients.selectors';
 import { selectUser } from '../../../store/auth/auth.selectors';
-import { FilesApiService, OdontologyApiService, PatientsApiService } from '../../../core/services';
+import {
+  AppointmentsApiService,
+  BudgetsApiService,
+  FilesApiService,
+  MedicalRecordsApiService,
+  OdontologyApiService
+} from '../../../core/services';
 import { FileCategory, MedicalFile, formatFileSize, getFileCategoryLabel, getFileIcon } from '../../../models/file.model';
 import { User } from '../../../models';
 
@@ -106,14 +112,14 @@ type ApiErrorShape = {
         <ion-buttons slot="end">
           @if (patient$ | async; as patient) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/patients', patient.id, 'edit']" class="hide-desktop">
+            <ion-button [routerLink]="['/patients', patient.id, 'edit']" [queryParams]="moduleQueryParams" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
             <ion-button color="danger" (click)="confirmDelete(patient)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
-            <ion-button [routerLink]="['/patients', patient.id, 'edit']" fill="outline" class="hide-mobile">
+            <ion-button [routerLink]="['/patients', patient.id, 'edit']" [queryParams]="moduleQueryParams" fill="outline" class="hide-mobile">
               <ion-icon slot="start" name="create-outline"></ion-icon>
               Editar
             </ion-button>
@@ -302,7 +308,13 @@ type ApiErrorShape = {
                     @if (appointments.length > 0) {
                       <ion-list class="compact-list">
                         @for (apt of appointments.slice(0, 3); track apt.id) {
-                          <ion-item button [routerLink]="['/appointments', apt.id]" detail="true" (click)="$event.stopPropagation()">
+                          <ion-item
+                            button
+                            [routerLink]="['/appointments', apt.id]"
+                            [queryParams]="moduleQueryParams"
+                            detail="true"
+                            (click)="$event.stopPropagation()"
+                          >
                             <ion-icon name="calendar-outline" slot="start"></ion-icon>
                             <ion-label>
                               <h3>{{ formatDateTime(apt.appointment_date) }}</h3>
@@ -372,7 +384,13 @@ type ApiErrorShape = {
                       @if (dentalTreatments.length > 0) {
                         <ion-list class="compact-list">
                           @for (treatment of dentalTreatments.slice(0, 3); track treatment.id) {
-                            <ion-item button [routerLink]="['/odontology/treatments', treatment.id]" detail="true" (click)="$event.stopPropagation()">
+                            <ion-item
+                              button
+                              [routerLink]="['/odontology/treatments', treatment.id]"
+                              [queryParams]="moduleQueryParams"
+                              detail="true"
+                              (click)="$event.stopPropagation()"
+                            >
                               <ion-icon name="medkit-outline" slot="start" [color]="getTreatmentStatusColor(treatment.status)"></ion-icon>
                               <ion-label>
                                 <h3>{{ getTreatmentTypeLabel(treatment.treatment_type) }}</h3>
@@ -392,7 +410,12 @@ type ApiErrorShape = {
                         Ver módulo
                       </ion-button>
                       @if (odontogram) {
-                        <ion-button size="small" [routerLink]="['/odontology/odontograms', odontogram.id]" (click)="$event.stopPropagation()">
+                        <ion-button
+                          size="small"
+                          [routerLink]="['/odontology/odontograms', odontogram.id]"
+                          [queryParams]="moduleQueryParams"
+                          (click)="$event.stopPropagation()"
+                        >
                           Ver odontograma
                         </ion-button>
                       } @else {
@@ -419,7 +442,13 @@ type ApiErrorShape = {
                     @if (medicalRecords.length > 0) {
                       <ion-list class="compact-list">
                         @for (record of medicalRecords.slice(0, 3); track record.id) {
-                          <ion-item button [routerLink]="['/medical-records', record.id]" detail="true" (click)="$event.stopPropagation()">
+                          <ion-item
+                            button
+                            [routerLink]="['/medical-records', record.id]"
+                            [queryParams]="moduleQueryParams"
+                            detail="true"
+                            (click)="$event.stopPropagation()"
+                          >
                             <ion-icon name="document-text-outline" slot="start"></ion-icon>
                             <ion-label>
                               <h3>{{ formatDate(record.record_date) }}</h3>
@@ -458,7 +487,13 @@ type ApiErrorShape = {
                     @if (budgets.length > 0) {
                       <ion-list class="compact-list">
                         @for (budget of budgets.slice(0, 3); track budget.id) {
-                          <ion-item button [routerLink]="['/budgets', budget.id]" detail="true" (click)="$event.stopPropagation()">
+                          <ion-item
+                            button
+                            [routerLink]="['/budgets', budget.id]"
+                            [queryParams]="moduleQueryParams"
+                            detail="true"
+                            (click)="$event.stopPropagation()"
+                          >
                             <ion-icon name="wallet-outline" slot="start" [color]="getBudgetStatusColor(budget.status)"></ion-icon>
                             <ion-label>
                               <h3>{{ budget.title || 'Presupuesto #' + budget.id }}</h3>
@@ -724,7 +759,9 @@ export class PatientDetailPage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private alertController = inject(AlertController);
-  private patientsApi = inject(PatientsApiService);
+  private appointmentsApi = inject(AppointmentsApiService);
+  private medicalRecordsApi = inject(MedicalRecordsApiService);
+  private budgetsApi = inject(BudgetsApiService);
   private odontologyApi = inject(OdontologyApiService);
   private filesApi = inject(FilesApiService);
 
@@ -736,6 +773,7 @@ export class PatientDetailPage implements OnInit {
   budgets: any[] = [];
   files: MedicalFile[] = [];
   patientId: number | null = null;
+  currentSpecialtyKey: string | null = null;
   loadingFiles = false;
 
   // Odontology data
@@ -769,12 +807,29 @@ export class PatientDetailPage implements OnInit {
     if (idParam) {
       this.patientId = parseInt(idParam, 10);
       this.store.dispatch(PatientsActions.loadPatient({ id: this.patientId }));
+      this.currentSpecialtyKey = this.normalizeSpecialtyKey(
+        this.route.snapshot.queryParamMap.get('specialty_key')
+      );
       this.loadAppointments();
       this.loadMedicalRecords();
       this.loadBudgets();
       this.loadOdontologyData();
       this.loadFiles();
     }
+
+    this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      if (nextSpecialtyKey === this.currentSpecialtyKey) {
+        return;
+      }
+      this.currentSpecialtyKey = nextSpecialtyKey;
+      if (this.patientId) {
+        this.loadAppointments();
+        this.loadMedicalRecords();
+        this.loadBudgets();
+        this.loadFiles();
+      }
+    });
   }
 
   onRefresh(event: any): void {
@@ -795,7 +850,7 @@ export class PatientDetailPage implements OnInit {
       return;
     }
 
-    this.patientsApi.listAppointments(this.patientId)
+    this.appointmentsApi.list(this.patientId, undefined, this.currentSpecialtyKey || undefined)
       .subscribe({
         next: (data) => {
           this.appointments = this.normalizeAppointments(data)
@@ -811,7 +866,7 @@ export class PatientDetailPage implements OnInit {
       return;
     }
 
-    this.patientsApi.listMedicalRecords(this.patientId)
+    this.medicalRecordsApi.list(this.patientId, undefined, this.currentSpecialtyKey || undefined)
       .subscribe({
         next: (data) => {
           this.medicalRecords = [...data].sort(
@@ -828,7 +883,7 @@ export class PatientDetailPage implements OnInit {
       return;
     }
 
-    this.patientsApi.listBudgets(this.patientId)
+    this.budgetsApi.list(this.patientId, this.currentSpecialtyKey || undefined)
       .subscribe({
         next: (data) => {
           this.budgets = [...data].sort((a, b) => {
@@ -885,7 +940,7 @@ export class PatientDetailPage implements OnInit {
     }
 
     this.loadingFiles = true;
-    this.filesApi.list(this.patientId).subscribe({
+    this.filesApi.list(this.patientId, this.currentSpecialtyKey || undefined).subscribe({
       next: (files) => {
         this.files = [...files].sort((a, b) => {
           const dateA = this.getTimestamp(a.upload_date || a.created_at);
@@ -961,69 +1016,78 @@ export class PatientDetailPage implements OnInit {
   openAppointmentsModule(event?: Event): void {
     this.stopCardClick(event);
     if (this.appointments.length > 0) {
-      void this.router.navigate(['/appointments', this.appointments[0].id]);
+      void this.router.navigate(['/appointments', this.appointments[0].id], { queryParams: this.moduleQueryParams });
       return;
     }
     if (this.patientId) {
-      void this.router.navigate(['/appointments/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/appointments/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   createAppointment(event: Event): void {
     this.stopCardClick(event);
     if (this.patientId) {
-      void this.router.navigate(['/appointments/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/appointments/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   openOdontologyModule(event?: Event): void {
     this.stopCardClick(event);
     if (this.patientId) {
-      void this.router.navigate(['/odontology/clinical-history', this.patientId]);
+      void this.router.navigate(['/odontology/clinical-history', this.patientId], {
+        queryParams: this.moduleQueryParams
+      });
     }
   }
 
   openMedicalRecordsModule(event?: Event): void {
     this.stopCardClick(event);
     if (this.medicalRecords.length > 0) {
-      void this.router.navigate(['/medical-records', this.medicalRecords[0].id]);
+      void this.router.navigate(['/medical-records', this.medicalRecords[0].id], { queryParams: this.moduleQueryParams });
       return;
     }
     if (this.patientId) {
-      void this.router.navigate(['/medical-records/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/medical-records/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   createMedicalRecord(event: Event): void {
     this.stopCardClick(event);
     if (this.patientId) {
-      void this.router.navigate(['/medical-records/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/medical-records/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   openBudgetsModule(event?: Event): void {
     this.stopCardClick(event);
     if (this.budgets.length > 0) {
-      void this.router.navigate(['/budgets', this.budgets[0].id]);
+      void this.router.navigate(['/budgets', this.budgets[0].id], { queryParams: this.moduleQueryParams });
       return;
     }
     if (this.patientId) {
-      void this.router.navigate(['/budgets/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/budgets/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   createBudget(event: Event): void {
     this.stopCardClick(event);
     if (this.patientId) {
-      void this.router.navigate(['/budgets/new'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/budgets/new'], { queryParams: this.moduleQueryParams });
     }
   }
 
   openFilesModule(event?: Event): void {
     this.stopCardClick(event);
     if (this.patientId) {
-      void this.router.navigate(['/files'], { queryParams: { patient_id: this.patientId } });
+      void this.router.navigate(['/files'], { queryParams: this.moduleQueryParams });
     }
+  }
+
+  get moduleQueryParams(): { patient_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.patientId ?? undefined,
+      specialty_key: this.currentSpecialtyKey || undefined
+    };
   }
 
   getFileCategory(category: string): string {
@@ -1040,6 +1104,14 @@ export class PatientDetailPage implements OnInit {
 
   private stopCardClick(event?: Event): void {
     event?.stopPropagation();
+  }
+
+  private normalizeSpecialtyKey(rawValue: string | null): string | null {
+    if (!rawValue) {
+      return null;
+    }
+    const normalized = rawValue.trim().toLowerCase();
+    return /^[a-z0-9-]+$/.test(normalized) ? normalized : null;
   }
 
   private normalizeAppointments(data: unknown): AppointmentSummary[] {

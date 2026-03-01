@@ -10,10 +10,11 @@ type CollectionResponse<T> = { items?: T[] } | T[];
 export class FilesApiService {
   private apiClient = inject(ApiClientService);
 
-  list(patientId?: number): Observable<MedicalFile[]> {
+  list(patientId?: number, specialtyKey?: string): Observable<MedicalFile[]> {
     return this.apiClient
       .get<CollectionResponse<MedicalFile>>(API_ENDPOINTS.files.base, {
-        patient_id: patientId
+        patient_id: patientId,
+        specialty_key: specialtyKey
       })
       .pipe(map((response) => (Array.isArray(response) ? response : response.items ?? [])));
   }
@@ -27,6 +28,9 @@ export class FilesApiService {
     formData.append('file', file);
     formData.append('patient_id', String(metadata.patient_id));
     formData.append('category', metadata.category);
+    if (metadata.specialty_key) {
+      formData.append('specialty_key', metadata.specialty_key);
+    }
 
     if (metadata.description) {
       formData.append('description', metadata.description);

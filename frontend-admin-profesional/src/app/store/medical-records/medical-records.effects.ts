@@ -28,8 +28,8 @@ export class MedicalRecordsEffects {
   loadMedicalRecords$ = createEffect(() =>
     this.actions$.pipe(
       ofType(MedicalRecordsActions.loadMedicalRecords),
-      switchMap(({ patientId, professionalId }) =>
-        this.medicalRecordsApi.list(patientId, professionalId).pipe(
+      switchMap(({ patientId, professionalId, specialtyKey }) =>
+        this.medicalRecordsApi.list(patientId, professionalId, specialtyKey).pipe(
           map((medicalRecords) => MedicalRecordsActions.loadMedicalRecordsSuccess({
             medicalRecords: medicalRecords.map((record) => normalizeMedicalRecord(record))
           })),

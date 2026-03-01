@@ -10,11 +10,12 @@ type CollectionResponse<T> = { items?: T[] } | T[];
 export class MedicalRecordsApiService {
   private apiClient = inject(ApiClientService);
 
-  list(patientId?: number, professionalId?: number): Observable<MedicalRecord[]> {
+  list(patientId?: number, professionalId?: number, specialtyKey?: string): Observable<MedicalRecord[]> {
     return this.apiClient
       .get<CollectionResponse<MedicalRecord>>(API_ENDPOINTS.medicalRecords.base, {
         patient_id: patientId,
-        professional_id: professionalId
+        professional_id: professionalId,
+        specialty_key: specialtyKey
       })
       .pipe(map((response) => (Array.isArray(response) ? response : response.items ?? [])));
   }

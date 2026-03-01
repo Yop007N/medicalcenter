@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import {
   IonHeader,
@@ -74,7 +75,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
         </ion-buttons>
         <ion-title>Presupuestos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/budgets/new">
+          <ion-button routerLink="/budgets/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -159,7 +160,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
             <h3>No hay presupuestos</h3>
             <p>{{ selectedStatus === 'all' ? 'Crea tu primer presupuesto para comenzar' : 'No hay presupuestos con este estado' }}</p>
             @if (selectedStatus === 'all') {
-              <ion-button routerLink="/budgets/new" shape="round">
+              <ion-button routerLink="/budgets/new" [queryParams]="scopeQueryParams" shape="round">
                 <ion-icon slot="start" name="add-outline"></ion-icon>
                 Nuevo Presupuesto
               </ion-button>
@@ -168,7 +169,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
         } @else {
           <div class="budgets-list">
             @for (budget of filteredBudgets; track budget.id) {
-              <ion-card class="budget-card" [routerLink]="['/budgets', budget.id]">
+              <ion-card class="budget-card" [routerLink]="['/budgets', budget.id]" [queryParams]="scopeQueryParams">
                 <ion-card-content>
                   <div class="budget-header">
                     <div class="budget-icon" [attr.data-status]="budget.status">
@@ -225,14 +226,14 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 
       <!-- FAB para crear nuevo presupuesto (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/budgets/new">
+        <ion-fab-button routerLink="/budgets/new" [queryParams]="scopeQueryParams">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
 
       <!-- Boton para crear nuevo presupuesto (desktop) -->
       <div class="desktop-create-btn hide-mobile">
-        <ion-button routerLink="/budgets/new" shape="round" expand="block">
+        <ion-button routerLink="/budgets/new" [queryParams]="scopeQueryParams" shape="round" expand="block">
           <ion-icon slot="start" name="add-outline"></ion-icon>
           Crear Presupuesto
         </ion-button>
@@ -627,6 +628,8 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
 })
 export class BudgetsListPage implements OnInit {
   private store = inject(Store);
+  private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   budgets$ = this.store.select(selectAllBudgets);
   loading$ = this.store.select(selectBudgetsLoading);
@@ -635,6 +638,8 @@ export class BudgetsListPage implements OnInit {
   allBudgets: Budget[] = [];
   filteredBudgets: Budget[] = [];
   selectedStatus = 'all';
+  currentPatientId?: number;
+  currentSpecialtyKey?: string;
 
   constructor() {
     addIcons({
@@ -652,15 +657,26 @@ export class BudgetsListPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadBudgets();
-    this.budgets$.subscribe(budgets => {
-      this.allBudgets = budgets;
-      this.filterByStatus();
-    });
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.currentPatientId = this.parseNumberParam(params.get('patient_id') ?? params.get('patientId'));
+        this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.loadBudgets();
+      });
+    this.budgets$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(budgets => {
+        this.allBudgets = budgets;
+        this.filterByStatus();
+      });
   }
 
   loadBudgets(): void {
-    this.store.dispatch(BudgetsActions.loadBudgets({}));
+    this.store.dispatch(BudgetsActions.loadBudgets({
+      patientId: this.currentPatientId,
+      specialtyKey: this.currentSpecialtyKey
+    }));
   }
 
   doRefresh(event: any): void {
@@ -687,6 +703,22 @@ export class BudgetsListPage implements OnInit {
 
   getAcceptedCount(): number {
     return this.allBudgets.filter(b => b.status === 'accepted').length;
+  }
+
+  get scopeQueryParams(): { patient_id?: number; specialty_key?: string } {
+    return {
+      patient_id: this.currentPatientId,
+      specialty_key: this.currentSpecialtyKey
+    };
+  }
+
+  private parseNumberParam(rawValue: string | null): number | undefined {
+    if (!rawValue) {
+      return undefined;
+    }
+
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   formatDate(dateString: string): string {

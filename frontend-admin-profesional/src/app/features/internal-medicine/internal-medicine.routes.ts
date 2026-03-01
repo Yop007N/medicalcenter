@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const INTERNAL_MEDICINE_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./internal-medicine-home/internal-medicine-home.page').then((m) => m.InternalMedicineHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'internal-medicine' }
-      }
-    ]
-  }
-];
+export const INTERNAL_MEDICINE_ROUTES = buildSpecialtyHomeRoutes('internal-medicine');

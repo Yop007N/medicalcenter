@@ -32,6 +32,8 @@ export interface SpecialtyModuleOverview {
     budgets: number;
     payments_completed: number;
     revenue_completed: number;
+    specialty_encounters: number;
+    documents: number;
     currency: string;
   };
   upcoming_appointments: Array<{
@@ -50,6 +52,28 @@ export interface SpecialtyModuleOverview {
     diagnosis: string | null;
     treatment: string | null;
   }>;
+  recent_specialty_encounters: Array<{
+    id: number;
+    specialty_key: string;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    visit_date: string | null;
+    status: string;
+    chief_complaint: string;
+    diagnosis: string | null;
+  }>;
+  recent_documents: Array<{
+    id: number;
+    medical_record_id: number;
+    patient_id: number | null;
+    patient_name: string | null;
+    filename: string;
+    file_type: string | null;
+    description: string | null;
+    created_at: string | null;
+  }>;
   patients: Array<{
     id: number;
     first_name: string;
@@ -58,6 +82,67 @@ export interface SpecialtyModuleOverview {
     phone: string | null;
     is_active: boolean;
   }>;
+  generated_at: string;
+}
+
+export interface SpecialtyHistoryPayload {
+  actor: string;
+  specialty: string | null;
+  module: SpecialtyModuleDefinition;
+  filters: {
+    specialty_key: string | null;
+    patient_id: number | null;
+  };
+  totals: {
+    patients: number;
+    appointments: number;
+    medical_records: number;
+    budgets: number;
+    payments: number;
+    encounters: number;
+    documents: number;
+  };
+  patients: SpecialtyModuleOverview['patients'];
+  appointments: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    status: string;
+    appointment_type: string | null;
+    appointment_date: string;
+  }>;
+  medical_records: Array<{
+    id: number;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    record_date: string | null;
+    diagnosis: string | null;
+    treatment: string | null;
+    chief_complaint: string | null;
+    notes: string | null;
+  }>;
+  specialty_encounters: Array<{
+    id: number;
+    specialty_key: string;
+    patient_id: number;
+    patient_name: string;
+    professional_id: number;
+    professional_name: string;
+    visit_date: string | null;
+    status: string;
+    chief_complaint: string;
+    diagnosis: string | null;
+    assessment: string | null;
+    plan: string | null;
+    notes: string | null;
+    vitals: Record<string, unknown> | null;
+    payload: Record<string, unknown> | null;
+  }>;
+  documents: SpecialtyModuleOverview['recent_documents'];
   generated_at: string;
 }
 
@@ -109,6 +194,13 @@ export class SpecialtiesApiService {
   getMyModuleOverview(specialtyKey?: string): Observable<SpecialtyModuleOverview> {
     const params = specialtyKey ? { specialty_key: specialtyKey } : undefined;
     return this.api.get<SpecialtyModuleOverview>(API_ENDPOINTS.specialties.myModuleOverview, params);
+  }
+
+  getHistory(params?: {
+    specialty_key?: string;
+    patient_id?: number;
+  }): Observable<SpecialtyHistoryPayload> {
+    return this.api.get<SpecialtyHistoryPayload>(API_ENDPOINTS.specialties.history, params);
   }
 
   listEncounters(params?: {

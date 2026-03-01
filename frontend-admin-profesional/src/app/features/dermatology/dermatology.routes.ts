@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const DERMATOLOGY_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./dermatology-home/dermatology-home.page').then((m) => m.DermatologyHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'dermatology' }
-      }
-    ]
-  }
-];
+export const DERMATOLOGY_ROUTES = buildSpecialtyHomeRoutes('dermatology');

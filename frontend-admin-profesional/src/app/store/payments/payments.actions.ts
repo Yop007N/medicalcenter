@@ -4,7 +4,7 @@ import { Payment, PaymentCreate } from '../../models/budget.model';
 // Load Payments
 export const loadPayments = createAction(
   '[Payments] Load Payments',
-  props<{ budgetId?: number }>()
+  props<{ budgetId?: number; patientId?: number; specialtyKey?: string }>()
 );
 export const loadPaymentsSuccess = createAction(
   '[Payments] Load Payments Success',
@@ -36,6 +36,7 @@ export const createPayment = createAction(
     payment: PaymentCreate;
     autoProcessOnCreate?: boolean;
     navigateToBudgetOnSuccess?: boolean;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
   }>()
 );
 export const createPaymentSuccess = createAction(
@@ -44,6 +45,7 @@ export const createPaymentSuccess = createAction(
     payment: Payment;
     autoProcessOnCreate?: boolean;
     navigateToBudgetOnSuccess?: boolean;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
   }>()
 );
 export const createPaymentFailure = createAction(
@@ -54,11 +56,18 @@ export const createPaymentFailure = createAction(
 // Update Payment
 export const updatePayment = createAction(
   '[Payments] Update Payment',
-  props<{ id: number; payment: Partial<PaymentCreate> }>()
+  props<{
+    id: number;
+    payment: Partial<PaymentCreate>;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const updatePaymentSuccess = createAction(
   '[Payments] Update Payment Success',
-  props<{ payment: Payment }>()
+  props<{
+    payment: Payment;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const updatePaymentFailure = createAction(
   '[Payments] Update Payment Failure',
@@ -68,11 +77,17 @@ export const updatePaymentFailure = createAction(
 // Delete Payment
 export const deletePayment = createAction(
   '[Payments] Delete Payment',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const deletePaymentSuccess = createAction(
   '[Payments] Delete Payment Success',
-  props<{ id: number }>()
+  props<{
+    id: number;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
+  }>()
 );
 export const deletePaymentFailure = createAction(
   '[Payments] Delete Payment Failure',
@@ -87,6 +102,7 @@ export const processPayment = createAction(
     budgetId?: number;
     redirectToBudget?: boolean;
     silentSuccess?: boolean;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
   }>()
 );
 export const processPaymentSuccess = createAction(
@@ -96,6 +112,7 @@ export const processPaymentSuccess = createAction(
     budgetId?: number;
     redirectToBudget?: boolean;
     silentSuccess?: boolean;
+    navigationQueryParams?: { budget_id?: number; patient_id?: number; specialty_key?: string };
   }>()
 );
 export const processPaymentFailure = createAction(

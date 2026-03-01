@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const PULMONOLOGY_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./pulmonology-home/pulmonology-home.page').then((m) => m.PulmonologyHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'pulmonology' }
-      }
-    ]
-  }
-];
+export const PULMONOLOGY_ROUTES = buildSpecialtyHomeRoutes('pulmonology');

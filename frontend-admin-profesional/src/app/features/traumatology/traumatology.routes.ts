@@ -1,21 +1,3 @@
-import { Routes } from '@angular/router';
+import { buildSpecialtyHomeRoutes } from '../specialties/specialty-home/specialty-routes.factory';
 
-export const TRAUMATOLOGY_ROUTES: Routes = [
-  {
-    path: '',
-    children: [
-      {
-        path: '',
-        loadComponent: () => import('./traumatology-home/traumatology-home.page').then((m) => m.TraumatologyHomePage)
-      },
-      {
-        path: 'workspace',
-        loadComponent: () =>
-          import('../specialties/specialty-module/specialty-module.page').then(
-            (m) => m.SpecialtyModulePage
-          ),
-        data: { specialtyKey: 'traumatology' }
-      }
-    ]
-  }
-];
+export const TRAUMATOLOGY_ROUTES = buildSpecialtyHomeRoutes('traumatology');

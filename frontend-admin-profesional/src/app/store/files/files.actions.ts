@@ -4,7 +4,7 @@ import { MedicalFile, FileUpload } from '../../models/file.model';
 // Load Files
 export const loadFiles = createAction(
   '[Files] Load Files',
-  props<{ patientId?: number }>()
+  props<{ patientId?: number; specialtyKey?: string }>()
 );
 export const loadFilesSuccess = createAction(
   '[Files] Load Files Success',
@@ -40,7 +40,7 @@ export const uploadFileSuccess = createAction(
 );
 export const uploadFileFailure = createAction(
   '[Files] Upload File Failure',
-  props<{ error: string; patientId?: number }>()
+  props<{ error: string; patientId?: number; specialtyKey?: string }>()
 );
 
 // Delete File
