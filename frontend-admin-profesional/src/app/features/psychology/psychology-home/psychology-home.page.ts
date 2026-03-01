@@ -27,7 +27,7 @@ import {
   TherapySession,
   TherapySessionCreate
 } from '../../../models/psychology.model';
-import { AuthService, PsychologyApiService } from '../../../core/services';
+import { AuthService, NotificationService, PsychologyApiService } from '../../../core/services';
 
 type ApiErrorShape = {
   error?: {
@@ -293,6 +293,7 @@ export class PsychologyHomePage implements OnInit {
   private readonly psychologyApi = inject(PsychologyApiService);
   private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly notification = inject(NotificationService);
 
   evaluations: PsychologicalEvaluation[] = [];
   sessions: TherapySession[] = [];
@@ -472,8 +473,12 @@ export class PsychologyHomePage implements OnInit {
     });
   }
 
-  deleteEvaluation(evaluation: PsychologicalEvaluation): void {
-    const confirmed = window.confirm(`Eliminar evaluacion #${evaluation.id}?`);
+  async deleteEvaluation(evaluation: PsychologicalEvaluation): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar evaluacion',
+      `Eliminar evaluacion #${evaluation.id}?`,
+      'Eliminar'
+    );
     if (!confirmed) {
       return;
     }
@@ -554,8 +559,12 @@ export class PsychologyHomePage implements OnInit {
     });
   }
 
-  deleteSession(session: TherapySession): void {
-    const confirmed = window.confirm(`Eliminar sesion #${session.id}?`);
+  async deleteSession(session: TherapySession): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar sesion',
+      `Eliminar sesion #${session.id}?`,
+      'Eliminar'
+    );
     if (!confirmed) {
       return;
     }

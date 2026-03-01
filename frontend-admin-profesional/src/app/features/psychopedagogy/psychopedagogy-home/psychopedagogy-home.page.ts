@@ -30,7 +30,7 @@ import {
   PsychopedagogicalEvaluation,
   PsychopedagogicalEvaluationCreate
 } from '../../../models/psychopedagogy.model';
-import { AuthService, PsychopedagogyApiService } from '../../../core/services';
+import { AuthService, NotificationService, PsychopedagogyApiService } from '../../../core/services';
 
 type ApiErrorShape = {
   error?: {
@@ -303,6 +303,7 @@ export class PsychopedagogyHomePage implements OnInit {
   private readonly psychopedagogyApi = inject(PsychopedagogyApiService);
   private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly notification = inject(NotificationService);
 
   readonly focusAreas = FOCUS_AREAS;
 
@@ -481,8 +482,12 @@ export class PsychopedagogyHomePage implements OnInit {
     });
   }
 
-  deleteEvaluation(evaluation: PsychopedagogicalEvaluation): void {
-    const confirmed = window.confirm(`Eliminar evaluacion #${evaluation.id}?`);
+  async deleteEvaluation(evaluation: PsychopedagogicalEvaluation): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar evaluacion',
+      `Eliminar evaluacion #${evaluation.id}?`,
+      'Eliminar'
+    );
     if (!confirmed) {
       return;
     }
@@ -565,8 +570,12 @@ export class PsychopedagogyHomePage implements OnInit {
     });
   }
 
-  deleteSession(session: InterventionSession): void {
-    const confirmed = window.confirm(`Eliminar sesion #${session.id}?`);
+  async deleteSession(session: InterventionSession): Promise<void> {
+    const confirmed = await this.notification.confirm(
+      'Eliminar sesion',
+      `Eliminar sesion #${session.id}?`,
+      'Eliminar'
+    );
     if (!confirmed) {
       return;
     }

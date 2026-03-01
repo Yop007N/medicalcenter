@@ -11,6 +11,7 @@ import {
   PsychologyEvaluation,
   TherapySession
 } from '../core/services/mental-health.service';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -483,6 +484,7 @@ export class MentalHealthPage implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly dialog = inject(UiDialogService);
 
   activeModule: MentalHealthModule = 'psychology';
   allowedModules: MentalHealthModule[] = [];
@@ -713,8 +715,14 @@ export class MentalHealthPage implements OnInit {
       .subscribe({ next: () => onSuccess(), error: (error) => onError(error) });
   }
 
-  deleteEvaluation(evaluationId: number): void {
-    const confirmed = globalThis.confirm(`Eliminar evaluacion #${evaluationId}?`);
+  async deleteEvaluation(evaluationId: number): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar evaluacion',
+      message: `Eliminar evaluacion #${evaluationId}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
@@ -859,8 +867,14 @@ export class MentalHealthPage implements OnInit {
       });
   }
 
-  deleteSession(sessionId: number): void {
-    const confirmed = globalThis.confirm(`Eliminar sesion #${sessionId}?`);
+  async deleteSession(sessionId: number): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar sesion',
+      message: `Eliminar sesion #${sessionId}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }

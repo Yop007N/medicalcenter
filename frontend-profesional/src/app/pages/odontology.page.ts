@@ -13,6 +13,7 @@ import {
   ToothUpsertPayload,
   TreatmentStatus
 } from '../core/services/odontology.service';
+import { UiDialogService } from '../shared/services/ui-dialog.service';
 import { pageShellStyles } from './page-shell.styles';
 
 type ApiErrorShape = {
@@ -458,6 +459,7 @@ type ApiErrorShape = {
 export class OdontologyPage implements OnInit {
   private readonly odontologyService = inject(OdontologyService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly dialog = inject(UiDialogService);
 
   readonly toothStatusOptions: ToothStatus[] = [
     'healthy',
@@ -824,11 +826,16 @@ export class OdontologyPage implements OnInit {
       });
   }
 
-  completeTreatment(treatment: DentalTreatment): void {
-    const finalCostRaw = window.prompt(
-      `Costo final para el tratamiento #${treatment.id} (opcional):`,
-      ''
-    );
+  async completeTreatment(treatment: DentalTreatment): Promise<void> {
+    const finalCostRaw = await this.dialog.prompt({
+      title: 'Completar tratamiento',
+      message: `Costo final para el tratamiento #${treatment.id} (opcional).`,
+      inputLabel: 'Costo final',
+      placeholder: 'Ej: 350000',
+      confirmText: 'Completar',
+      cancelText: 'Cancelar',
+      initialValue: ''
+    });
     if (finalCostRaw === null) {
       return;
     }
@@ -860,8 +867,16 @@ export class OdontologyPage implements OnInit {
       });
   }
 
-  cancelTreatment(treatment: DentalTreatment): void {
-    const reason = window.prompt(`Motivo de cancelacion del tratamiento #${treatment.id}:`, '');
+  async cancelTreatment(treatment: DentalTreatment): Promise<void> {
+    const reason = await this.dialog.prompt({
+      title: 'Cancelar tratamiento',
+      message: `Motivo de cancelacion del tratamiento #${treatment.id}.`,
+      inputLabel: 'Motivo',
+      placeholder: 'Describe el motivo',
+      confirmText: 'Cancelar tratamiento',
+      cancelText: 'Volver',
+      initialValue: ''
+    });
     if (reason === null) {
       return;
     }
@@ -884,8 +899,14 @@ export class OdontologyPage implements OnInit {
       });
   }
 
-  deleteTreatment(treatment: DentalTreatment): void {
-    const confirmed = window.confirm(`Eliminar tratamiento #${treatment.id}?`);
+  async deleteTreatment(treatment: DentalTreatment): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar tratamiento',
+      message: `Eliminar tratamiento #${treatment.id}?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
