@@ -50,7 +50,7 @@ type SectionResult<T> = {
     <ion-header translucent="true">
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menú de navegación"></ion-menu-button>
         </ion-buttons>
         <ion-title>Mi historia clinica</ion-title>
       </ion-toolbar>
