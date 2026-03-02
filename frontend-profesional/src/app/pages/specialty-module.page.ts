@@ -101,7 +101,7 @@ type ApiErrorShape = {
           <article class="card">
             <h2 class="card-title">Facturacion</h2>
             <p class="metric">
-              {{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'ARS'):'symbol':'1.0-2' }}
+              {{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'PYG'):'symbol':'1.0-2' }}
             </p>
             <p class="card-text">Pagos completados: {{ overview.totals.payments_completed }}</p>
           </article>

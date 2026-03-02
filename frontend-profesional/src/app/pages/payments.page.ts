@@ -167,7 +167,7 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
                 <tr>
                   <td>#{{ payment.id }}</td>
                   <td>{{ payment.payment_date || payment.created_at | date:'short' }}</td>
-                  <td>{{ payment.amount | currency:(payment.currency || 'ARS'):'symbol':'1.2-2' }}</td>
+                  <td>{{ payment.amount | currency:(payment.currency || 'PYG'):'symbol':'1.2-2' }}</td>
                   <td>{{ payment.payment_method }}</td>
                   <td>
                     <span class="badge" [class]="'status-' + payment.payment_status">{{ payment.payment_status }}</span>

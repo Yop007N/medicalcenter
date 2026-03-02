@@ -30,7 +30,8 @@ import {
   PsychopedagogicalEvaluation,
   PsychopedagogicalEvaluationCreate
 } from '../../../models/psychopedagogy.model';
-import { AuthService, NotificationService, PsychopedagogyApiService } from '../../../core/services';
+import { Patient } from '../../../models';
+import { AuthService, NotificationService, PatientsApiService, PsychopedagogyApiService } from '../../../core/services';
 
 type ApiErrorShape = {
   error?: {
@@ -93,13 +94,15 @@ type ApiErrorShape = {
       <ion-card>
         <ion-card-content class="toolbar-card">
           <ion-item lines="none">
-            <ion-label position="stacked">Filtrar por Patient ID (opcional)</ion-label>
-            <ion-input
-              type="number"
-              min="1"
-              [(ngModel)]="patientFilterInput"
-              placeholder="Ej: 24"
-            ></ion-input>
+            <ion-label position="stacked">Filtrar por paciente (opcional)</ion-label>
+            <ion-select [(ngModel)]="patientFilterId" interface="modal" placeholder="Todos">
+              <ion-select-option [value]="null">Todos</ion-select-option>
+              @for (patient of patients; track patient.id) {
+                <ion-select-option [value]="patient.id">
+                  {{ formatPatientOption(patient) }}
+                </ion-select-option>
+              }
+            </ion-select>
           </ion-item>
           <div class="toolbar-actions">
             <ion-button size="small" (click)="applyPatientFilter()">Filtrar</ion-button>
@@ -125,8 +128,14 @@ type ApiErrorShape = {
         </ion-card-header>
         <ion-card-content>
           <ion-item>
-            <ion-label position="stacked">Patient ID</ion-label>
-            <ion-input type="number" min="1" [(ngModel)]="evaluationDraft.patient_id"></ion-input>
+            <ion-label position="stacked">Paciente</ion-label>
+            <ion-select [(ngModel)]="evaluationDraft.patient_id" interface="modal" placeholder="Seleccionar paciente">
+              @for (patient of patients; track patient.id) {
+                <ion-select-option [value]="patient.id">
+                  {{ formatPatientOption(patient) }}
+                </ion-select-option>
+              }
+            </ion-select>
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Motivo</ion-label>
@@ -164,7 +173,7 @@ type ApiErrorShape = {
               @for (evaluation of evaluations; track evaluation.id) {
                 <ion-item>
                   <ion-label>
-                    <h2>#{{ evaluation.id }} · Paciente {{ evaluation.patient_id }}</h2>
+                    <h2>#{{ evaluation.id }} · {{ getPatientName(evaluation.patient_id) }} (#{{ evaluation.patient_id }})</h2>
                     <p>{{ evaluation.reason }}</p>
                     <p>{{ evaluation.status }} · {{ evaluation.evaluation_date | date:'mediumDate' }}</p>
                   </ion-label>
@@ -197,8 +206,10 @@ type ApiErrorShape = {
           </ion-card-header>
           <ion-card-content>
             <ion-item>
-              <ion-label position="stacked">Patient ID</ion-label>
-              <ion-input type="number" min="1" [(ngModel)]="sessionDraft.patient_id"></ion-input>
+              <ion-label>
+                <h3>Paciente</h3>
+                <p>{{ getPatientName(selectedEvaluation.patient_id) }} (#{{ selectedEvaluation.patient_id }})</p>
+              </ion-label>
             </ion-item>
             <ion-item>
               <ion-label position="stacked">Fecha sesion</ion-label>
@@ -302,6 +313,7 @@ type ApiErrorShape = {
 export class PsychopedagogyHomePage implements OnInit {
   private readonly psychopedagogyApi = inject(PsychopedagogyApiService);
   private readonly authService = inject(AuthService);
+  private readonly patientsApi = inject(PatientsApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly notification = inject(NotificationService);
 
@@ -315,8 +327,10 @@ export class PsychopedagogyHomePage implements OnInit {
   loadingSessions = false;
   creatingEvaluation = false;
   creatingSession = false;
+  loadingPatients = false;
 
-  patientFilterInput = '';
+  patients: Patient[] = [];
+  patientFilterId: number | null = null;
   activePatientId: number | null = null;
   currentUserId: number | null = null;
   currentUserRole: string | null = null;
@@ -326,24 +340,22 @@ export class PsychopedagogyHomePage implements OnInit {
   successMessage: string | null = null;
 
   evaluationDraft: {
-    patient_id: number;
+    patient_id: number | null;
     reason: string;
     recommendations: string;
     evaluation_date: string;
   } = {
-    patient_id: 1,
+    patient_id: null,
     reason: '',
     recommendations: '',
     evaluation_date: this.today()
   };
 
   sessionDraft: {
-    patient_id: number;
     session_date: string;
     focus_area: string;
     progress_notes: string;
   } = {
-    patient_id: 1,
     session_date: this.today(),
     focus_area: FOCUS_AREAS[0]?.value ?? 'reading_comprehension',
     progress_notes: ''
@@ -356,21 +368,38 @@ export class PsychopedagogyHomePage implements OnInit {
         this.currentUserId = user?.id ?? null;
         this.currentUserRole = user?.role ?? null;
         if (user) {
+          this.loadPatients();
           this.loadEvaluations();
         }
       });
   }
 
   applyPatientFilter(): void {
-    const parsed = Number(this.patientFilterInput);
-    this.activePatientId = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    this.activePatientId = this.patientFilterId;
     this.loadEvaluations();
   }
 
   clearPatientFilter(): void {
-    this.patientFilterInput = '';
+    this.patientFilterId = null;
     this.activePatientId = null;
     this.loadEvaluations();
+  }
+
+  loadPatients(): void {
+    this.loadingPatients = true;
+    this.patientsApi
+      .list({ specialty_key: 'psychopedagogy' })
+      .subscribe({
+        next: (patients) => {
+          this.patients = [...patients].sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+          );
+          this.loadingPatients = false;
+        },
+        error: () => {
+          this.loadingPatients = false;
+        }
+      });
   }
 
   loadEvaluations(): void {
@@ -389,7 +418,7 @@ export class PsychopedagogyHomePage implements OnInit {
       this.evaluations = [];
       this.selectedEvaluation = null;
       this.sessions = [];
-      this.infoMessage = 'Para usuario admin, filtra por Patient ID para consultar evaluaciones.';
+      this.infoMessage = 'Para usuario admin, selecciona un paciente para consultar evaluaciones.';
       return;
     }
 
@@ -417,16 +446,17 @@ export class PsychopedagogyHomePage implements OnInit {
   }
 
   createEvaluation(): void {
+    const selectedPatientId = Number(this.evaluationDraft.patient_id);
     const reason = this.evaluationDraft.reason.trim();
     const recommendations = this.evaluationDraft.recommendations.trim();
 
-    if (!this.evaluationDraft.patient_id || !reason || !recommendations) {
+    if (!Number.isInteger(selectedPatientId) || selectedPatientId <= 0 || !reason || !recommendations) {
       this.errorMessage = 'Completa los campos obligatorios de la evaluacion.';
       return;
     }
 
     const payload: PsychopedagogicalEvaluationCreate = {
-      patient_id: this.evaluationDraft.patient_id,
+      patient_id: selectedPatientId,
       reason,
       recommendations,
       evaluation_date: this.evaluationDraft.evaluation_date || this.today()
@@ -441,7 +471,7 @@ export class PsychopedagogyHomePage implements OnInit {
         this.creatingEvaluation = false;
         this.successMessage = `Evaluacion #${evaluation.id} creada correctamente.`;
         this.activePatientId = evaluation.patient_id;
-        this.patientFilterInput = String(evaluation.patient_id);
+        this.patientFilterId = evaluation.patient_id;
         this.evaluationDraft = {
           patient_id: evaluation.patient_id,
           reason: '',
@@ -459,7 +489,6 @@ export class PsychopedagogyHomePage implements OnInit {
 
   selectEvaluation(evaluation: PsychopedagogicalEvaluation): void {
     this.selectedEvaluation = evaluation;
-    this.sessionDraft.patient_id = evaluation.patient_id;
     this.loadSessions(evaluation.id);
   }
 
@@ -534,14 +563,14 @@ export class PsychopedagogyHomePage implements OnInit {
     }
 
     const focusArea = this.sessionDraft.focus_area.trim();
-    if (!this.sessionDraft.patient_id || !focusArea) {
-      this.errorMessage = 'Patient ID y area foco son obligatorios.';
+    if (!focusArea) {
+      this.errorMessage = 'El area foco es obligatoria.';
       return;
     }
 
     const payload: InterventionSessionCreate = {
       evaluation_id: this.selectedEvaluation.id,
-      patient_id: this.sessionDraft.patient_id,
+      patient_id: this.selectedEvaluation.patient_id,
       session_date: this.sessionDraft.session_date || this.today(),
       focus_area: focusArea,
       progress_notes: this.sessionDraft.progress_notes.trim() || undefined
@@ -555,7 +584,6 @@ export class PsychopedagogyHomePage implements OnInit {
       next: (session) => {
         this.sessions = [session, ...this.sessions];
         this.sessionDraft = {
-          patient_id: this.selectedEvaluation?.patient_id ?? 1,
           session_date: this.today(),
           focus_area: this.sessionDraft.focus_area,
           progress_notes: ''
@@ -595,6 +623,18 @@ export class PsychopedagogyHomePage implements OnInit {
 
   private today(): string {
     return new Date().toISOString().split('T')[0];
+  }
+
+  formatPatientOption(patient: Patient): string {
+    return `${patient.first_name} ${patient.last_name} (#${patient.id})`;
+  }
+
+  getPatientName(patientId: number): string {
+    const patient = this.patients.find((item) => item.id === patientId);
+    if (!patient) {
+      return `Paciente #${patientId}`;
+    }
+    return `${patient.first_name} ${patient.last_name}`;
   }
 
   private resolveErrorMessage(error: unknown): string {

@@ -8,10 +8,15 @@ import { NotificationService, PaymentsApiService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
 import * as PaymentsActions from './payments.actions';
 
+const normalizeCurrency = (currency?: string | null): string => {
+  const code = String(currency ?? 'PYG').trim().toUpperCase();
+  return code === 'ARS' ? 'PYG' : code || 'PYG';
+};
+
 const normalizePayment = (payment: Partial<Payment>): Payment => ({
   id: payment.id ?? 0,
   amount: payment.amount ?? 0,
-  currency: payment.currency ?? 'ARS',
+  currency: normalizeCurrency(payment.currency),
   payment_status: payment.payment_status ?? 'pending',
   payment_method: payment.payment_method ?? 'cash',
   transaction_id: payment.transaction_id,

@@ -1265,10 +1265,10 @@ export class PatientDetailPage implements OnInit {
     });
   }
 
-  formatCurrency(amount: number, currency: string = 'ARS'): string {
+  formatCurrency(amount: number, currency: string = 'PYG'): string {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
-      currency: currency || 'ARS'
+      currency: currency || 'PYG'
     }).format(amount || 0);
   }
 

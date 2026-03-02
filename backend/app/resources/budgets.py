@@ -128,7 +128,7 @@ def create_budget():
               example: 15000.00
             currency:
               type: string
-              default: ARS
+              default: PYG
             valid_until:
               type: string
               format: date

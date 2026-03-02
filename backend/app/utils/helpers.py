@@ -20,10 +20,18 @@ def generate_unique_filename(original_filename):
     return f"{name}_{timestamp}{ext}"
 
 
-def format_currency(amount, currency='ARS'):
+def normalize_currency_code(currency, default='PYG'):
+    """Normalize legacy/invalid currency codes to supported defaults."""
+    code = str(currency or default).strip().upper()
+    if code == 'ARS':
+        return 'PYG'
+    return code or default
+
+
+def format_currency(amount, currency='PYG'):
     """Format currency for display"""
     # TODO: Implement proper currency formatting
-    return f"{currency} {amount:,.2f}"
+    return f"{normalize_currency_code(currency)} {amount:,.2f}"
 
 
 def calculate_age(date_of_birth):

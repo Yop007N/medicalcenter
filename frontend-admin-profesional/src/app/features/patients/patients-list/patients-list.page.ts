@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import {
   IonHeader,
   IonToolbar,
@@ -501,10 +502,14 @@ interface PatientListItem extends Patient {
     }
   `]
 })
-export class PatientsListPage implements OnInit {
+export class PatientsListPage implements OnInit, OnDestroy {
   private readonly patientsApi = inject(PatientsApiService);
   private readonly notification = inject(NotificationService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  private queryParamsSubscription?: Subscription;
+  private specialtyKey: string | null = null;
+  private queryParamsInitialized = false;
 
   private allPatients: PatientListItem[] = [];
   filteredPatients: PatientListItem[] = [];
@@ -527,7 +532,20 @@ export class PatientsListPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadPatients();
+    this.queryParamsSubscription = this.route.queryParamMap.subscribe((params) => {
+      const nextSpecialtyKey = this.normalizeSpecialtyKey(params.get('specialty_key'));
+      const specialtyChanged = nextSpecialtyKey !== this.specialtyKey;
+      this.specialtyKey = nextSpecialtyKey;
+
+      if (specialtyChanged || !this.queryParamsInitialized) {
+        this.queryParamsInitialized = true;
+        this.loadPatients();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.queryParamsSubscription?.unsubscribe();
   }
 
   loadPatients(onComplete?: () => void): void {
@@ -535,7 +553,9 @@ export class PatientsListPage implements OnInit {
     this.errorMessage = null;
     this.cdr.markForCheck();
 
-    this.patientsApi.list().subscribe({
+    this.patientsApi.list({
+      specialty_key: this.specialtyKey ?? undefined
+    }).subscribe({
       next: (patients) => {
         this.setPatients(patients);
         this.loading = false;
@@ -590,6 +610,11 @@ export class PatientsListPage implements OnInit {
   private resolveErrorMessage(error: unknown): string {
     const errorObject = error as { error?: { msg?: string; message?: string } } | null;
     return errorObject?.error?.msg || errorObject?.error?.message || 'No se pudo cargar la lista';
+  }
+
+  private normalizeSpecialtyKey(value: string | null): string | null {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
   }
 
   onRefresh(event: Event): void {

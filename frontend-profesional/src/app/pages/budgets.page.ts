@@ -168,7 +168,7 @@ type BudgetStatus = Budget['status'];
                   <td>#{{ budget.id }}</td>
                   <td>{{ budget.title }}</td>
                   <td>{{ budget.patient_id }}</td>
-                  <td>{{ budget.total_amount | currency:(budget.currency || 'ARS'):'symbol':'1.2-2' }}</td>
+                  <td>{{ budget.total_amount | currency:(budget.currency || 'PYG'):'symbol':'1.2-2' }}</td>
                   <td>
                     <span class="badge" [class]="'status-' + budget.status">{{ budget.status }}</span>
                   </td>
@@ -508,7 +508,7 @@ export class BudgetsPage implements OnInit {
     title: ['', [Validators.required]],
     description: [''],
     total_amount: [0, [Validators.required, Validators.min(0.01)]],
-    currency: ['ARS', [Validators.required, Validators.minLength(3), Validators.maxLength(5)]],
+    currency: ['PYG', [Validators.required, Validators.minLength(3), Validators.maxLength(5)]],
     valid_until: ['']
   });
 
@@ -605,7 +605,7 @@ export class BudgetsPage implements OnInit {
       title: '',
       description: '',
       total_amount: 0,
-      currency: 'ARS',
+      currency: 'PYG',
       valid_until: ''
     });
   }
@@ -621,7 +621,7 @@ export class BudgetsPage implements OnInit {
       title: budget.title,
       description: budget.description || '',
       total_amount: budget.total_amount,
-      currency: budget.currency || 'ARS',
+      currency: budget.currency || 'PYG',
       valid_until: this.toDateInputValue(budget.valid_until)
     });
   }

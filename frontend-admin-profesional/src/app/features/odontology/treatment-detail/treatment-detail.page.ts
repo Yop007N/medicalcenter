@@ -786,7 +786,7 @@ export class TreatmentDetailPage implements OnInit, OnDestroy {
   formatCurrency(amount: number): string {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
-      currency: 'ARS'
+      currency: 'PYG'
     }).format(amount || 0);
   }
 

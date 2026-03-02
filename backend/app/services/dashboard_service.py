@@ -148,7 +148,7 @@ class DashboardService:
             'appointment_status': status_distribution,
             'revenue': {
                 'total': float(total_revenue),
-                'currency': 'ARS',
+                'currency': 'PYG',
             },
             'generated_at': datetime.utcnow().isoformat(),
         }

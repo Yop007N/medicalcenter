@@ -6,14 +6,19 @@ from marshmallow import ValidationError as MarshmallowValidationError
 from app.extensions import db
 from app.models.patient import Patient
 from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 from app.models.psychology import PsychologicalEvaluation, TherapySession
+from app.models.user import User
 from app.schemas.psychology_schema import psychological_evaluation_schema, therapy_session_schema
+from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import ResourceNotFoundError, ValidationError
 from app.utils.helpers import validate_required_fields
 
 
 class PsychologyService:
     """Encapsulates psychological evaluations and therapy sessions logic."""
+
+    MODULE_KEY = 'psychology'
 
     @staticmethod
     def _normalize_user_id(current_user_id):
@@ -55,6 +60,116 @@ class PsychologyService:
         raise ValidationError('Validation error', details={'errors': error.messages})
 
     @classmethod
+    def _upsert_patient_assignment(cls, patient_id, professional_id):
+        assignment = ProfessionalPatientAssignment.query.filter_by(
+            patient_id=patient_id,
+            professional_id=professional_id,
+        ).first()
+        if assignment:
+            if assignment.specialty_key != cls.MODULE_KEY:
+                assignment.specialty_key = cls.MODULE_KEY
+            return
+
+        db.session.add(
+            ProfessionalPatientAssignment(
+                professional_id=professional_id,
+                patient_id=patient_id,
+                specialty_key=cls.MODULE_KEY,
+            )
+        )
+
+    @classmethod
+    def _professional_matches_module(cls, professional):
+        return (
+            AccessScopeService.resolve_specialty_key(getattr(professional, 'specialty', None))
+            == cls.MODULE_KEY
+        )
+
+    @classmethod
+    def _validate_professional_candidate(cls, candidate):
+        try:
+            professional_id = int(candidate)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError('professional_id must be an integer') from exc
+
+        if professional_id <= 0:
+            raise ValidationError('professional_id must be a positive integer')
+
+        professional = cls._get_professional_or_404(professional_id)
+        if not cls._professional_matches_module(professional):
+            raise ValidationError('professional_id does not belong to psychology module')
+        return professional
+
+    @classmethod
+    def _infer_professional_for_patient(cls, patient_id):
+        scoped_assignment = (
+            ProfessionalPatientAssignment.query
+            .filter_by(patient_id=patient_id, specialty_key=cls.MODULE_KEY)
+            .order_by(ProfessionalPatientAssignment.assigned_at.asc())
+            .first()
+        )
+        if scoped_assignment:
+            professional = Professional.query.get(scoped_assignment.professional_id)
+            if professional:
+                return professional
+
+        assignment_rows = (
+            ProfessionalPatientAssignment.query
+            .filter_by(patient_id=patient_id)
+            .order_by(ProfessionalPatientAssignment.assigned_at.asc())
+            .all()
+        )
+        for assignment in assignment_rows:
+            professional = Professional.query.get(assignment.professional_id)
+            if professional and cls._professional_matches_module(professional):
+                return professional
+
+        professionals = (
+            Professional.query
+            .filter(Professional.is_active.is_(True))
+            .order_by(Professional.first_name.asc(), Professional.last_name.asc(), Professional.id.asc())
+            .all()
+        )
+        for professional in professionals:
+            if cls._professional_matches_module(professional):
+                return professional
+        return None
+
+    @classmethod
+    def _resolve_professional_id(
+        cls,
+        current_user_id,
+        patient_id,
+        provided_professional_id=None,
+        fallback_professional_id=None,
+    ):
+        current_user_id = cls._normalize_user_id(current_user_id)
+        current_professional = Professional.query.get(current_user_id)
+        if current_professional:
+            if not cls._professional_matches_module(current_professional):
+                raise ValidationError('Professional is not allowed for psychology module')
+            cls._upsert_patient_assignment(patient_id=patient_id, professional_id=current_professional.id)
+            return current_professional.id
+
+        current_user = User.query.get(current_user_id)
+        if not current_user or current_user.role != 'admin':
+            raise ValidationError('Invalid current user context')
+
+        for candidate in (provided_professional_id, fallback_professional_id):
+            if candidate in (None, ''):
+                continue
+            professional = cls._validate_professional_candidate(candidate)
+            cls._upsert_patient_assignment(patient_id=patient_id, professional_id=professional.id)
+            return professional.id
+
+        inferred_professional = cls._infer_professional_for_patient(patient_id)
+        if not inferred_professional:
+            raise ValidationError('No professional available for psychology module')
+
+        cls._upsert_patient_assignment(patient_id=patient_id, professional_id=inferred_professional.id)
+        return inferred_professional.id
+
+    @classmethod
     def create_evaluation(cls, current_user_id, data):
         required = ['patient_id', 'reason', 'primary_diagnosis', 'treatment_recommendations', 'evaluation_date']
         is_valid, missing_fields = validate_required_fields(data, required)
@@ -62,9 +177,14 @@ class PsychologyService:
             raise ValidationError('Missing required fields', details={'missing_fields': missing_fields})
 
         cls._get_patient_or_404(data['patient_id'])
+        professional_id = cls._resolve_professional_id(
+            current_user_id=current_user_id,
+            patient_id=data['patient_id'],
+            provided_professional_id=data.get('professional_id'),
+        )
 
         payload = dict(data)
-        payload['professional_id'] = cls._normalize_user_id(current_user_id)
+        payload['professional_id'] = professional_id
 
         try:
             evaluation_data = psychological_evaluation_schema.load(payload)
@@ -125,11 +245,19 @@ class PsychologyService:
         if not is_valid:
             raise ValidationError('Missing required fields', details={'missing_fields': missing_fields})
 
-        cls._get_evaluation_or_404(data['evaluation_id'])
+        evaluation = cls._get_evaluation_or_404(data['evaluation_id'])
         cls._get_patient_or_404(data['patient_id'])
+        if evaluation.patient_id != data['patient_id']:
+            raise ValidationError('evaluation_id does not belong to provided patient_id')
+        professional_id = cls._resolve_professional_id(
+            current_user_id=current_user_id,
+            patient_id=data['patient_id'],
+            provided_professional_id=data.get('professional_id'),
+            fallback_professional_id=evaluation.professional_id,
+        )
 
         payload = dict(data)
-        payload['professional_id'] = cls._normalize_user_id(current_user_id)
+        payload['professional_id'] = professional_id
 
         try:
             session_data = therapy_session_schema.load(payload)

@@ -18,7 +18,7 @@ class Payment(db.Model):
 
     # Payment details
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(3), default='ARS')
+    currency = db.Column(db.String(3), default='PYG')
     payment_method = db.Column(db.String(50))  # cash, card, transfer, insurance
     payment_status = db.Column(
         db.String(20),

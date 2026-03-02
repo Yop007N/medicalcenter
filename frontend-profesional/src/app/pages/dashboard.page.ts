@@ -52,7 +52,7 @@ type ApiErrorShape = {
         <article class="card">
           <h2 class="card-title">Revenue total</h2>
           <p class="metric">
-            {{ overview?.revenue?.total ?? 0 | currency:(overview?.revenue?.currency || 'ARS'):'symbol':'1.0-2' }}
+            {{ overview?.revenue?.total ?? 0 | currency:(overview?.revenue?.currency || 'PYG'):'symbol':'1.0-2' }}
           </p>
         </article>
       </div>
@@ -96,7 +96,7 @@ type ApiErrorShape = {
                 @for (item of recentActivity.recent_payments.slice(0, 5); track item.id) {
                   <li>
                     <span>#{{ item.id }} · {{ item.status }}</span>
-                    <strong>{{ item.amount | currency:'ARS':'symbol':'1.0-2' }}</strong>
+                    <strong>{{ item.amount | currency:'PYG':'symbol':'1.0-2' }}</strong>
                   </li>
                 }
               </ul>

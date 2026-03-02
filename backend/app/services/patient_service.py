@@ -123,9 +123,22 @@ class PatientService:
             raise AccessDeniedError('Unauthorized')
 
         effective_specialty_key = specialty_key
+        normalized_specialty_key = None
+        scoped_professional_ids = None
         if current_user.role == 'professional' and not effective_specialty_key:
             effective_specialty_key = AccessScopeService.resolve_specialty_key(
                 getattr(current_user, 'specialty', None)
+            )
+        if effective_specialty_key:
+            normalized_specialty_key = AccessScopeService.normalize_text(effective_specialty_key)
+            from app.services.specialty_module_service import SpecialtyModuleService
+
+            module = SpecialtyModuleService.get_module_by_key(normalized_specialty_key)
+            if not module:
+                raise ValidationError('Invalid specialty_key')
+            normalized_specialty_key = module.get('key')
+            scoped_professional_ids = sorted(
+                SpecialtyModuleService.get_professional_ids_for_module(normalized_specialty_key)
             )
 
         query = Patient.query
@@ -133,12 +146,28 @@ class PatientService:
             scoped_patient_ids = list(
                 AccessScopeService.get_professional_patient_ids(
                     current_user.id,
-                    specialty_key=effective_specialty_key,
+                    specialty_key=normalized_specialty_key,
                 )
             )
             if not scoped_patient_ids:
                 return []
             query = query.filter(Patient.id.in_(scoped_patient_ids))
+        elif current_user.role == 'admin' and normalized_specialty_key:
+            if not scoped_professional_ids:
+                return []
+
+            scoped_patient_ids = set()
+            for professional_id in scoped_professional_ids:
+                scoped_patient_ids.update(
+                    AccessScopeService.get_professional_patient_ids(
+                        professional_id,
+                        specialty_key=normalized_specialty_key,
+                    )
+                )
+
+            if not scoped_patient_ids:
+                return []
+            query = query.filter(Patient.id.in_(sorted(scoped_patient_ids)))
         if search:
             sanitized_search = sanitize_search_input(search)
             if sanitized_search:

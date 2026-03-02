@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.extensions import ma
 from app.models.budget import Budget
 from app.models.payment import Payment
+from app.utils.helpers import normalize_currency_code
 
 
 class BudgetSchema(ma.SQLAlchemyAutoSchema):
@@ -41,3 +42,9 @@ class BudgetSchema(ma.SQLAlchemyAutoSchema):
         if not obj.id:
             return 0
         return Payment.query.filter_by(budget_id=obj.id).count()
+
+    @post_dump
+    def normalize_currency(self, data, **kwargs):
+        """Normalize legacy currency codes in serialized payload."""
+        data['currency'] = normalize_currency_code(data.get('currency'))
+        return data

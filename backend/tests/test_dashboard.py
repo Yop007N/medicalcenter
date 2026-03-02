@@ -48,7 +48,7 @@ class TestDashboardOverview:
         # Check revenue
         assert 'total' in data['revenue']
         assert 'currency' in data['revenue']
-        assert data['revenue']['currency'] == 'ARS'
+        assert data['revenue']['currency'] == 'PYG'
 
     def test_get_overview_unauthorized(self, client):
         """Test getting overview without authentication"""

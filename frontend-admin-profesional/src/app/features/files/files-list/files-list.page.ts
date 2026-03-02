@@ -8,6 +8,7 @@ import {
   IonBadge,
   IonButton,
   IonButtons,
+
   IonCard,
   IonCardHeader,
   IonCardSubtitle,
@@ -72,6 +73,7 @@ interface PatientFilesGroup {
     IonTitle,
     IonContent,
     IonButtons,
+
     IonMenuButton,
     IonButton,
     IonIcon,

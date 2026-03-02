@@ -6,6 +6,7 @@ Payment Schema - Serialization for Payment model
 from marshmallow import fields, validate, post_dump
 from app.extensions import ma
 from app.models.payment import Payment
+from app.utils.helpers import normalize_currency_code
 
 
 class PaymentSchema(ma.SQLAlchemyAutoSchema):
@@ -30,3 +31,9 @@ class PaymentSchema(ma.SQLAlchemyAutoSchema):
     def get_transaction_reference(self, obj):
         """Return transaction_id as transaction_reference for frontend"""
         return obj.transaction_id
+
+    @post_dump
+    def normalize_currency(self, data, **kwargs):
+        """Normalize legacy currency codes in serialized payload."""
+        data['currency'] = normalize_currency_code(data.get('currency'))
+        return data

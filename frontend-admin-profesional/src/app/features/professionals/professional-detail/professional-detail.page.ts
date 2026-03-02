@@ -441,7 +441,7 @@ export class ProfessionalDetailPage implements OnInit {
   formatCurrency(amount: number): string {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
-      currency: 'ARS'
+      currency: 'PYG'
     }).format(amount || 0);
   }
 

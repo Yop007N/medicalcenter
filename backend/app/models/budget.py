@@ -21,7 +21,7 @@ class Budget(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(3), default='ARS')
+    currency = db.Column(db.String(3), default='PYG')
     status = db.Column(
         db.String(20),
         default='draft'

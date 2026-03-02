@@ -9,6 +9,7 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
+
   IonButton,
   IonIcon,
   IonItem,
@@ -39,6 +40,7 @@ import { Patient, Professional } from '../../../models';
     IonTitle,
     IonContent,
     IonButtons,
+
     IonButton,
     IonIcon,
     IonItem,

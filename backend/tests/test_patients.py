@@ -184,6 +184,80 @@ class TestListPatients:
         assert cardiology_id in listed_ids
         assert odontology_id not in listed_ids
 
+    def test_admin_list_patients_filtered_by_specialty_key(
+        self,
+        client,
+        admin_auth_headers,
+        app,
+    ):
+        """Admin specialty scope should return only patients linked to the requested module."""
+        from app.models.professional import Professional
+
+        with app.app_context():
+            cardio_professional = Professional(
+                email='scope-cardio-prof@test.com',
+                first_name='Scope',
+                last_name='Cardio',
+                role='professional',
+                specialty='Cardiologia',
+                license_number='SCOPE-CARDIO-001',
+                is_active=True,
+            )
+            uro_professional = Professional(
+                email='scope-uro-prof@test.com',
+                first_name='Scope',
+                last_name='Uro',
+                role='professional',
+                specialty='Urologia',
+                license_number='SCOPE-URO-001',
+                is_active=True,
+            )
+            cardio_professional.set_password('Doctor123')
+            uro_professional.set_password('Doctor123')
+
+            cardio_patient = Patient(
+                email='scope-cardio-patient@test.com',
+                first_name='Scope',
+                last_name='CardioPatient',
+                role='patient',
+            )
+            uro_patient = Patient(
+                email='scope-uro-patient@test.com',
+                first_name='Scope',
+                last_name='UroPatient',
+                role='patient',
+            )
+            cardio_patient.set_password('Patient123')
+            uro_patient.set_password('Patient123')
+
+            db.session.add_all([cardio_professional, uro_professional, cardio_patient, uro_patient])
+            db.session.commit()
+
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=cardio_professional.id,
+                    patient_id=cardio_patient.id,
+                    specialty_key='cardiology',
+                )
+            )
+            db.session.add(
+                ProfessionalPatientAssignment(
+                    professional_id=uro_professional.id,
+                    patient_id=uro_patient.id,
+                    specialty_key='urology',
+                )
+            )
+            db.session.commit()
+            cardio_patient_id = cardio_patient.id
+            uro_patient_id = uro_patient.id
+
+        response = client.get('/api/patients?specialty_key=urology', headers=admin_auth_headers)
+
+        assert response.status_code == 200
+        listed_ids = {item['id'] for item in response.json}
+        assert uro_patient_id in listed_ids
+        assert cardio_patient_id not in listed_ids
+
 
 class TestGetPatient:
     """Test get patient endpoint"""

@@ -6,14 +6,17 @@ import { ApiClientService } from '../api/api-client.service';
 import { API_ENDPOINTS } from '../api/api-endpoints';
 
 type CollectionResponse<T> = { items?: T[] } | T[];
+type PatientListFilters = {
+  specialty_key?: string;
+};
 
 @Injectable({ providedIn: 'root' })
 export class PatientsApiService {
   private apiClient = inject(ApiClientService);
 
-  list(): Observable<Patient[]> {
+  list(filters?: PatientListFilters): Observable<Patient[]> {
     return this.apiClient
-      .get<CollectionResponse<Patient>>(API_ENDPOINTS.patients.base)
+      .get<CollectionResponse<Patient>>(API_ENDPOINTS.patients.base, filters)
       .pipe(map((response) => (Array.isArray(response) ? response : response.items ?? [])));
   }
 

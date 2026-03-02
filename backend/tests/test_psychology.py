@@ -6,8 +6,8 @@ Tests for Psychology module (Psychological Evaluations and Therapy Sessions)
 import pytest
 from datetime import date, timedelta
 from app.models.psychology import PsychologicalEvaluation, TherapySession
-from app.models.patient import Patient
 from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 
 
 class TestPsychologicalEvaluations:
@@ -262,6 +262,51 @@ class TestPsychologicalEvaluations:
         assert json_data['suicide_risk'] == 'high'
         assert json_data['homicide_risk'] == 'none'
         assert json_data['self_harm_risk'] == 'moderate'
+
+    def test_create_evaluation_as_admin_resolves_professional_assignment(
+        self,
+        client,
+        admin_auth_headers,
+        sample_patient,
+        db_session,
+    ):
+        """Admin can create evaluation and backend resolves a module professional."""
+        psychology_professional = Professional(
+            email='psych.admin.flow@test.com',
+            first_name='Psy',
+            last_name='Owner',
+            role='professional',
+            license_number='PSY-ADMIN-001',
+            specialty='Psicologia Clinica',
+            is_active=True,
+        )
+        psychology_professional.set_password('Doctor123')
+        db_session.add(psychology_professional)
+        db_session.flush()
+        db_session.add(
+            ProfessionalPatientAssignment(
+                professional_id=psychology_professional.id,
+                patient_id=sample_patient.id,
+                specialty_key='psychology',
+            )
+        )
+        db_session.commit()
+
+        payload = {
+            'patient_id': sample_patient.id,
+            'reason': 'Seguimiento admin',
+            'primary_diagnosis': 'Ansiedad',
+            'treatment_recommendations': 'Terapia semanal',
+            'evaluation_date': str(date.today()),
+        }
+        response = client.post(
+            '/api/psychology/evaluations',
+            json=payload,
+            headers=admin_auth_headers,
+        )
+
+        assert response.status_code == 201
+        assert response.get_json()['professional_id'] == psychology_professional.id
 
 
 class TestTherapySessions:
@@ -636,3 +681,56 @@ class TestTherapySessions:
         )
 
         assert response.status_code == 400
+
+    def test_create_session_as_admin_uses_evaluation_professional(
+        self,
+        client,
+        admin_auth_headers,
+        sample_patient,
+        db_session,
+    ):
+        """Admin session creation should inherit module professional from evaluation."""
+        psychology_professional = Professional(
+            email='psych.session.admin@test.com',
+            first_name='Psy',
+            last_name='Session',
+            role='professional',
+            license_number='PSY-ADMIN-002',
+            specialty='Psicologia',
+            is_active=True,
+        )
+        psychology_professional.set_password('Doctor123')
+        db_session.add(psychology_professional)
+        db_session.flush()
+        db_session.add(
+            ProfessionalPatientAssignment(
+                professional_id=psychology_professional.id,
+                patient_id=sample_patient.id,
+                specialty_key='psychology',
+            )
+        )
+        evaluation = PsychologicalEvaluation(
+            patient_id=sample_patient.id,
+            professional_id=psychology_professional.id,
+            reason='Base',
+            primary_diagnosis='Ansiedad',
+            treatment_recommendations='Plan',
+            evaluation_date=date.today(),
+        )
+        db_session.add(evaluation)
+        db_session.commit()
+
+        session_payload = {
+            'evaluation_id': evaluation.id,
+            'patient_id': sample_patient.id,
+            'session_date': str(date.today()),
+            'session_notes': 'Sesion creada por admin',
+        }
+        response = client.post(
+            '/api/psychology/sessions',
+            json=session_payload,
+            headers=admin_auth_headers,
+        )
+
+        assert response.status_code == 201
+        assert response.get_json()['professional_id'] == psychology_professional.id

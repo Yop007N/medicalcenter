@@ -664,7 +664,7 @@ class SpecialtyModuleService:
                 'revenue_completed': float(completed_revenue),
                 'specialty_encounters': encounter_query.count(),
                 'documents': documents_total,
-                'currency': 'ARS',
+                'currency': 'PYG',
             },
             'upcoming_appointments': appointment_rows,
             'recent_medical_records': record_rows,

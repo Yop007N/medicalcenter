@@ -217,6 +217,7 @@ export class MedicalRecordsListPage implements OnInit {
   searchTerm = '';
   currentPatientId?: number;
   currentSpecialtyKey?: string;
+  backHref = '/dashboard';
 
   constructor() {
     addIcons({ addOutline, documentTextOutline, personOutline, calendarOutline });
@@ -237,6 +238,7 @@ export class MedicalRecordsListPage implements OnInit {
         const patientId = patientIdRaw ? Number(patientIdRaw) : NaN;
         this.currentPatientId = Number.isFinite(patientId) && patientId > 0 ? patientId : undefined;
         this.currentSpecialtyKey = params.get('specialty_key') || undefined;
+        this.backHref = this.resolveBackHref();
         this.loadRecords();
       });
   }
@@ -280,5 +282,15 @@ export class MedicalRecordsListPage implements OnInit {
       patient_id: this.currentPatientId,
       specialty_key: this.currentSpecialtyKey
     };
+  }
+
+  private resolveBackHref(): string {
+    if (this.currentSpecialtyKey) {
+      return `/${this.currentSpecialtyKey}/workspace`;
+    }
+    if (this.currentPatientId) {
+      return `/patients/${this.currentPatientId}`;
+    }
+    return '/dashboard';
   }
 }

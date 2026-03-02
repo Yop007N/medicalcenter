@@ -87,7 +87,7 @@ import {
               <span>Documentos</span>
             </article>
             <article class="stat-card">
-              <strong>{{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'ARS'):'symbol':'1.0-0' }}</strong>
+              <strong>{{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'PYG'):'symbol':'1.0-0' }}</strong>
               <span>Facturación</span>
             </article>
           </section>

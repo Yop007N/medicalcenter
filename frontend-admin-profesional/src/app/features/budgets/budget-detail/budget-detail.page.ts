@@ -9,6 +9,7 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
+
   IonButton,
   IonIcon,
   IonCard,
@@ -56,6 +57,7 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
     IonTitle,
     IonContent,
     IonButtons,
+
     IonButton,
     IonIcon,
     IonCard,

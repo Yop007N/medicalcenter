@@ -11,6 +11,7 @@ from app.extensions import db
 from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import AccessDeniedError, ValidationError, ResourceNotFoundError
 from app.services.specialty_module_service import SpecialtyModuleService
+from app.utils.helpers import normalize_currency_code
 
 
 VALID_BUDGET_STATUSES = {'draft', 'sent', 'accepted', 'rejected', 'expired'}
@@ -208,7 +209,7 @@ class BudgetService:
             title=data['title'],
             description=data.get('description'),
             total_amount=data['total_amount'],
-            currency=data.get('currency', 'ARS'),
+            currency=normalize_currency_code(data.get('currency', 'PYG')),
             status='draft',
             valid_until=cls._parse_date(data.get('valid_until')),
             items=data.get('items', [])
@@ -260,7 +261,7 @@ class BudgetService:
         if 'total_amount' in data:
             budget.total_amount = data['total_amount']
         if 'currency' in data:
-            budget.currency = data['currency']
+            budget.currency = normalize_currency_code(data['currency'])
         if 'valid_until' in data:
             budget.valid_until = BudgetService._parse_date(data['valid_until'])
         if 'status' in data:

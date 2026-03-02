@@ -263,7 +263,7 @@ def main():
         "title": "Test Budget",
         "description": "Test budget description",
         "total_amount": 1000.00,
-        "currency": "ARS",
+        "currency": "PYG",
         "items": [{"name": "Item 1", "price": 500}, {"name": "Item 2", "price": 500}]
     }
     response = test_endpoint("POST", "/api/budgets", 201, headers=doctor_headers,
@@ -290,7 +290,7 @@ def main():
         new_payment_data = {
             "budget_id": new_budget_id,
             "amount": 500.00,
-            "currency": "ARS",
+            "currency": "PYG",
             "payment_method": "cash"
         }
         response = test_endpoint("POST", "/api/payments", 201, headers=admin_headers,

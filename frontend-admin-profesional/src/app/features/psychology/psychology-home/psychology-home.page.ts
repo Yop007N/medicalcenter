@@ -16,18 +16,21 @@ import {
   IonLabel,
   IonList,
   IonMenuButton,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonTextarea,
   IonTitle,
   IonToolbar
 } from '@ionic/angular/standalone';
+import { Patient } from '../../../models';
 import {
   PsychologicalEvaluation,
   PsychologicalEvaluationCreate,
   TherapySession,
   TherapySessionCreate
 } from '../../../models/psychology.model';
-import { AuthService, NotificationService, PsychologyApiService } from '../../../core/services';
+import { AuthService, NotificationService, PatientsApiService, PsychologyApiService } from '../../../core/services';
 
 type ApiErrorShape = {
   error?: {
@@ -60,7 +63,9 @@ type ApiErrorShape = {
     IonLabel,
     IonList,
     IonSpinner,
-    IonTextarea
+    IonTextarea,
+    IonSelect,
+    IonSelectOption
   ],
   template: `
     <ion-header>
@@ -88,13 +93,15 @@ type ApiErrorShape = {
       <ion-card>
         <ion-card-content class="toolbar-card">
           <ion-item lines="none">
-            <ion-label position="stacked">Filtrar por Patient ID (opcional)</ion-label>
-            <ion-input
-              type="number"
-              min="1"
-              [(ngModel)]="patientFilterInput"
-              placeholder="Ej: 12"
-            ></ion-input>
+            <ion-label position="stacked">Filtrar por paciente (opcional)</ion-label>
+            <ion-select [(ngModel)]="patientFilterId" interface="modal" placeholder="Todos">
+              <ion-select-option [value]="null">Todos</ion-select-option>
+              @for (patient of patients; track patient.id) {
+                <ion-select-option [value]="patient.id">
+                  {{ formatPatientOption(patient) }}
+                </ion-select-option>
+              }
+            </ion-select>
           </ion-item>
           <div class="toolbar-actions">
             <ion-button size="small" (click)="applyPatientFilter()">Filtrar</ion-button>
@@ -120,8 +127,14 @@ type ApiErrorShape = {
         </ion-card-header>
         <ion-card-content>
           <ion-item>
-            <ion-label position="stacked">Patient ID</ion-label>
-            <ion-input type="number" min="1" [(ngModel)]="evaluationDraft.patient_id"></ion-input>
+            <ion-label position="stacked">Paciente</ion-label>
+            <ion-select [(ngModel)]="evaluationDraft.patient_id" interface="modal" placeholder="Seleccionar paciente">
+              @for (patient of patients; track patient.id) {
+                <ion-select-option [value]="patient.id">
+                  {{ formatPatientOption(patient) }}
+                </ion-select-option>
+              }
+            </ion-select>
           </ion-item>
           <ion-item>
             <ion-label position="stacked">Motivo</ion-label>
@@ -163,7 +176,7 @@ type ApiErrorShape = {
               @for (evaluation of evaluations; track evaluation.id) {
                 <ion-item>
                   <ion-label>
-                    <h2>#{{ evaluation.id }} · Paciente {{ evaluation.patient_id }}</h2>
+                    <h2>#{{ evaluation.id }} · {{ getPatientName(evaluation.patient_id) }} (#{{ evaluation.patient_id }})</h2>
                     <p>{{ evaluation.reason }}</p>
                     <p>{{ evaluation.status }} · {{ evaluation.evaluation_date | date:'mediumDate' }}</p>
                   </ion-label>
@@ -196,8 +209,10 @@ type ApiErrorShape = {
           </ion-card-header>
           <ion-card-content>
             <ion-item>
-              <ion-label position="stacked">Patient ID</ion-label>
-              <ion-input type="number" min="1" [(ngModel)]="sessionDraft.patient_id"></ion-input>
+              <ion-label>
+                <h3>Paciente</h3>
+                <p>{{ getPatientName(selectedEvaluation.patient_id) }} (#{{ selectedEvaluation.patient_id }})</p>
+              </ion-label>
             </ion-item>
             <ion-item>
               <ion-label position="stacked">Fecha sesion</ion-label>
@@ -292,6 +307,7 @@ type ApiErrorShape = {
 export class PsychologyHomePage implements OnInit {
   private readonly psychologyApi = inject(PsychologyApiService);
   private readonly authService = inject(AuthService);
+  private readonly patientsApi = inject(PatientsApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly notification = inject(NotificationService);
 
@@ -303,8 +319,10 @@ export class PsychologyHomePage implements OnInit {
   loadingSessions = false;
   creatingEvaluation = false;
   creatingSession = false;
+  loadingPatients = false;
 
-  patientFilterInput = '';
+  patients: Patient[] = [];
+  patientFilterId: number | null = null;
   activePatientId: number | null = null;
   currentUserId: number | null = null;
   currentUserRole: string | null = null;
@@ -314,13 +332,13 @@ export class PsychologyHomePage implements OnInit {
   successMessage: string | null = null;
 
   evaluationDraft: {
-    patient_id: number;
+    patient_id: number | null;
     reason: string;
     primary_diagnosis: string;
     treatment_recommendations: string;
     evaluation_date: string;
   } = {
-    patient_id: 1,
+    patient_id: null,
     reason: '',
     primary_diagnosis: '',
     treatment_recommendations: '',
@@ -328,11 +346,9 @@ export class PsychologyHomePage implements OnInit {
   };
 
   sessionDraft: {
-    patient_id: number;
     session_date: string;
     session_notes: string;
   } = {
-    patient_id: 1,
     session_date: this.today(),
     session_notes: ''
   };
@@ -344,21 +360,38 @@ export class PsychologyHomePage implements OnInit {
         this.currentUserId = user?.id ?? null;
         this.currentUserRole = user?.role ?? null;
         if (user) {
+          this.loadPatients();
           this.loadEvaluations();
         }
       });
   }
 
   applyPatientFilter(): void {
-    const parsed = Number(this.patientFilterInput);
-    this.activePatientId = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    this.activePatientId = this.patientFilterId;
     this.loadEvaluations();
   }
 
   clearPatientFilter(): void {
-    this.patientFilterInput = '';
+    this.patientFilterId = null;
     this.activePatientId = null;
     this.loadEvaluations();
+  }
+
+  loadPatients(): void {
+    this.loadingPatients = true;
+    this.patientsApi
+      .list({ specialty_key: 'psychology' })
+      .subscribe({
+        next: (patients) => {
+          this.patients = [...patients].sort((a, b) =>
+            `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+          );
+          this.loadingPatients = false;
+        },
+        error: () => {
+          this.loadingPatients = false;
+        }
+      });
   }
 
   loadEvaluations(): void {
@@ -377,7 +410,7 @@ export class PsychologyHomePage implements OnInit {
       this.evaluations = [];
       this.selectedEvaluation = null;
       this.sessions = [];
-      this.infoMessage = 'Para usuario admin, filtra por Patient ID para consultar evaluaciones.';
+      this.infoMessage = 'Para usuario admin, selecciona un paciente para consultar evaluaciones.';
       return;
     }
 
@@ -405,17 +438,18 @@ export class PsychologyHomePage implements OnInit {
   }
 
   createEvaluation(): void {
+    const selectedPatientId = Number(this.evaluationDraft.patient_id);
     const reason = this.evaluationDraft.reason.trim();
     const primaryDiagnosis = this.evaluationDraft.primary_diagnosis.trim();
     const recommendations = this.evaluationDraft.treatment_recommendations.trim();
 
-    if (!this.evaluationDraft.patient_id || !reason || !primaryDiagnosis || !recommendations) {
+    if (!Number.isInteger(selectedPatientId) || selectedPatientId <= 0 || !reason || !primaryDiagnosis || !recommendations) {
       this.errorMessage = 'Completa los campos obligatorios de la evaluacion.';
       return;
     }
 
     const payload: PsychologicalEvaluationCreate = {
-      patient_id: this.evaluationDraft.patient_id,
+      patient_id: selectedPatientId,
       reason,
       primary_diagnosis: primaryDiagnosis,
       treatment_recommendations: recommendations,
@@ -431,7 +465,7 @@ export class PsychologyHomePage implements OnInit {
         this.creatingEvaluation = false;
         this.successMessage = `Evaluacion #${evaluation.id} creada correctamente.`;
         this.activePatientId = evaluation.patient_id;
-        this.patientFilterInput = String(evaluation.patient_id);
+        this.patientFilterId = evaluation.patient_id;
         this.evaluationDraft = {
           patient_id: evaluation.patient_id,
           reason: '',
@@ -450,7 +484,6 @@ export class PsychologyHomePage implements OnInit {
 
   selectEvaluation(evaluation: PsychologicalEvaluation): void {
     this.selectedEvaluation = evaluation;
-    this.sessionDraft.patient_id = evaluation.patient_id;
     this.loadSessions(evaluation.id);
   }
 
@@ -525,14 +558,14 @@ export class PsychologyHomePage implements OnInit {
     }
 
     const sessionNotes = this.sessionDraft.session_notes.trim();
-    if (!this.sessionDraft.patient_id || !sessionNotes) {
-      this.errorMessage = 'Patient ID y notas de sesion son obligatorios.';
+    if (!sessionNotes) {
+      this.errorMessage = 'Las notas de sesion son obligatorias.';
       return;
     }
 
     const payload: TherapySessionCreate = {
       evaluation_id: this.selectedEvaluation.id,
-      patient_id: this.sessionDraft.patient_id,
+      patient_id: this.selectedEvaluation.patient_id,
       session_date: this.sessionDraft.session_date || this.today(),
       session_notes: sessionNotes
     };
@@ -545,7 +578,6 @@ export class PsychologyHomePage implements OnInit {
       next: (session) => {
         this.sessions = [session, ...this.sessions];
         this.sessionDraft = {
-          patient_id: this.selectedEvaluation?.patient_id ?? 1,
           session_date: this.today(),
           session_notes: ''
         };
@@ -584,6 +616,18 @@ export class PsychologyHomePage implements OnInit {
 
   private today(): string {
     return new Date().toISOString().split('T')[0];
+  }
+
+  formatPatientOption(patient: Patient): string {
+    return `${patient.first_name} ${patient.last_name} (#${patient.id})`;
+  }
+
+  getPatientName(patientId: number): string {
+    const patient = this.patients.find((item) => item.id === patientId);
+    if (!patient) {
+      return `Paciente #${patientId}`;
+    }
+    return `${patient.first_name} ${patient.last_name}`;
   }
 
   private resolveErrorMessage(error: unknown): string {

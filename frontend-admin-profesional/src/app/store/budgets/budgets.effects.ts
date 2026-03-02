@@ -8,13 +8,18 @@ import { BudgetsApiService, NotificationService } from '../../core/services';
 import { getApiErrorMessage } from '../error.adapter';
 import * as BudgetsActions from './budgets.actions';
 
+const normalizeCurrency = (currency?: string | null): string => {
+  const code = String(currency ?? 'PYG').trim().toUpperCase();
+  return code === 'ARS' ? 'PYG' : code || 'PYG';
+};
+
 const normalizeBudget = (budget: Partial<Budget>): Budget => ({
   id: budget.id ?? 0,
   patient_id: budget.patient_id ?? 0,
   created_by: budget.created_by ?? 0,
   title: budget.title ?? '',
   total_amount: budget.total_amount ?? 0,
-  currency: budget.currency ?? 'ARS',
+  currency: normalizeCurrency(budget.currency),
   status: budget.status ?? 'draft',
   total_paid: budget.total_paid ?? 0,
   payments_count: budget.payments_count ?? 0,

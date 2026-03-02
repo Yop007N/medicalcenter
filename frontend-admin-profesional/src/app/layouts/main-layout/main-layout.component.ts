@@ -35,10 +35,13 @@ import {
   shieldOutline,
   logOutOutline,
   personCircleOutline,
+  chevronBackOutline,
   chevronForwardOutline,
   notificationsOutline,
-  helpCircleOutline
+  helpCircleOutline,
+  menuOutline
 } from 'ionicons/icons';
+import { MenuController } from '@ionic/angular';
 import { selectUser } from '../../store/auth/auth.selectors';
 import * as AuthActions from '../../store/auth/auth.actions';
 import { PwaUpdateService } from '../../core/services/pwa-update.service';
@@ -91,7 +94,7 @@ interface MenuGroup {
   ],
   template: `
     <ion-split-pane contentId="main-content" [when]="'lg'">
-      <ion-menu contentId="main-content" type="overlay" class="medical-menu">
+      <ion-menu contentId="main-content" type="overlay" class="medical-menu" [disabled]="!isSidebarVisible">
         <!-- Menu Header -->
         <div class="menu-header">
           <div class="brand">
@@ -103,7 +106,18 @@ interface MenuGroup {
               <span class="brand-tagline">Services</span>
             </div>
           </div>
-          <app-offline-indicator></app-offline-indicator>
+          <div class="menu-header-actions">
+            <app-offline-indicator></app-offline-indicator>
+            <button
+              type="button"
+              class="menu-visibility-toggle"
+              (click)="toggleSidebar()"
+              aria-label="Ocultar menú lateral"
+              title="Ocultar menú lateral"
+            >
+              <ion-icon name="chevron-back-outline"></ion-icon>
+            </button>
+          </div>
         </div>
 
         <ion-content class="menu-content">
@@ -171,6 +185,17 @@ interface MenuGroup {
         </ion-footer>
       </ion-menu>
 
+      @if (!isSidebarVisible) {
+        <button
+          type="button"
+          class="sidebar-reopen-button"
+          (click)="showSidebar()"
+          aria-label="Mostrar menú lateral"
+        >
+          <ion-icon name="menu-outline"></ion-icon>
+        </button>
+      }
+
       <ion-router-outlet id="main-content"></ion-router-outlet>
     </ion-split-pane>
   `,
@@ -184,10 +209,44 @@ interface MenuGroup {
     .menu-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 8px;
       padding: 20px 16px;
       background: var(--medical-bg-card);
       border-bottom: 1px solid var(--medical-border-light);
+    }
+
+    .menu-header-actions {
+      align-items: center;
+      display: inline-flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .menu-visibility-toggle {
+      align-items: center;
+      background: rgba(var(--ion-color-primary-rgb), 0.08);
+      border: 1px solid var(--medical-border-light);
+      border-radius: 999px;
+      color: var(--ion-color-medium);
+      cursor: pointer;
+      display: inline-flex;
+      height: 34px;
+      justify-content: center;
+      min-width: 34px;
+      padding: 0;
+      transition: all 0.2s ease;
+      width: 34px;
+
+      ion-icon {
+        font-size: 16px;
+      }
+
+      &:hover {
+        border-color: rgba(var(--ion-color-primary-rgb), 0.35);
+        color: var(--ion-color-primary);
+        transform: translateX(-1px);
+      }
     }
 
     .brand {
@@ -424,16 +483,49 @@ interface MenuGroup {
       }
     }
 
+    .sidebar-reopen-button {
+      align-items: center;
+      background: var(--medical-bg-card);
+      border: 1px solid var(--medical-border-light);
+      border-radius: 999px;
+      box-shadow: var(--medical-shadow-sm);
+      color: var(--ion-color-primary);
+      cursor: pointer;
+      display: inline-flex;
+      height: 36px;
+      justify-content: center;
+      left: 10px;
+      position: fixed;
+      top: calc(var(--ion-safe-area-top, 0px) + 76px);
+      width: 36px;
+      z-index: 250;
+
+      ion-icon {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      .menu-visibility-toggle,
+      .sidebar-reopen-button {
+        display: none;
+      }
+    }
+
     /* Theme is fixed to light from global stylesheet */
   `]
 })
 export class MainLayoutComponent {
   private store = inject(Store);
+  private readonly menuController = inject(MenuController);
   private readonly authService = inject(AuthService);
   private readonly specialtiesApi = inject(SpecialtiesApiService);
   private readonly pwaUpdateService = inject(PwaUpdateService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly pushNotificationsService = inject(PushNotificationsService);
+  private readonly sidebarStorageKey = 'ms.admin.sidebar.visible';
+
+  isSidebarVisible = this.getInitialSidebarVisibility();
 
   user$ = combineLatest([
     this.store.select(selectUser),
@@ -524,8 +616,40 @@ export class MainLayoutComponent {
       personCircleOutline,
       chevronForwardOutline,
       notificationsOutline,
-      helpCircleOutline
+      chevronBackOutline,
+      helpCircleOutline,
+      menuOutline
     });
+  }
+
+  private getInitialSidebarVisibility(): boolean {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    return window.localStorage.getItem(this.sidebarStorageKey) !== 'false';
+  }
+
+  private persistSidebarVisibility(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(this.sidebarStorageKey, String(this.isSidebarVisible));
+  }
+
+  toggleSidebar(): void {
+    this.isSidebarVisible = !this.isSidebarVisible;
+    this.persistSidebarVisibility();
+
+    if (!this.isSidebarVisible) {
+      void this.menuController.close();
+    }
+  }
+
+  showSidebar(): void {
+    if (!this.isSidebarVisible) {
+      this.isSidebarVisible = true;
+      this.persistSidebarVisibility();
+    }
   }
 
   private async initializeShellServices(): Promise<void> {

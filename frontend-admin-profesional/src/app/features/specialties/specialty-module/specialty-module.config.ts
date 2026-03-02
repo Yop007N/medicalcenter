@@ -38,6 +38,7 @@ export interface SpecialtyWorkspaceItem {
   title: string;
   description: string;
   route: string;
+  queryParams?: Record<string, string>;
 }
 
 export interface SpecialtyPrimaryQuickAction {

@@ -137,7 +137,7 @@ def _build_financial_summary_report(start_date, end_date):
     return {
         'total_revenue': float(revenue_report['summary'].get('total_revenue', 0)),
         'total_pending': pending_amount,
-        'currency': 'ARS',
+        'currency': 'PYG',
         'by_payment_method': by_payment_method,
         'by_month': list(by_month.values()),
         'period': {

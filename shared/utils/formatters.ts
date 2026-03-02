@@ -1,14 +1,14 @@
 // Shared formatting utilities
-export function formatCurrency(amount: number, currency: string = 'ARS'): string {
+export function formatCurrency(amount: number, currency: string = 'PYG'): string {
   return `${currency} ${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
 }
 
-export function formatDate(dateString: string, locale: string = 'es-AR'): string {
+export function formatDate(dateString: string, locale: string = 'es-PY'): string {
   const date = new Date(dateString);
   return date.toLocaleDateString(locale);
 }
 
-export function formatDateTime(dateString: string, locale: string = 'es-AR'): string {
+export function formatDateTime(dateString: string, locale: string = 'es-PY'): string {
   const date = new Date(dateString);
   return date.toLocaleString(locale);
 }

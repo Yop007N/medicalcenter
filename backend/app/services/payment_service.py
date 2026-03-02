@@ -10,6 +10,7 @@ from app.services.access_scope_service import AccessScopeService
 from app.services.budget_service import BudgetService
 from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
 from app.services.specialty_module_service import SpecialtyModuleService
+from app.utils.helpers import normalize_currency_code
 
 
 class PaymentService:
@@ -211,7 +212,7 @@ class PaymentService:
         payment = Payment(
             budget_id=budget_id,
             amount=data['amount'],
-            currency=data.get('currency', 'ARS'),
+            currency=normalize_currency_code(data.get('currency', 'PYG')),
             payment_method=data['payment_method'],
             payment_status='pending',
             transaction_id=data.get('transaction_id') or data.get('transaction_reference'),
@@ -238,7 +239,7 @@ class PaymentService:
         if 'amount' in data:
             payment.amount = data['amount']
         if 'currency' in data:
-            payment.currency = data['currency']
+            payment.currency = normalize_currency_code(data['currency'])
         if 'payment_method' in data:
             payment.payment_method = data['payment_method']
         if 'payment_status' in data:

@@ -375,7 +375,7 @@ class TestCreateBudget:
             'title': 'New Treatment Budget',
             'description': 'Budget for dental treatment',
             'total_amount': 2500.00,
-            'currency': 'ARS',
+            'currency': 'PYG',
             'items': [
                 {'description': 'Consultation', 'quantity': 1, 'unit_price': 500.00, 'total': 500.00},
                 {'description': 'Treatment', 'quantity': 2, 'unit_price': 1000.00, 'total': 2000.00}
@@ -488,7 +488,7 @@ class TestUpdateBudget:
                 created_by=sample_professional.id,
                 title='Budget Update Fields',
                 total_amount=Decimal('1200.00'),
-                currency='ARS'
+                currency='PYG'
             )
             db.session.add(budget)
             db.session.commit()

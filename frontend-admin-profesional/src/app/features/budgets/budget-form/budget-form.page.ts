@@ -10,6 +10,7 @@ import {
   IonTitle,
   IonContent,
   IonButtons,
+
   IonButton,
   IonIcon,
   IonItem,
@@ -47,6 +48,7 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
     IonTitle,
     IonContent,
     IonButtons,
+
     IonButton,
     IonIcon,
     IonItem,
@@ -190,7 +192,6 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
                           <ion-select-option value="PYG">PYG - Guaraní Paraguayo</ion-select-option>
                           <ion-select-option value="USD">USD - Dólar Estadounidense</ion-select-option>
                           <ion-select-option value="EUR">EUR - Euro</ion-select-option>
-                          <ion-select-option value="ARS">ARS - Peso Argentino</ion-select-option>
                           <ion-select-option value="BRL">BRL - Real Brasileño</ion-select-option>
                         </ion-select>
                       </ion-item>

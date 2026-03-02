@@ -1,7 +1,8 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { IonContent } from '@ionic/angular/standalone';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import {
@@ -39,8 +40,9 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
 @Component({
   selector: 'app-specialty-module-page',
   standalone: true,
-  imports: [CommonModule, CurrencyPipe, DatePipe, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, CurrencyPipe, DatePipe, RouterLink, ReactiveFormsModule, IonContent],
   template: `
+    <ion-content class="specialty-module-content">
     <section class="page">
       <div class="page-header">
         <h1>{{ context?.module?.label || 'Especialidad' }}</h1>
@@ -61,28 +63,19 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
       }
 
       @if (context) {
-        <article class="card">
-          <h2 class="card-title">Módulo de {{ context.module.label }}</h2>
-          <ul class="workspace-list">
-            @for (entry of workspaceItems; track entry.title) {
-              <li>
-                <a [routerLink]="entry.route">{{ entry.title }}</a>
-                <p>{{ entry.description }}</p>
-              </li>
-            }
-          </ul>
-          <a [routerLink]="primaryWorkspaceRoute" class="primary-button workspace-cta">
-            {{ primaryWorkspaceActionLabel }}
-          </a>
-        </article>
-
-        <article class="card">
-          <h2 class="card-title">Bloques funcionales</h2>
-          <div class="chip-grid">
-            @for (section of context.module.coreSections; track section) {
-              <span class="chip">{{ section }}</span>
-            }
+        <article class="card workspace-card">
+          <div class="workspace-card__head">
+            <div>
+              <h2 class="card-title">Workspace de {{ context.module.label }}</h2>
+              <p class="description workspace-card__description">
+                Accesos directos para operar pacientes, agenda, historial y facturación de esta especialidad.
+              </p>
+            </div>
+            <button type="button" class="primary-button workspace-cta" (click)="handlePrimaryWorkspaceAction()">
+              {{ primaryWorkspaceActionLabel }}
+            </button>
           </div>
+
           <div class="quick-actions">
             <a routerLink="/patients" [queryParams]="scopeQueryParams" class="quick-link">Pacientes</a>
             <a routerLink="/appointments" [queryParams]="scopeQueryParams" class="quick-link">Citas</a>
@@ -94,10 +87,28 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
               <a [routerLink]="action.route" class="quick-link primary">{{ action.label }}</a>
             }
           </div>
+
+          <div class="chip-grid">
+            @for (section of context.module.coreSections; track section) {
+              <span class="chip">{{ section }}</span>
+            }
+          </div>
         </article>
 
-        <article class="card specialty-brief">
-          <h2 class="card-title">{{ uiConfig.briefTitle }}</h2>
+        <details class="card collapsible-card">
+          <summary class="collapsible-summary">Mapa del módulo</summary>
+          <ul class="workspace-list">
+            @for (entry of workspaceItems; track entry.title) {
+              <li>
+                <a [routerLink]="entry.route" [queryParams]="entry.queryParams || null">{{ entry.title }}</a>
+                <p>{{ entry.description }}</p>
+              </li>
+            }
+          </ul>
+        </details>
+
+        <details class="card collapsible-card">
+          <summary class="collapsible-summary">{{ uiConfig.briefTitle }}</summary>
           <div class="brief-grid">
             <section class="brief-column">
               <h3>Focos clínicos</h3>
@@ -120,7 +131,7 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
               <p>{{ uiConfig.followUpCadence }}</p>
             </section>
           </div>
-        </article>
+        </details>
       }
 
       @if (overview) {
@@ -152,15 +163,15 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
           </article>
           <article class="card stat">
             <h3>Facturación</h3>
-            <strong>{{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'ARS'):'symbol':'1.0-2' }}</strong>
+            <strong>{{ overview.totals.revenue_completed | currency:(overview.totals.currency || 'PYG'):'symbol':'1.0-2' }}</strong>
             <small>Pagos: {{ overview.totals.payments_completed }}</small>
           </article>
         </div>
       }
 
       @if (specialtyInsightCards.length > 0) {
-        <article class="card">
-          <h2 class="card-title">Indicadores clínicos del módulo</h2>
+        <details class="card collapsible-card" open>
+          <summary class="collapsible-summary">Indicadores clínicos del módulo</summary>
           <div class="stats-grid">
             @for (insight of specialtyInsightCards; track insight.label) {
               <article class="card stat insight-card">
@@ -170,12 +181,12 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
               </article>
             }
           </div>
-        </article>
+        </details>
       }
 
       @if (specialtyBoardSections.length > 0) {
-        <article class="card">
-          <h2 class="card-title">Panel clínico del dominio</h2>
+        <details class="card collapsible-card">
+          <summary class="collapsible-summary">Panel clínico del dominio</summary>
           <div class="board-grid">
             @for (section of specialtyBoardSections; track section.title) {
               <section class="board-section">
@@ -192,12 +203,12 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
               </section>
             }
           </div>
-        </article>
+        </details>
       }
 
       @if (overview && context) {
-        <article class="card">
-          <h2 class="card-title">{{ uiConfig.historyTitle }}</h2>
+        <details class="card collapsible-card">
+          <summary class="collapsible-summary">{{ uiConfig.historyTitle }}</summary>
           <p class="description">{{ uiConfig.historyHint }}</p>
           <div class="insight-grid">
             <div class="insight-block">
@@ -300,11 +311,22 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
               }
             </div>
           </div>
-        </article>
+        </details>
       }
 
       @if (isGenericClinicalModule) {
         <article class="card">
+          <h2 class="card-title">Atención clínica</h2>
+          <p class="description">Inicia una nueva atención o edita una existente cuando sea necesario.</p>
+          <div class="form-actions">
+            <button class="primary-button" type="button" (click)="toggleEncounterForm()">
+              @if (showEncounterForm || editingEncounterId) { Ocultar formulario } @else { Nueva atención }
+            </button>
+          </div>
+        </article>
+
+        @if (showEncounterForm || editingEncounterId) {
+        <article class="card" #encounterFormCard>
           <h2 class="card-title">
             @if (editingEncounterId) {
               Editar atención #{{ editingEncounterId }}
@@ -432,9 +454,10 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
             </div>
           </form>
         </article>
+        }
 
         <article class="card">
-          <h2 class="card-title">{{ uiConfig.historyTitle }}</h2>
+          <h2 class="card-title">Atenciones registradas</h2>
 
           <form class="filter-grid" [formGroup]="filterForm" novalidate>
             <label>
@@ -511,14 +534,28 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
         </article>
       }
     </section>
+    </ion-content>
   `,
   styles: [`
-    .page { padding: 1rem; }
+    :host {
+      display: block;
+      height: 100%;
+    }
+    .specialty-module-content {
+      --background: var(--medical-bg-light);
+    }
+    .page {
+      min-height: 100%;
+      padding: 1rem;
+      padding-bottom: 5rem;
+    }
     .page-header { align-items: center; display: flex; justify-content: space-between; gap: 1rem; }
     h1 { color: var(--ion-color-dark); font-size: 1.4rem; margin: 0; }
     .description { color: var(--ion-color-medium); margin: 0.25rem 0 0.9rem; }
     .card { background: var(--medical-bg-card); border: 1px solid var(--medical-border-light); border-radius: 12px; margin-bottom: 0.9rem; padding: 0.85rem; }
     .card-title { color: var(--ion-color-dark); font-size: 1rem; margin: 0 0 0.6rem; }
+    .workspace-card__head { align-items: flex-start; display: flex; gap: 0.75rem; justify-content: space-between; }
+    .workspace-card__description { margin-bottom: 0.6rem; }
     .refresh-button, .secondary-button, .secondary-action, .danger-action, .primary-button { border-radius: 8px; cursor: pointer; font-weight: 600; }
     .refresh-button, .secondary-button, .secondary-action { background: var(--medical-bg-card); border: 1px solid var(--medical-border-light); color: var(--ion-color-dark); padding: 0.45rem 0.7rem; }
     .primary-button { background: var(--ion-color-primary); border: 1px solid var(--ion-color-primary); color: white; padding: 0.45rem 0.85rem; }
@@ -545,6 +582,26 @@ type EncounterStatus = 'open' | 'in_progress' | 'closed';
     .workspace-list a { color: var(--ion-color-dark); font-weight: 700; text-decoration: none; }
     .workspace-list p { color: var(--ion-color-medium); font-size: 0.8rem; margin: 0.2rem 0 0; }
     .workspace-cta { display: inline-flex; text-decoration: none; }
+    .collapsible-card { padding-top: 0.6rem; }
+    .collapsible-summary {
+      color: var(--ion-color-dark);
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      list-style: none;
+      margin: 0 0 0.6rem;
+      outline: none;
+    }
+    .collapsible-summary::-webkit-details-marker { display: none; }
+    .collapsible-summary::before {
+      content: '▸';
+      color: var(--ion-color-medium);
+      display: inline-block;
+      margin-right: 0.45rem;
+      transform: translateY(-1px);
+      transition: transform .15s ease;
+    }
+    .collapsible-card[open] > .collapsible-summary::before { transform: rotate(90deg) translateY(-1px); }
     .specialty-brief .brief-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
     .specialty-brief .brief-column { border: 1px solid var(--medical-border-light); border-radius: 10px; padding: 0.65rem; }
     .specialty-brief .brief-column h3 { color: var(--ion-color-dark); font-size: 0.8rem; margin: 0 0 0.45rem; text-transform: uppercase; }
@@ -588,6 +645,7 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly notification = inject(NotificationService);
   private readonly fb = inject(FormBuilder);
+  @ViewChild('encounterFormCard') private encounterFormCard?: ElementRef<HTMLElement>;
   private routeParamSubscription?: Subscription;
 
   loading = false;
@@ -601,6 +659,7 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
   overview: SpecialtyModuleOverview | null = null;
   encounters: SpecialtyEncounter[] = [];
   showAdvancedPayload = false;
+  showEncounterForm = false;
   specialtyFieldValues: Record<string, string> = {};
 
   readonly encounterForm = this.fb.group({
@@ -643,17 +702,20 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       {
         title: `Pacientes de ${moduleLabel}`,
         description: 'Acceso a pacientes, historial y continuidad del cuidado.',
-        route: this.buildScopedRoute('/patients'),
+        route: '/patients',
+        queryParams: this.scopeQueryParams,
       },
       {
         title: `Agenda de ${moduleLabel}`,
         description: 'Control de turnos, seguimiento y pendientes asistenciales.',
-        route: this.buildScopedRoute('/appointments'),
+        route: '/appointments',
+        queryParams: this.scopeQueryParams,
       },
       {
         title: `Registros y documentos`,
         description: 'Historiales, archivos y evidencias clínicas del módulo.',
-        route: this.buildScopedRoute('/medical-records'),
+        route: '/medical-records',
+        queryParams: this.scopeQueryParams,
       },
     ];
   }
@@ -669,8 +731,7 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
   }
 
   get primaryWorkspaceRoute(): string {
-    const moduleKey = this.context?.module?.key;
-    return resolveSpecialtyFrontendRoute(moduleKey);
+    return this.resolveWorkspaceRoute(this.context?.module?.key);
   }
 
   get primaryQuickAction(): { label: string; route: string } | null {
@@ -774,7 +835,38 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
     this.createEncounter();
   }
 
+  handlePrimaryWorkspaceAction(): void {
+    const targetRoute = this.primaryWorkspaceRoute;
+    const currentPath = this.router.url.split('?')[0];
+
+    if (currentPath !== targetRoute) {
+      void this.router.navigateByUrl(targetRoute).then(() => {
+        if (this.isGenericClinicalModule) {
+          this.openEncounterForm();
+        }
+      });
+      return;
+    }
+
+    if (this.isGenericClinicalModule) {
+      this.openEncounterForm();
+      return;
+    }
+
+    void this.router.navigateByUrl(targetRoute);
+  }
+
+  toggleEncounterForm(): void {
+    this.showEncounterForm = !this.showEncounterForm;
+    if (this.showEncounterForm) {
+      setTimeout(() => this.scrollToEncounterForm(), 0);
+      return;
+    }
+    this.cancelEdit(true);
+  }
+
   startEdit(encounter: SpecialtyEncounter): void {
+    this.showEncounterForm = true;
     this.editingEncounterId = encounter.id;
     this.hydrateSpecialtyFieldValues(encounter.payload);
     this.encounterForm.patchValue({
@@ -793,6 +885,7 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
 
   cancelEdit(silent = false): void {
     this.editingEncounterId = null;
+    this.showEncounterForm = false;
     this.resetForm();
     if (!silent) {
       this.successMessage = null;
@@ -994,11 +1087,6 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
     };
   }
 
-  private buildScopedRoute(path: string): string {
-    const specialtyKey = this.context?.module?.key;
-    return specialtyKey ? `${path}?specialty_key=${encodeURIComponent(specialtyKey)}` : path;
-  }
-
   private resetForm(): void {
     this.encounterForm.reset({
       patient_id: 0,
@@ -1125,8 +1213,19 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
       return;
     }
     if (routeSpecialtyKey !== context.module.key) {
-      void this.router.navigateByUrl(resolveSpecialtyFrontendRoute(context.module.key));
+      void this.router.navigateByUrl(this.resolveWorkspaceRoute(context.module.key));
     }
+  }
+
+  private resolveWorkspaceRoute(moduleKey: string | null | undefined): string {
+    const normalized = String(moduleKey || '').trim().toLowerCase();
+    if (!normalized) {
+      return '/dashboard';
+    }
+    if (LEGACY_MODULES.has(normalized)) {
+      return resolveSpecialtyFrontendRoute(normalized);
+    }
+    return `/${normalized}/workspace`;
   }
 
   private formatDateForInput(date: Date): string {
@@ -1163,5 +1262,21 @@ export class SpecialtyModulePage implements OnInit, OnDestroy {
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {
     return typeof value === 'object' && value !== null && 'error' in value;
+  }
+
+  private scrollToEncounterForm(): void {
+    const target = this.encounterFormCard?.nativeElement;
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const focusable = target.querySelector('select, input, textarea, button') as HTMLElement | null;
+    focusable?.focus();
+  }
+
+  private openEncounterForm(): void {
+    this.showEncounterForm = true;
+    setTimeout(() => this.scrollToEncounterForm(), 0);
   }
 }

@@ -404,7 +404,7 @@ class TestCreatePayment:
         data = {
             'amount': 1000.00,
             'payment_method': 'card',
-            'currency': 'ARS',
+            'currency': 'PYG',
             'notes': 'Payment for treatment'
         }
 

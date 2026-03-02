@@ -6,8 +6,8 @@ Tests for Psychopedagogy module (Psychopedagogical Evaluations and Intervention 
 import pytest
 from datetime import date, timedelta
 from app.models.psychopedagogy import PsychopedagogicalEvaluation, InterventionSession
-from app.models.patient import Patient
 from app.models.professional import Professional
+from app.models.professional_patient_assignment import ProfessionalPatientAssignment
 
 
 class TestPsychopedagogicalEvaluations:
@@ -223,6 +223,50 @@ class TestPsychopedagogicalEvaluations:
         json_data = response.get_json()
         for evaluation in json_data['evaluations']:
             assert evaluation['status'] == 'active'
+
+    def test_create_evaluation_as_admin_resolves_professional_assignment(
+        self,
+        client,
+        admin_auth_headers,
+        sample_patient,
+        db_session,
+    ):
+        """Admin can create psychopedagogy evaluation without sending professional_id."""
+        psychopedagogy_professional = Professional(
+            email='psychoped.admin.flow@test.com',
+            first_name='Psyco',
+            last_name='Peda',
+            role='professional',
+            license_number='PP-ADMIN-001',
+            specialty='Psicopedagogia',
+            is_active=True,
+        )
+        psychopedagogy_professional.set_password('Doctor123')
+        db_session.add(psychopedagogy_professional)
+        db_session.flush()
+        db_session.add(
+            ProfessionalPatientAssignment(
+                professional_id=psychopedagogy_professional.id,
+                patient_id=sample_patient.id,
+                specialty_key='psychopedagogy',
+            )
+        )
+        db_session.commit()
+
+        payload = {
+            'patient_id': sample_patient.id,
+            'reason': 'Seguimiento psicopedagogico',
+            'recommendations': 'Plan de intervención semanal',
+            'evaluation_date': str(date.today()),
+        }
+        response = client.post(
+            '/api/psychopedagogy/evaluations',
+            json=payload,
+            headers=admin_auth_headers,
+        )
+
+        assert response.status_code == 201
+        assert response.get_json()['professional_id'] == psychopedagogy_professional.id
 
 
 class TestInterventionSessions:
@@ -513,3 +557,55 @@ class TestInterventionSessions:
         )
 
         assert response.status_code == 400
+
+    def test_create_session_as_admin_uses_evaluation_professional(
+        self,
+        client,
+        admin_auth_headers,
+        sample_patient,
+        db_session,
+    ):
+        """Admin session creation should inherit module professional from evaluation."""
+        psychopedagogy_professional = Professional(
+            email='psychoped.session.admin@test.com',
+            first_name='Psyco',
+            last_name='Session',
+            role='professional',
+            license_number='PP-ADMIN-002',
+            specialty='Psicopedagogia',
+            is_active=True,
+        )
+        psychopedagogy_professional.set_password('Doctor123')
+        db_session.add(psychopedagogy_professional)
+        db_session.flush()
+        db_session.add(
+            ProfessionalPatientAssignment(
+                professional_id=psychopedagogy_professional.id,
+                patient_id=sample_patient.id,
+                specialty_key='psychopedagogy',
+            )
+        )
+        evaluation = PsychopedagogicalEvaluation(
+            patient_id=sample_patient.id,
+            professional_id=psychopedagogy_professional.id,
+            reason='Base',
+            recommendations='Plan base',
+            evaluation_date=date.today(),
+        )
+        db_session.add(evaluation)
+        db_session.commit()
+
+        session_payload = {
+            'evaluation_id': evaluation.id,
+            'patient_id': sample_patient.id,
+            'session_date': str(date.today()),
+            'focus_area': 'lectura',
+        }
+        response = client.post(
+            '/api/psychopedagogy/sessions',
+            json=session_payload,
+            headers=admin_auth_headers,
+        )
+
+        assert response.status_code == 201
+        assert response.get_json()['professional_id'] == psychopedagogy_professional.id

@@ -123,7 +123,7 @@ def create_payment():
               example: 5000.00
             currency:
               type: string
-              default: ARS
+              default: PYG
             payment_method:
               type: string
               enum: [cash, card, transfer, insurance, check, other]
