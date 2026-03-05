@@ -1,0 +1,3 @@
+## 2024-10-15 - Accessible Custom Chips
+**Learning:** Custom selectable buttons (like `.slot-chip`) acting as segmented controls or toggles need explicit `aria-pressed` states and `:focus-visible` styling. Without these, screen readers won't announce when a slot is selected, and keyboard navigators can easily lose their place when tabbing through multiple dates. Formatting complex dates into a human-readable `aria-label` is crucial.
+**Action:** When implementing custom chips for selection, always ensure `aria-pressed` or `aria-selected` is bound to the active state, provide an informative `aria-label` (especially for datetime formats), and include an `outline` property for `:focus-visible`.
