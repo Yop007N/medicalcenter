@@ -59,7 +59,7 @@ type ProfessionalWithLegacyAddress = Professional & { address?: string };
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/professionals"></ion-back-button>
+          <ion-back-button defaultHref="/professionals" aria-label="Volver a la lista"></ion-back-button>
         </ion-buttons>
         <ion-title>{{ isEditMode ? 'Editar Profesional' : 'Nuevo Profesional' }}</ion-title>
         <ion-buttons slot="end">
