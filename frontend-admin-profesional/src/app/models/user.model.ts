@@ -24,5 +24,9 @@ export interface LoginResponse {
 export interface RegisterRequest {
   email: string;
   password: string;
-  role?: string;
+  first_name: string;
+  last_name: string;
+  role: 'professional' | 'patient';
+  license_number?: string;
+  specialty?: string;
 }

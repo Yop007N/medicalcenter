@@ -139,8 +139,8 @@ export class AuthEffects {
       tap(({ data }) => this.logger.info(LOG_SOURCE, 'Register action dispatched', { email: data.email })),
       exhaustMap(({ data }) =>
         this.authService.register(data).pipe(
-          tap((response) => this.logger.info(LOG_SOURCE, 'Registration successful', { email: response.user?.email })),
-          map((response) => AuthActions.registerSuccess({ user: response.user })),
+          tap((user) => this.logger.info(LOG_SOURCE, 'Registration successful', { email: user?.email })),
+          map((user) => AuthActions.registerSuccess({ user })),
           catchError((error) => {
             this.logger.error(LOG_SOURCE, 'Registration failed', {
               status: error.status,

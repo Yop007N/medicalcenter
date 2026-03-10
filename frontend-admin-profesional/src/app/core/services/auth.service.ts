@@ -48,9 +48,8 @@ export class AuthService {
         hasAccessToken: !!response.access_token,
         hasRefreshToken: !!response.refresh_token
       })),
-      switchMap(async (response) => {
+      switchMap((response) => from((async () => {
         this.logger.debug(LOG_SOURCE, 'Saving tokens to storage...');
-        // Importante: usar switchMap con async para esperar que se guarden los tokens
         await this.storage.set(environment.tokenKey, response.access_token);
         this.logger.debug(LOG_SOURCE, 'Access token saved');
         await this.storage.set(environment.refreshTokenKey, response.refresh_token);
@@ -61,14 +60,14 @@ export class AuthService {
         this._isAuthenticated.next(true);
         this.logger.info(LOG_SOURCE, 'Login complete - isAuthenticated set to TRUE');
         return response;
-      })
+      })()))
     );
   }
 
-  register(data: RegisterRequest): Observable<{ msg: string; user: User }> {
+  register(data: RegisterRequest): Observable<User> {
     this.logger.info(LOG_SOURCE, 'Registration initiated', { email: data.email });
-    return this.apiClient.post<{ msg: string; user: User }>(API_ENDPOINTS.auth.register, data).pipe(
-      tap((response) => this.logger.info(LOG_SOURCE, 'Registration successful', { email: response.user?.email })),
+    return this.apiClient.post<User>(API_ENDPOINTS.auth.register, data).pipe(
+      tap((user) => this.logger.info(LOG_SOURCE, 'Registration successful', { email: user?.email })),
       catchError((error) => {
         this.logger.error(LOG_SOURCE, 'Registration failed', error);
         throw error;
@@ -83,10 +82,10 @@ export class AuthService {
         this.logger.warn(LOG_SOURCE, 'Logout API call failed, clearing local auth anyway', error);
         return of(undefined);
       }),
-      switchMap(async () => {
+      switchMap(() => from((async () => {
         await this.clearAuth();
         this.logger.info(LOG_SOURCE, 'Logout complete');
-      })
+      })()))
     );
   }
 
@@ -115,10 +114,11 @@ export class AuthService {
           { headers: { Authorization: `Bearer ${refreshToken}` } }
         );
       }),
-      tap(async (response) => {
+      switchMap((response) => from((async () => {
         this.logger.debug(LOG_SOURCE, 'Token refreshed, saving new access token');
         await this.storage.set(environment.tokenKey, response.access_token);
-      }),
+        return response;
+      })())),
       map((response) => response.access_token),
       catchError((error) => {
         this.logger.error(LOG_SOURCE, 'Token refresh failed', error);
