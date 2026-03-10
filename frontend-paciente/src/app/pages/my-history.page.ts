@@ -378,8 +378,8 @@ type SectionResult<T> = {
               @if (document.description) {
                 <p class="panel-text">{{ document.description }}</p>
               }
-              <ion-button size="small" fill="outline" (click)="downloadDocument(document)">
-                Descargar
+              <ion-button size="small" fill="outline" (click)="downloadDocument(document)" [disabled]="downloadingDocumentIds.has(document.id)">
+                @if (downloadingDocumentIds.has(document.id)) { Descargando... } @else { Descargar }
               </ion-button>
             </section>
           }
@@ -413,7 +413,7 @@ type SectionResult<T> = {
                     (click)="signConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
                   >
-                    Firmar
+                    @if (processingConsentIds.has(consent.id)) { Firmando... } @else { Firmar }
                   </ion-button>
                   <ion-button
                     size="small"
@@ -422,7 +422,7 @@ type SectionResult<T> = {
                     (click)="rejectConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
                   >
-                    Rechazar
+                    @if (processingConsentIds.has(consent.id)) { Rechazando... } @else { Rechazar }
                   </ion-button>
                 </div>
               }
@@ -776,6 +776,7 @@ export class MyHistoryPage implements OnInit {
   specialtyHistory: PatientSpecialtyHistory | null = null;
 
   processingConsentIds = new Set<number>();
+  downloadingDocumentIds = new Set<number>();
 
   ngOnInit(): void {
     this.isOnline = this.offlineService.isOnline;
@@ -1032,6 +1033,7 @@ export class MyHistoryPage implements OnInit {
       return;
     }
 
+    this.downloadingDocumentIds.add(documentItem.id);
     this.errorMessage = null;
 
     this.patientApi.downloadClinicalDocument(documentItem.id).subscribe({
@@ -1042,9 +1044,11 @@ export class MyHistoryPage implements OnInit {
         anchor.download = documentItem.file_name || `document-${documentItem.id}`;
         anchor.click();
         URL.revokeObjectURL(url);
+        this.downloadingDocumentIds.delete(documentItem.id);
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error) || 'No se pudo descargar el documento.';
+        this.downloadingDocumentIds.delete(documentItem.id);
       }
     });
   }
