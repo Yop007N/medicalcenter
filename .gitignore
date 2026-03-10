@@ -66,6 +66,8 @@ __pycache__/
 .coverage.*
 htmlcov/
 backend/htmlcov/
+coverage.json
+backend/coverage.json
 
 # Build outputs
 dist/
@@ -97,6 +99,10 @@ playwright-report/
 *.db
 *.sqlite
 *.sqlite3
+
+# Generated exports
+docs/exports/*.pdf
+docs/exports/*.docx
 
 # Temporary files
 tmp/
