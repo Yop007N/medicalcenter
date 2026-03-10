@@ -15,43 +15,77 @@ sequenceDiagram
     P->>FE: Login
     C->>FE: Login
     FE->>API: POST /api/auth/login
-    API->>DB: Validar credenciales
+    API->>DB: Validar credenciales + blocklist check
     API-->>FE: access_token + refresh_token
 
     Note over P,DB: Operacion clinica diaria (profesional)
     P->>FE: Gestiona pacientes y turnos
     FE->>API: /api/patients, /api/appointments
-    API->>DB: CRUD y validaciones
+    API->>DB: CRUD con validaciones y paginacion
     API->>AU: Registrar eventos relevantes
     API-->>FE: Respuesta de negocio
 
-    P->>FE: Carga historia clinica y archivos
-    FE->>API: /api/medical-records, /api/clinical-history, /api/files
-    API->>DB: Persistencia clinica
-    API->>R: Tareas asincronas cuando aplica
+    P->>FE: Accede a modulo de especialidad propio
+    FE->>API: GET /api/specialties/my-module
+    API->>DB: Validar acceso por especialidad (@module_access_required)
+    API-->>FE: Configuracion y datos del modulo
+
+    P->>FE: Carga historia clinica avanzada
+    FE->>API: /api/clinical-history (anamnesis/evolucion/recetas/consentimientos)
+    API->>DB: Persistencia clinica con versionado
+    API->>R: Tareas asincronas si aplica
     API-->>FE: Confirmacion
 
+    P->>FE: Carga archivos clinicos
+    FE->>API: POST /api/files (upload)
+    API->>DB: Metadata del archivo
+    API->>R: Subida asincrona a S3/storage
+    API-->>FE: file_id + url
+
     Note over C,DB: Interaccion de paciente
-    C->>FE: Consulta informacion propia
-    FE->>API: /api/patients/{id}, /api/budgets/{id}
-    API->>DB: Validar acceso y obtener datos
-    API-->>FE: Datos de paciente
+    C->>FE: Consulta historial por especialidad
+    FE->>API: GET /api/patients/{id}/specialty-history
+    API->>DB: Validar acceso propio y obtener encounters
+    API-->>FE: Historial filtrado por especialidad
+
+    C->>FE: Consulta plan de cuidado
+    FE->>API: /api/patients/{id}, /api/budgets, /api/medical-records
+    API->>DB: Datos agregados del paciente
+    API-->>FE: Plan de cuidado consolidado
+
     C->>FE: Acepta presupuesto
     FE->>API: POST /api/budgets/{id}/accept
-    API->>DB: Actualiza estado
-    API->>AU: Traza de accion
+    API->>DB: Actualiza estado draft->sent->accepted
+    API->>AU: Traza de accion del paciente
 
     Note over A,AU: Gobierno y control administrativo
     A->>FE: Auditoria y reportes
-    FE->>API: /api/audit/*, /api/reports/*
-    API->>DB: Consultas agregadas
-    API->>AU: Lectura/registro de actividad
+    FE->>API: /api/audit/logs, /api/reports/*
+    API->>DB: Consultas agregadas con filtros
+    API->>AU: Lectura y registro de actividad
     API-->>FE: Reportes y evidencias
 
-    Note over O,AU: Sincronizacion offline
-    O->>API: POST /api/sync/push (lotes)
-    API->>DB: Aplicar cambios e idempotencia
-    API->>AU: sync_logs + conflictos server_wins
-    API-->>O: synced/conflicts
-    O->>API: GET /api/sync/pull
-    API-->>O: Cambios desde servidor
+    Note over O,AU: Sincronizacion offline - Push con resolucion de conflictos
+    O->>API: POST /api/sync/push { entity, idempotency_key, version, payload }
+    API->>DB: Verificar idempotency_key (ya procesado?)
+    alt Cambio nuevo
+        API->>DB: Obtener version actual del servidor
+        alt Sin conflicto (version_local >= version_servidor)
+            API->>DB: Aplicar cambio directamente
+            API->>AU: sync_log OK
+            API-->>O: { status: synced }
+        else Conflicto detectado
+            API->>API: Aplicar politica segun entidad (version_then_timestamp / version_only / server_wins)
+            API->>DB: Persistir segun resolucion
+            API->>AU: sync_log con conflict_resolution
+            API-->>O: { status: conflict, resolution, server_data }
+        end
+    else Cambio duplicado (idempotency_key ya existe)
+        API-->>O: { status: already_synced }
+    end
+
+    Note over O,AU: Sincronizacion offline - Pull
+    O->>API: GET /api/sync/pull?since={last_sync_ts}
+    API->>DB: Obtener cambios del servidor desde timestamp
+    API-->>O: { changes: [...], server_ts }
+    O->>O: Reconciliar estado local con cambios recibidos

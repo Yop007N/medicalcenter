@@ -1,0 +1,36 @@
+flowchart TD
+    START([Cliente offline inicia push]) --> PUSH[POST /api/sync/push\nentity + idempotency_key + version + payload]
+
+    PUSH --> IDEM{idempotency_key\nya procesada?}
+    IDEM -->|Si| ALREADY([already_synced - sin accion])
+    IDEM -->|No| LOCK[Obtener version actual\ndel servidor para la entidad]
+
+    LOCK --> COMPARE{version_local\nvs version_servidor}
+
+    COMPARE -->|version_local >= version_servidor\nSin conflicto| APPLY_DIRECT[Aplicar cambio directamente\nen DB]
+    APPLY_DIRECT --> LOG_OK[sync_log: status=synced]
+    LOG_OK --> RESP_OK([Respuesta: synced])
+
+    COMPARE -->|version_local < version_servidor\nConflicto detectado| POLICY{Politica de resolucion\nsegun entidad}
+
+    POLICY -->|medical_record\nspecialty_encounter\nclinical_history| VTS[version_then_timestamp\nGana la version mas alta.\nEn empate: timestamp mas reciente]
+    POLICY -->|appointment\nbudget\npayment| VO[version_only\nSiempre gana la version\nmas alta sin excepcion]
+    POLICY -->|user\nprofessional\npatient| SW[server_wins\nEl servidor siempre\ntiene prioridad]
+    POLICY -->|sync_log\naudit_log| APP_LOCAL[append_only\nAmbos registros se\npersisten sin conflicto]
+
+    VTS --> RESOLVE[Aplicar resolucion\nen DB con metadata]
+    VO --> RESOLVE
+    SW --> RESOLVE
+    APP_LOCAL --> RESOLVE
+
+    RESOLVE --> LOG_CONFLICT[sync_log: status=conflict\nconflict_resolution=politica_aplicada\nserver_data=estado_ganador]
+    LOG_CONFLICT --> RESP_CONFLICT([Respuesta: conflict\nresolution + server_data])
+
+    subgraph PULL [Pull posterior]
+        direction LR
+        P1[GET /api/sync/pull?since=last_ts] --> P2[Cambios del servidor desde timestamp]
+        P2 --> P3[Cliente reconcilia\nestado local]
+    end
+
+    RESP_OK --> PULL
+    RESP_CONFLICT --> PULL

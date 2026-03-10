@@ -1,4 +1,4 @@
-@startuml
+@startuml use_case_admin
 left to right direction
 skinparam packageStyle rectangle
 skinparam shadowing false
@@ -14,12 +14,13 @@ rectangle "Medical Services - Actor Admin" {
   usecase "UC-MS-006\nGestionar agenda y\nconfirmaciones" as UC6
   usecase "UC-MS-007\nGestionar historial medico\n(base)" as UC7
   usecase "UC-MS-009\nGestionar archivos clinicos" as UC9
-  usecase "UC-MS-012\nGestionar presupuestos" as UC12
-  usecase "UC-MS-013\nGestionar pagos" as UC13
-  usecase "UC-MS-014\nConsultar dashboard" as UC14
+  usecase "UC-MS-012\nGestionar presupuestos\n(draft/sent/accepted/rejected)" as UC12
+  usecase "UC-MS-013\nGestionar pagos\n(pending/completed/refunded)" as UC13
+  usecase "UC-MS-014\nConsultar dashboard\n(overview/stats/revenue)" as UC14
   usecase "UC-MS-015\nGenerar reportes" as UC15
   usecase "UC-MS-016\nAuditoria y compliance" as UC16
   usecase "UC-MS-017\nSupervisar sincronizacion" as UC17
+  usecase "UC-MS-018\nGestionar modulos de\nespecialidad (28 esp.)" as UC18
 }
 
 A --> UC1
@@ -35,4 +36,5 @@ A --> UC14
 A --> UC15
 A --> UC16
 A --> UC17
+A --> UC18
 @enduml

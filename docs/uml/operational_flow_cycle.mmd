@@ -4,20 +4,31 @@ flowchart TD
 
     OP -->|Administrador| AD1[Gestion de usuarios/profesionales]
     AD1 --> AD2[Auditoria y reportes]
-    AD2 --> CIERRE
+    AD2 --> AD3[Supervisar sync y compliance]
+    AD3 --> AD4[Gestion de modulos de especialidad]
+    AD4 --> CIERRE
 
-    OP -->|Profesional| PR1[Gestion pacientes y agenda]
-    PR1 --> PR2[Historia clinica y archivos]
-    PR2 --> PR3[Presupuestos y pagos]
-    PR3 --> CIERRE
+    OP -->|Profesional| PR1[Gestion pacientes asignados y agenda]
+    PR1 --> PR2[Acceso a modulo de especialidad propio]
+    PR2 --> PR3[Historia clinica avanzada\nanamnesis / evolucion / recetas / consentimientos]
+    PR3 --> PR4[Archivos clinicos y odontograma]
+    PR4 --> PR5[Presupuestos y pagos]
+    PR5 --> PR6[Sincronizacion offline si aplica]
+    PR6 --> CIERRE
 
-    OP -->|Paciente| PA1[Consulta datos propios]
-    PA1 --> PA2[Aceptacion de presupuesto]
-    PA2 --> CIERRE
+    OP -->|Paciente| PA1[Consulta datos y historial propio]
+    PA1 --> PA2[Consulta plan de cuidado]
+    PA2 --> PA3[Solicitud / cancelacion de turno]
+    PA3 --> PA4[Aceptacion de presupuesto]
+    PA4 --> CIERRE
 
-    OP -->|Cliente offline| OF1[Push de cambios locales]
-    OF1 --> OF2[Resolucion conflictos]
-    OF2 --> OF3[Pull de cambios servidor]
-    OF3 --> CIERRE
+    OP -->|Cliente offline| OF1[Push de cambios locales con idempotency key]
+    OF1 --> OF2{Conflictos detectados?}
+    OF2 -->|Si| OF3[Resolucion segun politica\nversion_then_timestamp / server_wins]
+    OF2 -->|No| OF4[Aplicar cambios directamente]
+    OF3 --> OF4
+    OF4 --> OF5[Pull de cambios desde servidor]
+    OF5 --> OF6[Reconciliacion estado local]
+    OF6 --> CIERRE
 
-    CIERRE[Cierre operativo y trazabilidad] --> FIN[Fin de ciclo]
+    CIERRE[Cierre operativo y trazabilidad en audit_log] --> FIN[Fin de ciclo]

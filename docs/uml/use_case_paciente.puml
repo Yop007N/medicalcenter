@@ -1,4 +1,4 @@
-@startuml
+@startuml use_case_paciente
 left to right direction
 skinparam packageStyle rectangle
 skinparam shadowing false
@@ -11,10 +11,11 @@ rectangle "Medical Services - Actor Paciente" {
   usecase "UC-MS-002\nRegistro publico\n(patient)" as UC2
   usecase "UC-MS-005\nConsultar perfil y\ndatos propios" as UC5
   usecase "UC-MS-006\nSolicitar/cancelar turnos\npropios" as UC6
-  usecase "UC-MS-007\nConsultar historial medico\npropio" as UC7
+  usecase "UC-MS-007\nConsultar historial medico\npropio (por especialidad)" as UC7
   usecase "UC-MS-009\nConsultar documentos\nclinicos propios" as UC9
   usecase "UC-MS-012\nAceptar presupuestos\npropios" as UC12
   usecase "UC-MS-014\nConsultar panel\npersonal" as UC14
+  usecase "UC-MS-020\nConsultar plan de\ncuidado propio" as UC20
 }
 
 C --> UC1
@@ -25,4 +26,8 @@ C --> UC7
 C --> UC9
 C --> UC12
 C --> UC14
+C --> UC20
+
+UC20 .> UC7 : <<include>>
+UC20 .> UC12 : <<include>>
 @enduml
