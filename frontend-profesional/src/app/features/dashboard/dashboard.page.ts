@@ -6,8 +6,8 @@ import {
   DashboardOverview,
   DashboardRecentActivity,
   DashboardService
-} from '../core/services/dashboard.service';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/dashboard.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

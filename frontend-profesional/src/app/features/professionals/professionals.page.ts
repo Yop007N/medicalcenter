@@ -2,14 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import {
   CreateProfessionalPayload,
   ProfessionalService,
   UpdateProfessionalPayload
-} from '../core/services/professional.service';
-import { Professional } from '../shared/models/user.model';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/professional.service';
+import { Professional } from '../../shared/models/user.model';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

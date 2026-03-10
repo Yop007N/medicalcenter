@@ -14,49 +14,49 @@ export const routes: Routes = [
   },
   {
     path: 'auth/login',
-    loadComponent: () => import('./pages/auth-login.page').then((m) => m.AuthLoginPage)
+    loadComponent: () => import('./features/auth/auth-login.page').then((m) => m.AuthLoginPage)
   },
   {
     path: 'dashboard',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage)
+    loadComponent: () => import('./features/dashboard/dashboard.page').then((m) => m.DashboardPage)
   },
   {
     path: 'patients',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/patients.page').then((m) => m.PatientsPage)
+    loadComponent: () => import('./features/patients/patients.page').then((m) => m.PatientsPage)
   },
   {
     path: 'appointments',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/appointments.page').then((m) => m.AppointmentsPage)
+    loadComponent: () => import('./features/appointments/appointments.page').then((m) => m.AppointmentsPage)
   },
   {
     path: 'medical-records',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/medical-records.page').then((m) => m.MedicalRecordsPage)
+    loadComponent: () => import('./features/medical-records/medical-records.page').then((m) => m.MedicalRecordsPage)
   },
   {
     path: 'budgets',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/budgets.page').then((m) => m.BudgetsPage)
+    loadComponent: () => import('./features/budgets/budgets.page').then((m) => m.BudgetsPage)
   },
   {
     path: 'files',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/files.page').then((m) => m.FilesPage)
+    loadComponent: () => import('./features/files/files.page').then((m) => m.FilesPage)
   },
   {
     path: 'payments',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/payments.page').then((m) => m.PaymentsPage)
+    loadComponent: () => import('./features/payments/payments.page').then((m) => m.PaymentsPage)
   },
   {
     path: 'odontology',
@@ -65,7 +65,7 @@ export const routes: Routes = [
       roles: ['professional'],
       specialties: ODONTOLOGY_SPECIALTIES
     },
-    loadComponent: () => import('./pages/odontology.page').then((m) => m.OdontologyPage)
+    loadComponent: () => import('./features/odontology/odontology.page').then((m) => m.OdontologyPage)
   },
   {
     path: 'mental-health',
@@ -74,13 +74,13 @@ export const routes: Routes = [
       roles: ['professional'],
       specialties: [...PSYCHOLOGY_SPECIALTIES, ...PSYCHOPEDAGOGY_SPECIALTIES]
     },
-    loadComponent: () => import('./pages/mental-health.page').then((m) => m.MentalHealthPage)
+    loadComponent: () => import('./features/mental-health/mental-health.page').then((m) => m.MentalHealthPage)
   },
   {
     path: 'specialties/:specialtyKey',
     canActivate: [AuthGuard],
     data: { roles: ['professional'] },
-    loadComponent: () => import('./pages/specialty-module.page').then((m) => m.SpecialtyModulePage)
+    loadComponent: () => import('./features/specialty-module/specialty-module.page').then((m) => m.SpecialtyModulePage)
   },
   {
     path: '**',

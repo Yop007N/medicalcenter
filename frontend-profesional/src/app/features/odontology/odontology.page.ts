@@ -12,9 +12,9 @@ import {
   ToothStatus,
   ToothUpsertPayload,
   TreatmentStatus
-} from '../core/services/odontology.service';
-import { UiDialogService } from '../shared/services/ui-dialog.service';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/odontology.service';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

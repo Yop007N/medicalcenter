@@ -3,15 +3,15 @@ import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
-import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { SpecialtyAccessService } from '../../core/auth/specialty-access.service';
 import {
   CreatePatientPayload,
   PatientService,
   UpdatePatientPayload
-} from '../core/services/patient.service';
-import { Patient } from '../shared/models/user.model';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/patient.service';
+import { Patient } from '../../shared/models/user.model';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

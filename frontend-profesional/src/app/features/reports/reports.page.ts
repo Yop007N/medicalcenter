@@ -9,8 +9,8 @@ import {
   MedicalSummaryReport,
   QuickStats,
   ReportService
-} from '../core/services/report.service';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/report.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

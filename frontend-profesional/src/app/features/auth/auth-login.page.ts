@@ -3,8 +3,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
-import { pageShellStyles } from './page-shell.styles';
+import { AuthService } from '../../core/auth/auth.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

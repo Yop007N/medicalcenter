@@ -1,14 +1,15 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
-import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
-import { AppointmentService } from '../core/services/appointment.service';
-import { Appointment } from '../shared/models/appointment.model';
-import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
-import { pageShellStyles } from './page-shell.styles';
+import { AuthService } from '../../core/auth/auth.service';
+import { SpecialtyAccessService } from '../../core/auth/specialty-access.service';
+import { BudgetService } from '../../core/services/budget.service';
+import { Budget } from '../../shared/models/budget.model';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../../shared/utils/clinical-scope';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {
@@ -18,17 +19,17 @@ type ApiErrorShape = {
   };
 };
 
-type AppointmentFormMode = 'create' | 'edit';
-type AppointmentStatus = Appointment['status'];
+type BudgetFormMode = 'create' | 'edit';
+type BudgetStatus = Budget['status'];
 
 @Component({
-  selector: 'app-appointments-page',
+  selector: 'app-budgets-page',
   standalone: true,
-  imports: [CommonModule, DatePipe, ReactiveFormsModule],
+  imports: [CommonModule, CurrencyPipe, DatePipe, ReactiveFormsModule],
   template: `
     <section class="page">
-      <h1>Citas</h1>
-      <p>Programacion, confirmacion y control operativo de agenda clinica.</p>
+      <h1>Presupuestos</h1>
+      <p>Gestion completa de presupuestos: alta, edicion, envio y eliminacion.</p>
 
       <div class="toolbar">
         <input
@@ -41,19 +42,19 @@ type AppointmentStatus = Appointment['status'];
         />
         <select #statusInput class="search-input" (change)="applyFilters(patientInput.value, statusInput.value)">
           <option value="">Todos los estados</option>
-          <option value="scheduled">scheduled</option>
-          <option value="confirmed">confirmed</option>
-          <option value="completed">completed</option>
-          <option value="cancelled">cancelled</option>
-          <option value="no_show">no_show</option>
+          <option value="draft">draft</option>
+          <option value="sent">sent</option>
+          <option value="accepted">accepted</option>
+          <option value="rejected">rejected</option>
+          <option value="expired">expired</option>
         </select>
         <button type="button" class="toolbar-button" (click)="applyFilters(patientInput.value, statusInput.value)" [disabled]="loading">
           Filtrar
         </button>
         <button type="button" class="toolbar-button" (click)="openCreateForm()" [disabled]="submitting">
-          Nueva cita
+          Nuevo presupuesto
         </button>
-        <button type="button" class="toolbar-button" (click)="loadAppointments()" [disabled]="loading">
+        <button type="button" class="toolbar-button" (click)="loadBudgets()" [disabled]="loading">
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
@@ -61,20 +62,20 @@ type AppointmentStatus = Appointment['status'];
       @if (filterPatientId) {
         <article class="scope-card">
           <h2 class="scope-card__title">Workspace clinico paciente #{{ filterPatientId }}</h2>
-          <p class="scope-card__text">Navegacion rapida entre modulos conservando el mismo contexto.</p>
+          <p class="scope-card__text">Navegacion rapida entre modulos conservando el contexto actual.</p>
           <div class="scope-links">
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
             <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
             <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
-            <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
             <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
             <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
           </div>
         </article>
       }
 
-      @if (filterSpecialtyKey) {
+      @if (activeSpecialtyKey) {
         <p class="scope-text">
-          Scope por especialidad: <strong>{{ filterSpecialtyKey }}</strong>
+          Scope por especialidad: <strong>{{ activeSpecialtyKey }}</strong>
         </p>
       }
 
@@ -89,56 +90,38 @@ type AppointmentStatus = Appointment['status'];
       @if (showForm) {
         <article class="card form-card">
           <h2 class="card-title">
-            @if (formMode === 'create') { Crear cita } @else { Editar cita #{{ editingAppointmentId }} }
+            @if (formMode === 'create') { Crear presupuesto } @else { Editar presupuesto #{{ editingBudgetId }} }
           </h2>
 
-          <form [formGroup]="appointmentForm" (ngSubmit)="submitForm()" class="form-grid" novalidate>
+          <form [formGroup]="budgetForm" (ngSubmit)="submitForm()" class="form-grid" novalidate>
             <label>
               Patient ID
               <input type="number" min="1" formControlName="patient_id" />
             </label>
 
             <label>
-              Professional ID
-              <input type="number" min="1" formControlName="professional_id" [readonly]="isProfessionalSession" />
+              Titulo
+              <input type="text" formControlName="title" />
             </label>
 
             <label>
-              Fecha y hora
-              <input type="datetime-local" formControlName="appointment_date" />
+              Monto total
+              <input type="number" min="0.01" step="0.01" formControlName="total_amount" />
             </label>
 
             <label>
-              Duracion (min)
-              <input type="number" min="5" step="5" formControlName="duration_minutes" />
+              Moneda
+              <input type="text" maxlength="5" formControlName="currency" />
             </label>
 
             <label>
-              Tipo
-              <input type="text" formControlName="appointment_type" />
-            </label>
-
-            @if (formMode === 'edit') {
-              <label>
-                Estado
-                <select formControlName="status">
-                  <option value="scheduled">scheduled</option>
-                  <option value="confirmed">confirmed</option>
-                  <option value="completed">completed</option>
-                  <option value="cancelled">cancelled</option>
-                  <option value="no_show">no_show</option>
-                </select>
-              </label>
-            }
-
-            <label class="full-row">
-              Motivo
-              <textarea rows="2" formControlName="reason"></textarea>
+              Valido hasta
+              <input type="date" formControlName="valid_until" />
             </label>
 
             <label class="full-row">
-              Notas
-              <textarea rows="2" formControlName="notes"></textarea>
+              Descripcion
+              <textarea rows="3" formControlName="description"></textarea>
             </label>
 
             @if (fieldError) {
@@ -157,75 +140,70 @@ type AppointmentStatus = Appointment['status'];
         </article>
       }
 
-      @if (!loading && appointments.length === 0 && !errorMessage) {
+      @if (!loading && budgets.length === 0 && !errorMessage) {
         <article class="card empty">
-          <h2 class="card-title">Sin citas registradas</h2>
-          <p class="card-text">Todavia no hay citas para mostrar.</p>
+          <h2 class="card-title">Sin presupuestos registrados</h2>
+          <p class="card-text">Todavia no hay presupuestos para mostrar.</p>
         </article>
       }
 
-      @if (appointments.length > 0) {
+      @if (budgets.length > 0) {
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Fecha</th>
+                <th>Titulo</th>
                 <th>Paciente</th>
-                <th>Profesional</th>
-                <th>Tipo</th>
-                <th>Duracion</th>
+                <th>Monto</th>
                 <th>Estado</th>
+                <th>Creado</th>
+                <th>Valido hasta</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              @for (appointment of appointments; track appointment.id) {
+              @for (budget of budgets; track budget.id) {
                 <tr>
-                  <td>#{{ appointment.id }}</td>
-                  <td>{{ appointment.appointment_date | date:'short' }}</td>
-                  <td>{{ appointment.patient_id }}</td>
-                  <td>{{ appointment.professional_id }}</td>
-                  <td>{{ appointment.appointment_type || 'consultation' }}</td>
-                  <td>{{ appointment.duration_minutes }} min</td>
+                  <td>#{{ budget.id }}</td>
+                  <td>{{ budget.title }}</td>
+                  <td>{{ budget.patient_id }}</td>
+                  <td>{{ budget.total_amount | currency:(budget.currency || 'PYG'):'symbol':'1.2-2' }}</td>
                   <td>
-                    <span class="badge" [class]="'status-' + appointment.status">{{ appointment.status }}</span>
+                    <span class="badge" [class]="'status-' + budget.status">{{ budget.status }}</span>
                   </td>
+                  <td>{{ budget.created_at | date:'short' }}</td>
+                  <td>{{ budget.valid_until | date:'shortDate' }}</td>
                   <td>
                     <div class="row-actions">
-                      @if (canConfirm(appointment)) {
+                      @if (canSendBudget(budget)) {
                         <button
                           type="button"
                           class="table-action"
-                          (click)="confirmAppointment(appointment.id)"
-                          [disabled]="confirmingIds.has(appointment.id)"
+                          (click)="sendBudget(budget.id)"
+                          [disabled]="sendingIds.has(budget.id)"
                         >
-                          @if (confirmingIds.has(appointment.id)) { Confirmando... } @else { Confirmar }
+                          @if (sendingIds.has(budget.id)) { Enviando... } @else { Enviar }
                         </button>
                       }
-
-                      @if (canCancel(appointment)) {
-                        <button
-                          type="button"
-                          class="table-action secondary"
-                          (click)="cancelAppointment(appointment.id)"
-                          [disabled]="cancelingIds.has(appointment.id)"
-                        >
-                          @if (cancelingIds.has(appointment.id)) { Cancelando... } @else { Cancelar }
-                        </button>
-                      }
-
                       <button
                         type="button"
                         class="table-action"
-                        (click)="startEdit(appointment)"
-                        [disabled]="submitting || cancelingIds.has(appointment.id)"
+                        (click)="startEdit(budget)"
+                        [disabled]="submitting || deletingIds.has(budget.id)"
                       >
                         Editar
                       </button>
-
-                      @if (!canConfirm(appointment) && !canCancel(appointment)) {
-                        <span class="muted">Sin acciones</span>
+                      <button
+                        type="button"
+                        class="table-action danger"
+                        (click)="deleteBudget(budget)"
+                        [disabled]="deletingIds.has(budget.id) || sendingIds.has(budget.id)"
+                      >
+                        @if (deletingIds.has(budget.id)) { Eliminando... } @else { Eliminar }
+                      </button>
+                      @if (!canSendBudget(budget)) {
+                        <span class="muted">Sin envio</span>
                       }
                     </div>
                   </td>
@@ -349,9 +327,9 @@ type AppointmentStatus = Appointment['status'];
       }
 
       .form-actions {
+        justify-content: flex-end;
         display: flex;
         gap: 0.5rem;
-        justify-content: flex-end;
       }
 
       .primary-button {
@@ -388,7 +366,7 @@ type AppointmentStatus = Appointment['status'];
 
       .table {
         border-collapse: collapse;
-        min-width: 980px;
+        min-width: 900px;
         width: 100%;
       }
 
@@ -415,23 +393,24 @@ type AppointmentStatus = Appointment['status'];
         text-transform: capitalize;
       }
 
-      .status-scheduled {
+      .status-draft {
         background: var(--ms-primary-soft-bg);
         color: var(--ms-primary);
       }
 
-      .status-confirmed {
+      .status-pending,
+      .status-sent {
+        background: var(--ms-warning-soft-bg);
+        color: var(--ms-warning);
+      }
+
+      .status-accepted {
         background: var(--ms-success-soft-bg);
         color: var(--ms-success);
       }
 
-      .status-completed {
-        background: var(--ms-primary-soft-bg);
-        color: var(--ms-primary);
-      }
-
-      .status-cancelled,
-      .status-no_show {
+      .status-rejected,
+      .status-expired {
         background: var(--ms-danger-soft-bg);
         color: var(--ms-danger);
       }
@@ -452,34 +431,34 @@ type AppointmentStatus = Appointment['status'];
         padding: 0.22rem 0.45rem;
       }
 
-      .table-action.secondary {
-        border-color: var(--ms-border);
-        color: var(--ms-text-muted);
-      }
-
       .table-action:disabled {
         cursor: not-allowed;
         opacity: 0.5;
       }
 
-      .error-box,
-      .success-box {
-        border-radius: 8px;
-        font-size: 0.82rem;
-        margin-bottom: 0.75rem;
-        padding: 0.55rem 0.7rem;
+      .table-action.danger {
+        border-color: var(--ms-danger-soft-border);
+        color: var(--ms-danger);
       }
 
       .error-box {
         background: var(--ms-danger-soft-bg);
         border: 1px solid var(--ms-danger-soft-border);
+        border-radius: 8px;
         color: var(--ms-danger);
+        font-size: 0.82rem;
+        margin-bottom: 0.75rem;
+        padding: 0.55rem 0.7rem;
       }
 
       .success-box {
         background: var(--ms-success-soft-bg);
         border: 1px solid var(--ms-success-soft-border);
+        border-radius: 8px;
         color: var(--ms-success);
+        font-size: 0.82rem;
+        margin-bottom: 0.75rem;
+        padding: 0.55rem 0.7rem;
       }
 
       .field-error {
@@ -498,62 +477,55 @@ type AppointmentStatus = Appointment['status'];
     `
   ]
 })
-export class AppointmentsPage implements OnInit {
-  private readonly appointmentService = inject(AppointmentService);
+export class BudgetsPage implements OnInit {
+  private readonly budgetService = inject(BudgetService);
   private readonly authService = inject(AuthService);
   private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
-  appointments: Appointment[] = [];
+  budgets: Budget[] = [];
   loading = false;
   submitting = false;
   errorMessage: string | null = null;
   successMessage: string | null = null;
   fieldError: string | null = null;
   showForm = false;
-  formMode: AppointmentFormMode = 'create';
-  editingAppointmentId: number | null = null;
+  formMode: BudgetFormMode = 'create';
+  editingBudgetId: number | null = null;
   filterPatientId: number | undefined;
-  filterStatus: AppointmentStatus | undefined;
-  filterSpecialtyKey: string | undefined;
-  confirmingIds = new Set<number>();
-  cancelingIds = new Set<number>();
-
+  filterStatus: BudgetStatus | undefined;
+  activeSpecialtyKey: string | undefined;
+  sendingIds = new Set<number>();
+  deletingIds = new Set<number>();
   readonly currentUser = this.authService.currentUserValue;
-  readonly isProfessionalSession = this.currentUser?.role === 'professional';
   readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
-  readonly appointmentForm = this.fb.group({
+  readonly budgetForm = this.fb.group({
     patient_id: [1, [Validators.required, Validators.min(1)]],
-    professional_id: [1, [Validators.required, Validators.min(1)]],
-    appointment_date: ['', [Validators.required]],
-    duration_minutes: [30, [Validators.required, Validators.min(5)]],
-    appointment_type: ['consultation'],
-    reason: [''],
-    notes: [''],
-    status: ['scheduled' as AppointmentStatus, [Validators.required]]
+    title: ['', [Validators.required]],
+    description: [''],
+    total_amount: [0, [Validators.required, Validators.min(0.01)]],
+    currency: ['PYG', [Validators.required, Validators.minLength(3), Validators.maxLength(5)]],
+    valid_until: ['']
   });
 
   ngOnInit(): void {
-    const sessionUserId = this.currentUser?.id;
-    if (sessionUserId && Number.isInteger(sessionUserId)) {
-      this.appointmentForm.patchValue({ professional_id: sessionUserId });
-    }
     this.route.queryParamMap.subscribe((params) => {
       const nextSpecialtyKey =
         this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
       const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
       const shouldOpenCreate = params.get('mode') === 'create';
       const scopeChanged =
-        nextSpecialtyKey !== this.filterSpecialtyKey ||
+        nextSpecialtyKey !== this.activeSpecialtyKey ||
         nextPatientId !== this.filterPatientId;
-      this.filterSpecialtyKey = nextSpecialtyKey;
+      this.activeSpecialtyKey = nextSpecialtyKey;
       this.filterPatientId = nextPatientId;
 
-      if (scopeChanged || this.appointments.length === 0) {
-        this.loadAppointments();
+      if (scopeChanged || this.budgets.length === 0) {
+        this.loadBudgets();
       }
       if (shouldOpenCreate && !this.showForm) {
         this.openCreateForm();
@@ -565,7 +537,7 @@ export class AppointmentsPage implements OnInit {
     const patientId = Number(rawPatientId);
     this.filterPatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
     this.filterStatus = this.normalizeStatus(rawStatus);
-    this.loadAppointments();
+    this.loadBudgets();
   }
 
   openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
@@ -575,7 +547,7 @@ export class AppointmentsPage implements OnInit {
     this.router.navigate([`/${route}`], {
       queryParams: buildClinicalScopeQueryParams({
         patientId: this.filterPatientId,
-        specialtyKey: this.filterSpecialtyKey
+        specialtyKey: this.activeSpecialtyKey
       })
     });
   }
@@ -588,29 +560,28 @@ export class AppointmentsPage implements OnInit {
     });
   }
 
-  loadAppointments(): void {
+  loadBudgets(): void {
     this.loading = true;
     this.errorMessage = null;
 
-    const filters: { patient_id?: number; status?: AppointmentStatus; specialty_key?: string } = {};
+    const filters: { patient_id?: number; status?: BudgetStatus; specialty_key?: string } = {};
     if (this.filterPatientId) {
       filters.patient_id = this.filterPatientId;
     }
     if (this.filterStatus) {
       filters.status = this.filterStatus;
     }
-    if (this.filterSpecialtyKey) {
-      filters.specialty_key = this.filterSpecialtyKey;
+    if (this.activeSpecialtyKey) {
+      filters.specialty_key = this.activeSpecialtyKey;
     }
 
-    this.appointmentService
-      .getAppointments(Object.keys(filters).length ? filters : undefined)
+    this.budgetService
+      .getBudgets(Object.keys(filters).length ? filters : undefined)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: (appointments) => {
-          this.appointments = [...appointments].sort(
-            (a, b) =>
-              new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
+        next: (budgets) => {
+          this.budgets = [...budgets].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
         },
         error: (error: unknown) => {
@@ -619,41 +590,39 @@ export class AppointmentsPage implements OnInit {
       });
   }
 
+  canSendBudget(budget: Budget): boolean {
+    return budget.status === 'draft';
+  }
+
   openCreateForm(): void {
     this.formMode = 'create';
-    this.editingAppointmentId = null;
+    this.editingBudgetId = null;
     this.showForm = true;
-    this.fieldError = null;
     this.successMessage = null;
-
-    this.appointmentForm.reset({
+    this.fieldError = null;
+    this.budgetForm.reset({
       patient_id: this.filterPatientId ?? 1,
-      professional_id: this.currentUser?.id ?? 1,
-      appointment_date: '',
-      duration_minutes: 30,
-      appointment_type: 'consultation',
-      reason: '',
-      notes: '',
-      status: 'scheduled'
+      title: '',
+      description: '',
+      total_amount: 0,
+      currency: 'PYG',
+      valid_until: ''
     });
   }
 
-  startEdit(appointment: Appointment): void {
+  startEdit(budget: Budget): void {
     this.formMode = 'edit';
-    this.editingAppointmentId = appointment.id;
+    this.editingBudgetId = budget.id;
     this.showForm = true;
-    this.fieldError = null;
     this.successMessage = null;
-
-    this.appointmentForm.patchValue({
-      patient_id: appointment.patient_id,
-      professional_id: appointment.professional_id,
-      appointment_date: this.toDateTimeInputValue(appointment.appointment_date),
-      duration_minutes: appointment.duration_minutes,
-      appointment_type: appointment.appointment_type || 'consultation',
-      reason: appointment.reason || '',
-      notes: appointment.notes || '',
-      status: appointment.status
+    this.fieldError = null;
+    this.budgetForm.patchValue({
+      patient_id: budget.patient_id,
+      title: budget.title,
+      description: budget.description || '',
+      total_amount: budget.total_amount,
+      currency: budget.currency || 'PYG',
+      valid_until: this.toDateInputValue(budget.valid_until)
     });
   }
 
@@ -663,9 +632,9 @@ export class AppointmentsPage implements OnInit {
   }
 
   submitForm(): void {
-    if (this.appointmentForm.invalid) {
-      this.appointmentForm.markAllAsTouched();
-      this.fieldError = 'Completa los campos requeridos para guardar la cita.';
+    if (this.budgetForm.invalid) {
+      this.budgetForm.markAllAsTouched();
+      this.fieldError = 'Completa los campos requeridos para guardar el presupuesto.';
       return;
     }
 
@@ -676,70 +645,72 @@ export class AppointmentsPage implements OnInit {
 
     const payload = this.buildPayloadFromForm();
     if (this.formMode === 'create') {
-      this.createAppointment(payload);
+      this.createBudget(payload);
       return;
     }
-    this.updateAppointment(payload);
+    this.updateBudget(payload);
   }
 
-  canConfirm(appointment: Appointment): boolean {
-    return appointment.status === 'scheduled';
-  }
-
-  canCancel(appointment: Appointment): boolean {
-    return appointment.status === 'scheduled' || appointment.status === 'confirmed';
-  }
-
-  confirmAppointment(appointmentId: number): void {
-    this.confirmingIds.add(appointmentId);
-    this.errorMessage = null;
-    this.successMessage = null;
-
-    this.appointmentService.confirmAppointment(appointmentId).subscribe({
-      next: (updatedAppointment) => {
-        this.appointments = this.appointments.map((appointment) =>
-          appointment.id === appointmentId ? { ...appointment, ...updatedAppointment } : appointment
-        );
-        this.confirmingIds.delete(appointmentId);
-        this.successMessage = `Cita #${appointmentId} confirmada.`;
-      },
-      error: (error: unknown) => {
-        this.errorMessage = this.resolveErrorMessage(error);
-        this.confirmingIds.delete(appointmentId);
-      }
+  async deleteBudget(budget: Budget): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar presupuesto',
+      message: `Eliminar presupuesto #${budget.id}? Esta accion no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      destructive: true
     });
-  }
+    if (!confirmed) {
+      return;
+    }
 
-  cancelAppointment(appointmentId: number): void {
-    this.cancelingIds.add(appointmentId);
+    this.deletingIds.add(budget.id);
     this.errorMessage = null;
     this.successMessage = null;
 
-    this.appointmentService.cancelAppointment(appointmentId).subscribe({
+    this.budgetService.deleteBudget(budget.id, this.activeSpecialtyKey).subscribe({
       next: () => {
-        this.appointments = this.appointments.map((appointment) =>
-          appointment.id === appointmentId ? { ...appointment, status: 'cancelled' } : appointment
-        );
-        this.cancelingIds.delete(appointmentId);
-        this.successMessage = `Cita #${appointmentId} cancelada.`;
+        this.budgets = this.budgets.filter((item) => item.id !== budget.id);
+        this.deletingIds.delete(budget.id);
+        if (this.editingBudgetId === budget.id) {
+          this.closeForm();
+          this.editingBudgetId = null;
+        }
+        this.successMessage = `Presupuesto #${budget.id} eliminado.`;
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
-        this.cancelingIds.delete(appointmentId);
+        this.deletingIds.delete(budget.id);
       }
     });
   }
 
-  private createAppointment(payload: Partial<Appointment>): void {
-    this.appointmentService.createAppointment(payload).subscribe({
-      next: (appointment) => {
-        this.appointments = [appointment, ...this.appointments].sort(
-          (a, b) =>
-            new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
+  sendBudget(budgetId: number): void {
+    this.sendingIds.add(budgetId);
+    this.errorMessage = null;
+    this.successMessage = null;
+
+    this.budgetService.sendBudget(budgetId, this.activeSpecialtyKey).subscribe({
+      next: (updatedBudget) => {
+        this.budgets = this.budgets.map((budget) =>
+          budget.id === budgetId ? { ...budget, ...updatedBudget } : budget
         );
+        this.sendingIds.delete(budgetId);
+        this.successMessage = `Presupuesto #${budgetId} enviado al paciente.`;
+      },
+      error: (error: unknown) => {
+        this.errorMessage = this.resolveErrorMessage(error);
+        this.sendingIds.delete(budgetId);
+      }
+    });
+  }
+
+  private createBudget(payload: Partial<Budget>): void {
+    this.budgetService.createBudget(payload, this.activeSpecialtyKey).subscribe({
+      next: (budget) => {
+        this.budgets = [budget, ...this.budgets];
         this.submitting = false;
         this.closeForm();
-        this.successMessage = `Cita #${appointment.id} creada correctamente.`;
+        this.successMessage = `Presupuesto #${budget.id} creado correctamente.`;
       },
       error: (error: unknown) => {
         this.submitting = false;
@@ -748,21 +719,21 @@ export class AppointmentsPage implements OnInit {
     });
   }
 
-  private updateAppointment(payload: Partial<Appointment>): void {
-    if (!this.editingAppointmentId) {
+  private updateBudget(payload: Partial<Budget>): void {
+    if (!this.editingBudgetId) {
       this.submitting = false;
-      this.fieldError = 'No se pudo identificar la cita a editar.';
+      this.fieldError = 'No se pudo identificar el presupuesto a editar.';
       return;
     }
 
-    this.appointmentService.updateAppointment(this.editingAppointmentId, payload).subscribe({
-      next: (updatedAppointment) => {
-        this.appointments = this.appointments.map((appointment) =>
-          appointment.id === updatedAppointment.id ? { ...appointment, ...updatedAppointment } : appointment
+    this.budgetService.updateBudget(this.editingBudgetId, payload, this.activeSpecialtyKey).subscribe({
+      next: (updatedBudget) => {
+        this.budgets = this.budgets.map((budget) =>
+          budget.id === updatedBudget.id ? { ...budget, ...updatedBudget } : budget
         );
         this.submitting = false;
         this.closeForm();
-        this.successMessage = `Cita #${updatedAppointment.id} actualizada.`;
+        this.successMessage = `Presupuesto #${updatedBudget.id} actualizado.`;
       },
       error: (error: unknown) => {
         this.submitting = false;
@@ -771,34 +742,33 @@ export class AppointmentsPage implements OnInit {
     });
   }
 
-  private buildPayloadFromForm(): Partial<Appointment> {
-    const rawValue = this.appointmentForm.getRawValue();
-    const payload: Partial<Appointment> = {
+  private buildPayloadFromForm(): Partial<Budget> {
+    const rawValue = this.budgetForm.getRawValue();
+    const payload: Partial<Budget> = {
       patient_id: rawValue.patient_id,
-      professional_id: rawValue.professional_id,
-      appointment_date: this.normalizeDateTimeValue(rawValue.appointment_date),
-      duration_minutes: Number(rawValue.duration_minutes),
-      appointment_type: rawValue.appointment_type.trim(),
-      reason: rawValue.reason.trim(),
-      notes: rawValue.notes.trim()
+      title: rawValue.title.trim(),
+      total_amount: Number(rawValue.total_amount),
+      currency: rawValue.currency.trim().toUpperCase()
     };
 
-    if (this.formMode === 'edit') {
-      payload.status = rawValue.status;
+    const description = rawValue.description.trim();
+    if (description) {
+      payload.description = description;
+    }
+
+    const validUntil = this.normalizeDateValue(rawValue.valid_until);
+    if (validUntil) {
+      payload.valid_until = validUntil;
+    } else {
+      payload.valid_until = undefined;
     }
 
     return payload;
   }
 
-  private normalizeStatus(rawStatus: string): AppointmentStatus | undefined {
-    const candidate = rawStatus.trim() as AppointmentStatus;
-    const allowed: AppointmentStatus[] = [
-      'scheduled',
-      'confirmed',
-      'completed',
-      'cancelled',
-      'no_show'
-    ];
+  private normalizeStatus(rawStatus: string): BudgetStatus | undefined {
+    const candidate = rawStatus.trim() as BudgetStatus;
+    const allowed: BudgetStatus[] = ['draft', 'sent', 'accepted', 'rejected', 'expired'];
     if (!candidate || !allowed.includes(candidate)) {
       return undefined;
     }
@@ -813,11 +783,6 @@ export class AppointmentsPage implements OnInit {
     return /^[a-z0-9-]+$/.test(normalized) ? normalized : undefined;
   }
 
-  private normalizePositiveNumber(rawValue: string | null): number | undefined {
-    const parsed = Number(rawValue);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-  }
-
   private resolveSessionSpecialtyKey(): string | undefined {
     if (this.currentUser?.role !== 'professional') {
       return undefined;
@@ -825,36 +790,38 @@ export class AppointmentsPage implements OnInit {
     return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
   }
 
-  private normalizeDateTimeValue(rawDate: string): string {
+  private normalizePositiveNumber(rawValue: string | null): number | undefined {
+    const parsed = Number(rawValue);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  private normalizeDateValue(rawDate: string): string | undefined {
     const trimmed = rawDate.trim();
     if (!trimmed) {
-      return '';
+      return undefined;
     }
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       return trimmed;
     }
     const parsed = new Date(trimmed);
     if (Number.isNaN(parsed.getTime())) {
-      return trimmed;
+      return undefined;
     }
-    const timezoneAdjusted = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
-    return timezoneAdjusted.toISOString().slice(0, 16);
+    return parsed.toISOString().slice(0, 10);
   }
 
-  private toDateTimeInputValue(rawDate: string | undefined): string {
+  private toDateInputValue(rawDate: string | undefined): string {
     if (!rawDate) {
       return '';
     }
-    const match = rawDate.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
-    if (match) {
-      return match[1];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+      return rawDate;
     }
     const parsed = new Date(rawDate);
     if (Number.isNaN(parsed.getTime())) {
       return '';
     }
-    const timezoneAdjusted = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
-    return timezoneAdjusted.toISOString().slice(0, 16);
+    return parsed.toISOString().slice(0, 10);
   }
 
   private resolveErrorMessage(error: unknown): string {
@@ -864,7 +831,7 @@ export class AppointmentsPage implements OnInit {
         return msg;
       }
     }
-    return 'No se pudieron cargar o actualizar las citas.';
+    return 'No se pudieron cargar o actualizar los presupuestos.';
   }
 
   private isApiErrorShape(value: unknown): value is ApiErrorShape {

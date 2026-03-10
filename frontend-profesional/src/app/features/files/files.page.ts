@@ -3,13 +3,12 @@ import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
-import { SpecialtyAccessService } from '../core/auth/specialty-access.service';
-import { MedicalRecordService } from '../core/services/medical-record.service';
-import { MedicalRecord } from '../shared/models/medical-record.model';
-import { UiDialogService } from '../shared/services/ui-dialog.service';
-import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../shared/utils/clinical-scope';
-import { pageShellStyles } from './page-shell.styles';
+import { AuthService } from '../../core/auth/auth.service';
+import { SpecialtyAccessService } from '../../core/auth/specialty-access.service';
+import { ClinicalFile, FileService } from '../../core/services/file.service';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
+import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../../shared/utils/clinical-scope';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {
@@ -19,16 +18,14 @@ type ApiErrorShape = {
   };
 };
 
-type FormMode = 'create' | 'edit';
-
 @Component({
-  selector: 'app-medical-records-page',
+  selector: 'app-files-page',
   standalone: true,
   imports: [CommonModule, DatePipe, ReactiveFormsModule],
   template: `
     <section class="page">
-      <h1>Registros Medicos</h1>
-      <p>Consulta y gestion de historial clinico por paciente.</p>
+      <h1>Archivos Clinicos</h1>
+      <p>Carga, descarga y eliminacion de archivos asociados a historia clinica.</p>
 
       <div class="toolbar">
         <input
@@ -42,10 +39,10 @@ type FormMode = 'create' | 'edit';
         <button type="button" class="toolbar-button" (click)="applyPatientFilter(patientInput.value)" [disabled]="loading">
           Filtrar
         </button>
-        <button type="button" class="toolbar-button" (click)="openCreateForm()" [disabled]="submitting">
-          Nuevo registro
+        <button type="button" class="toolbar-button" (click)="toggleUploadForm()" [disabled]="uploading">
+          @if (showUploadForm) { Ocultar carga } @else { Subir archivo }
         </button>
-        <button type="button" class="toolbar-button" (click)="loadRecords()" [disabled]="loading">
+        <button type="button" class="toolbar-button" (click)="loadFiles()" [disabled]="loading">
           @if (loading) { Cargando... } @else { Actualizar }
         </button>
       </div>
@@ -53,10 +50,10 @@ type FormMode = 'create' | 'edit';
       @if (activePatientId) {
         <article class="scope-card">
           <h2 class="scope-card__title">Workspace clinico paciente #{{ activePatientId }}</h2>
-          <p class="scope-card__text">Acceso directo a modulos del mismo paciente y especialidad.</p>
+          <p class="scope-card__text">Acceso rapido al resto de modulos bajo el mismo scope.</p>
           <div class="scope-links">
             <button type="button" class="scope-link" (click)="openPatientWorkspace('appointments')">Citas</button>
-            <button type="button" class="scope-link" (click)="openPatientWorkspace('files')">Archivos</button>
+            <button type="button" class="scope-link" (click)="openPatientWorkspace('medical-records')">Registros</button>
             <button type="button" class="scope-link" (click)="openPatientWorkspace('budgets')">Presupuestos</button>
             <button type="button" class="scope-link" (click)="openPatientWorkspace('payments')">Pagos</button>
             <button type="button" class="scope-link scope-link--ghost" (click)="clearPatientScope()">Quitar contexto</button>
@@ -78,97 +75,106 @@ type FormMode = 'create' | 'edit';
         <div class="success-box" role="status">{{ successMessage }}</div>
       }
 
-      @if (showForm) {
+      @if (showUploadForm) {
         <article class="card form-card">
-          <h2 class="card-title">
-            @if (formMode === 'create') { Crear registro medico } @else { Editar registro #{{ editingRecordId }} }
-          </h2>
-          <form [formGroup]="recordForm" (ngSubmit)="submitForm()" class="form-grid" novalidate>
+          <h2 class="card-title">Subir archivo clinico</h2>
+          <form [formGroup]="uploadForm" (ngSubmit)="uploadFile()" class="form-grid" novalidate>
             <label>
-              Patient ID
-              <input type="number" min="1" formControlName="patient_id" [readonly]="formMode === 'edit'" />
+              Medical record ID
+              <input type="number" min="1" formControlName="medical_record_id" />
             </label>
+
             <label>
-              Queja principal
-              <input type="text" formControlName="chief_complaint" />
+              Tipo
+              <select formControlName="file_type">
+                <option value="xray">xray</option>
+                <option value="lab">lab</option>
+                <option value="prescription">prescription</option>
+                <option value="report">report</option>
+                <option value="other">other</option>
+              </select>
             </label>
-            <label>
-              Diagnostico
-              <input type="text" formControlName="diagnosis" />
-            </label>
-            <label>
-              Tratamiento
-              <input type="text" formControlName="treatment" />
-            </label>
+
             <label class="full-row">
-              Prescripciones
-              <textarea rows="2" formControlName="prescriptions"></textarea>
+              Descripcion
+              <textarea rows="2" formControlName="description"></textarea>
             </label>
+
             <label class="full-row">
-              Notas
-              <textarea rows="2" formControlName="notes"></textarea>
+              Archivo
+              <input type="file" (change)="onFileSelected($event)" />
             </label>
+
+            @if (selectedFileName) {
+              <p class="file-selected full-row">Seleccionado: {{ selectedFileName }}</p>
+            }
+
             @if (fieldError) {
               <p class="field-error full-row">{{ fieldError }}</p>
             }
+
             <div class="form-actions full-row">
-              <button class="primary-button" type="submit" [disabled]="submitting">
-                @if (submitting) { Guardando... } @else if (formMode === 'create') { Crear } @else { Guardar }
+              <button class="primary-button" type="submit" [disabled]="uploading">
+                @if (uploading) { Subiendo... } @else { Subir }
               </button>
-              <button class="secondary-button" type="button" (click)="closeForm()" [disabled]="submitting">
-                Cancelar
+              <button class="secondary-button" type="button" (click)="resetUploadForm()" [disabled]="uploading">
+                Limpiar
               </button>
             </div>
           </form>
         </article>
       }
 
-      @if (!loading && records.length === 0 && !errorMessage) {
+      @if (!loading && files.length === 0 && !errorMessage) {
         <article class="card empty">
-          <h2 class="card-title">Sin registros</h2>
-          <p class="card-text">No se encontraron registros medicos para el filtro aplicado.</p>
+          <h2 class="card-title">Sin archivos</h2>
+          <p class="card-text">No hay archivos para el filtro aplicado.</p>
         </article>
       }
 
-      @if (records.length > 0) {
+      @if (files.length > 0) {
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Fecha</th>
+                <th>Archivo</th>
                 <th>Paciente</th>
-                <th>Profesional</th>
-                <th>Diagnostico</th>
-                <th>Files</th>
+                <th>Record</th>
+                <th>Tipo</th>
+                <th>Tamano</th>
+                <th>Fecha</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              @for (record of records; track record.id) {
+              @for (file of files; track file.id) {
                 <tr>
-                  <td>#{{ record.id }}</td>
-                  <td>{{ record.record_date || record.created_at | date:'short' }}</td>
-                  <td>
-                    {{
-                      record.patient
-                        ? (record.patient.first_name + ' ' + record.patient.last_name)
-                        : ('ID ' + record.patient_id)
-                    }}
-                  </td>
-                  <td>
-                    {{
-                      record.professional
-                        ? (record.professional.first_name + ' ' + record.professional.last_name)
-                        : ('ID ' + record.professional_id)
-                    }}
-                  </td>
-                  <td>{{ record.diagnosis || '-' }}</td>
-                  <td>{{ record.files?.length || 0 }}</td>
+                  <td>#{{ file.id }}</td>
+                  <td>{{ file.filename }}</td>
+                  <td>{{ file.patient_id || '-' }}</td>
+                  <td>{{ file.medical_record_id }}</td>
+                  <td>{{ file.file_type }}</td>
+                  <td>{{ formatFileSize(file.file_size) }}</td>
+                  <td>{{ file.upload_date || file.created_at | date:'short' }}</td>
                   <td>
                     <div class="row-actions">
-                      <button class="table-action" type="button" (click)="startEdit(record)">Editar</button>
-                      <button class="table-action danger" type="button" (click)="deleteRecord(record)">Eliminar</button>
+                      <button
+                        type="button"
+                        class="table-action"
+                        (click)="download(file)"
+                        [disabled]="downloadingIds.has(file.id)"
+                      >
+                        @if (downloadingIds.has(file.id)) { Descargando... } @else { Descargar }
+                      </button>
+                      <button
+                        type="button"
+                        class="table-action danger"
+                        (click)="deleteFile(file)"
+                        [disabled]="deletingIds.has(file.id)"
+                      >
+                        @if (deletingIds.has(file.id)) { Eliminando... } @else { Eliminar }
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -238,7 +244,8 @@ type FormMode = 'create' | 'edit';
 
       .search-input,
       input,
-      textarea {
+      textarea,
+      select {
         border: 1px solid var(--ms-border);
         border-radius: 8px;
         font-size: 0.82rem;
@@ -246,8 +253,8 @@ type FormMode = 'create' | 'edit';
       }
 
       .search-input {
-        flex: 1 1 240px;
-        min-width: 200px;
+        flex: 1 1 220px;
+        min-width: 180px;
       }
 
       .toolbar-button {
@@ -316,19 +323,13 @@ type FormMode = 'create' | 'edit';
         padding: 0.45rem 0.75rem;
       }
 
-      .primary-button:disabled,
-      .secondary-button:disabled {
-        cursor: not-allowed;
-        opacity: 0.7;
-      }
-
       .table-wrap {
         overflow-x: auto;
       }
 
       .table {
         border-collapse: collapse;
-        min-width: 960px;
+        min-width: 920px;
         width: 100%;
       }
 
@@ -338,6 +339,7 @@ type FormMode = 'create' | 'edit';
         font-size: 0.82rem;
         padding: 0.55rem 0.5rem;
         text-align: left;
+        vertical-align: middle;
       }
 
       .table th {
@@ -359,6 +361,11 @@ type FormMode = 'create' | 'edit';
         font-size: 0.74rem;
         font-weight: 600;
         padding: 0.22rem 0.45rem;
+      }
+
+      .table-action:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
       }
 
       .table-action.danger {
@@ -392,14 +399,20 @@ type FormMode = 'create' | 'edit';
         margin: 0;
       }
 
+      .file-selected {
+        color: var(--ms-text-secondary);
+        font-size: 0.78rem;
+        margin: 0;
+      }
+
       .empty {
         margin-top: 0.75rem;
       }
     `
   ]
 })
-export class MedicalRecordsPage implements OnInit {
-  private readonly medicalRecordService = inject(MedicalRecordService);
+export class FilesPage implements OnInit {
+  private readonly fileService = inject(FileService);
   private readonly authService = inject(AuthService);
   private readonly specialtyAccess = inject(SpecialtyAccessService);
   private readonly fb = inject(NonNullableFormBuilder);
@@ -407,27 +420,26 @@ export class MedicalRecordsPage implements OnInit {
   private readonly router = inject(Router);
   private readonly dialog = inject(UiDialogService);
 
-  records: MedicalRecord[] = [];
+  files: ClinicalFile[] = [];
   loading = false;
-  submitting = false;
+  uploading = false;
   errorMessage: string | null = null;
   successMessage: string | null = null;
   fieldError: string | null = null;
-  activePatientId: number | null = null;
+  showUploadForm = false;
+  activePatientId: number | undefined;
   activeSpecialtyKey: string | undefined;
-  showForm = false;
-  formMode: FormMode = 'create';
-  editingRecordId: number | null = null;
+  selectedFile: File | null = null;
+  selectedFileName = '';
+  downloadingIds = new Set<number>();
+  deletingIds = new Set<number>();
   readonly currentUser = this.authService.currentUserValue;
   readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
-  readonly recordForm = this.fb.group({
-    patient_id: [1, [Validators.required, Validators.min(1)]],
-    chief_complaint: [''],
-    diagnosis: [''],
-    treatment: [''],
-    prescriptions: [''],
-    notes: ['']
+  readonly uploadForm = this.fb.group({
+    medical_record_id: [1, [Validators.required, Validators.min(1)]],
+    file_type: ['other', [Validators.required]],
+    description: ['']
   });
 
   ngOnInit(): void {
@@ -435,30 +447,22 @@ export class MedicalRecordsPage implements OnInit {
       const nextSpecialtyKey =
         this.normalizeSpecialtyKey(params.get('specialty_key')) ?? this.sessionSpecialtyKey;
       const nextPatientId = this.normalizePositiveNumber(params.get('patient_id') ?? params.get('patientId'));
-      const shouldOpenCreate = params.get('mode') === 'create';
       const scopeChanged =
         nextSpecialtyKey !== this.activeSpecialtyKey ||
         nextPatientId !== this.activePatientId;
       this.activeSpecialtyKey = nextSpecialtyKey;
-      this.activePatientId = nextPatientId ?? null;
+      this.activePatientId = nextPatientId;
 
-      if (scopeChanged || this.records.length === 0) {
-        this.loadRecords();
-      }
-      if (shouldOpenCreate && !this.showForm) {
-        this.openCreateForm();
+      if (scopeChanged || this.files.length === 0) {
+        this.loadFiles();
       }
     });
   }
 
   applyPatientFilter(rawValue: string): void {
-    const parsedValue = Number(rawValue);
-    if (Number.isInteger(parsedValue) && parsedValue > 0) {
-      this.activePatientId = parsedValue;
-    } else {
-      this.activePatientId = null;
-    }
-    this.loadRecords();
+    const patientId = Number(rawValue);
+    this.activePatientId = Number.isInteger(patientId) && patientId > 0 ? patientId : undefined;
+    this.loadFiles();
   }
 
   openPatientWorkspace(route: ClinicalWorkspaceRoute): void {
@@ -481,7 +485,7 @@ export class MedicalRecordsPage implements OnInit {
     });
   }
 
-  loadRecords(): void {
+  loadFiles(): void {
     this.loading = true;
     this.errorMessage = null;
 
@@ -492,14 +496,16 @@ export class MedicalRecordsPage implements OnInit {
     if (this.activeSpecialtyKey) {
       filters.specialty_key = this.activeSpecialtyKey;
     }
-    this.medicalRecordService
-      .getMedicalRecords(Object.keys(filters).length ? filters : undefined)
+    this.fileService
+      .listFiles(Object.keys(filters).length ? filters : undefined)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
-        next: (records) => {
-          this.records = [...records].sort(
-            (a, b) => new Date(b.record_date || b.created_at).getTime() - new Date(a.record_date || a.created_at).getTime()
-          );
+        next: (files) => {
+          this.files = [...files].sort((a, b) => {
+            const dateA = new Date(a.upload_date || a.created_at || '').getTime();
+            const dateB = new Date(b.upload_date || b.created_at || '').getTime();
+            return dateB - dateA;
+          });
         },
         error: (error: unknown) => {
           this.errorMessage = this.resolveErrorMessage(error);
@@ -507,98 +513,53 @@ export class MedicalRecordsPage implements OnInit {
       });
   }
 
-  openCreateForm(): void {
-    this.formMode = 'create';
-    this.editingRecordId = null;
-    this.showForm = true;
-    this.successMessage = null;
-    this.fieldError = null;
-    this.recordForm.reset({
-      patient_id: this.activePatientId ?? 1,
-      chief_complaint: '',
-      diagnosis: '',
-      treatment: '',
-      prescriptions: '',
-      notes: ''
-    });
+  toggleUploadForm(): void {
+    this.showUploadForm = !this.showUploadForm;
+    if (!this.showUploadForm) {
+      this.resetUploadForm();
+    }
   }
 
-  closeForm(): void {
-    this.showForm = false;
-    this.fieldError = null;
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    this.selectedFile = file;
+    this.selectedFileName = file?.name || '';
   }
 
-  startEdit(record: MedicalRecord): void {
-    this.formMode = 'edit';
-    this.editingRecordId = record.id;
-    this.showForm = true;
-    this.successMessage = null;
-    this.fieldError = null;
-    this.recordForm.patchValue({
-      patient_id: record.patient_id,
-      chief_complaint: record.chief_complaint || '',
-      diagnosis: record.diagnosis || '',
-      treatment: record.treatment || '',
-      prescriptions: record.prescriptions || '',
-      notes: record.notes || ''
-    });
-  }
-
-  submitForm(): void {
-    if (this.recordForm.invalid) {
-      this.recordForm.markAllAsTouched();
-      this.fieldError = 'Patient ID es obligatorio y debe ser mayor a cero.';
+  uploadFile(): void {
+    if (this.uploadForm.invalid) {
+      this.uploadForm.markAllAsTouched();
+      this.fieldError = 'Completa los campos requeridos.';
       return;
     }
 
-    const formValue = this.recordForm.getRawValue();
-    const payload: Partial<MedicalRecord> = this.cleanPayload({
-      patient_id: formValue.patient_id,
-      chief_complaint: formValue.chief_complaint,
-      diagnosis: formValue.diagnosis,
-      treatment: formValue.treatment,
-      prescriptions: formValue.prescriptions,
-      notes: formValue.notes
-    });
+    if (!this.selectedFile) {
+      this.fieldError = 'Selecciona un archivo para continuar.';
+      return;
+    }
 
-    this.submitting = true;
+    const payload = this.uploadForm.getRawValue();
+    this.fieldError = null;
     this.errorMessage = null;
-    this.fieldError = null;
     this.successMessage = null;
+    this.uploading = true;
 
-    if (this.formMode === 'create') {
-      this.medicalRecordService
-        .createMedicalRecord(payload)
-        .pipe(finalize(() => (this.submitting = false)))
-        .subscribe({
-          next: (createdRecord) => {
-            this.records = [createdRecord, ...this.records];
-            this.showForm = false;
-            this.successMessage = `Registro #${createdRecord.id} creado correctamente.`;
-          },
-          error: (error: unknown) => {
-            this.errorMessage = this.resolveErrorMessage(error);
-          }
-        });
-      return;
-    }
-
-    if (!this.editingRecordId) {
-      this.submitting = false;
-      this.fieldError = 'No se encontro el registro medico a editar.';
-      return;
-    }
-
-    this.medicalRecordService
-      .updateMedicalRecord(this.editingRecordId, payload)
-      .pipe(finalize(() => (this.submitting = false)))
+    this.fileService
+      .uploadFile({
+        file: this.selectedFile,
+        medicalRecordId: payload.medical_record_id,
+        fileType: payload.file_type,
+        description: payload.description,
+        patientId: this.activePatientId,
+        specialtyKey: this.activeSpecialtyKey,
+      })
+      .pipe(finalize(() => (this.uploading = false)))
       .subscribe({
-        next: (updatedRecord) => {
-          this.records = this.records.map((record) =>
-            record.id === updatedRecord.id ? { ...record, ...updatedRecord } : record
-          );
-          this.showForm = false;
-          this.successMessage = `Registro #${updatedRecord.id} actualizado correctamente.`;
+        next: (uploadedFile) => {
+          this.files = [uploadedFile, ...this.files];
+          this.successMessage = `Archivo #${uploadedFile.id} subido correctamente.`;
+          this.resetUploadForm();
         },
         error: (error: unknown) => {
           this.errorMessage = this.resolveErrorMessage(error);
@@ -606,10 +567,33 @@ export class MedicalRecordsPage implements OnInit {
       });
   }
 
-  async deleteRecord(record: MedicalRecord): Promise<void> {
+  download(file: ClinicalFile): void {
+    this.downloadingIds.add(file.id);
+    this.errorMessage = null;
+
+    this.fileService.downloadFile(file.id, this.activeSpecialtyKey).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = file.filename || `file-${file.id}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+        this.downloadingIds.delete(file.id);
+      },
+      error: (error: unknown) => {
+        this.errorMessage = this.resolveErrorMessage(error);
+        this.downloadingIds.delete(file.id);
+      }
+    });
+  }
+
+  async deleteFile(file: ClinicalFile): Promise<void> {
     const confirmed = await this.dialog.confirm({
-      title: 'Eliminar registro medico',
-      message: `Eliminar registro medico #${record.id}?`,
+      title: 'Eliminar archivo',
+      message: `Eliminar archivo #${file.id} (${file.filename})?`,
       confirmText: 'Eliminar',
       cancelText: 'Cancelar',
       destructive: true
@@ -618,32 +602,60 @@ export class MedicalRecordsPage implements OnInit {
       return;
     }
 
+    this.deletingIds.add(file.id);
     this.errorMessage = null;
     this.successMessage = null;
-    this.medicalRecordService.deleteMedicalRecord(record.id).subscribe({
+
+    this.fileService.deleteFile(file.id, this.activeSpecialtyKey).subscribe({
       next: () => {
-        this.records = this.records.filter((item) => item.id !== record.id);
-        this.successMessage = `Registro #${record.id} eliminado correctamente.`;
+        this.files = this.files.filter((item) => item.id !== file.id);
+        this.successMessage = `Archivo #${file.id} eliminado.`;
+        this.deletingIds.delete(file.id);
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
+        this.deletingIds.delete(file.id);
       }
     });
   }
 
-  private cleanPayload(payload: Record<string, string | number>): Partial<MedicalRecord> {
-    const result: Record<string, string | number> = {};
-    Object.entries(payload).forEach(([key, value]) => {
-      if (typeof value === 'number') {
-        result[key] = value;
-        return;
-      }
-      const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        result[key] = trimmed;
-      }
+  resetUploadForm(): void {
+    this.uploadForm.reset({
+      medical_record_id: 1,
+      file_type: 'other',
+      description: ''
     });
-    return result;
+    this.selectedFile = null;
+    this.selectedFileName = '';
+    this.fieldError = null;
+  }
+
+  formatFileSize(sizeInBytes: number): string {
+    if (!sizeInBytes || sizeInBytes <= 0) {
+      return '0 B';
+    }
+
+    if (sizeInBytes < 1024) {
+      return `${sizeInBytes} B`;
+    }
+    if (sizeInBytes < 1024 * 1024) {
+      return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  private resolveErrorMessage(error: unknown): string {
+    if (this.isApiErrorShape(error)) {
+      const msg = error.error?.message ?? error.error?.msg ?? error.error?.error;
+      if (typeof msg === 'string' && msg.trim().length > 0) {
+        return msg;
+      }
+    }
+    return 'No se pudieron completar las operaciones de archivos.';
+  }
+
+  private isApiErrorShape(value: unknown): value is ApiErrorShape {
+    return typeof value === 'object' && value !== null && 'error' in value;
   }
 
   private normalizeSpecialtyKey(rawKey: string | null): string | undefined {
@@ -664,19 +676,5 @@ export class MedicalRecordsPage implements OnInit {
       return undefined;
     }
     return this.specialtyAccess.resolveSpecialtyModule(this.currentUser.specialty)?.key;
-  }
-
-  private resolveErrorMessage(error: unknown): string {
-    if (this.isApiErrorShape(error)) {
-      const msg = error.error?.message ?? error.error?.msg ?? error.error?.error;
-      if (typeof msg === 'string' && msg.trim().length > 0) {
-        return msg;
-      }
-    }
-    return 'No se pudieron gestionar los registros medicos.';
-  }
-
-  private isApiErrorShape(value: unknown): value is ApiErrorShape {
-    return typeof value === 'object' && value !== null && 'error' in value;
   }
 }

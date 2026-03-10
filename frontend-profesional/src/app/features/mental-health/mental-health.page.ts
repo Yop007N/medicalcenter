@@ -2,17 +2,17 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
-import { AuthService } from '../core/auth/auth.service';
-import { MentalHealthModule, SpecialtyAccessService } from '../core/auth/specialty-access.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { MentalHealthModule, SpecialtyAccessService } from '../../core/auth/specialty-access.service';
 import {
   InterventionSession,
   MentalHealthService,
   PsychopedagogyEvaluation,
   PsychologyEvaluation,
   TherapySession
-} from '../core/services/mental-health.service';
-import { UiDialogService } from '../shared/services/ui-dialog.service';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/mental-health.service';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 
 type ApiErrorShape = {
   error?: {

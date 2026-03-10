@@ -14,8 +14,8 @@ import {
   SpecialtyModuleContext,
   SpecialtyModuleOverview,
   SpecialtyModuleService
-} from '../core/services/specialty-module.service';
-import { pageShellStyles } from './page-shell.styles';
+} from '../../core/services/specialty-module.service';
+import { pageShellStyles } from '../../shared/styles/page-shell.styles';
 import {
   buildProfessionalSpecialtyBoardSections,
   buildProfessionalSpecialtyInsightCards,
@@ -27,7 +27,7 @@ import {
   resolveProfessionalSpecialtyFields,
   resolveProfessionalSpecialtyPrimaryQuickAction,
 } from './specialty-module.config';
-import { UiDialogService } from '../shared/services/ui-dialog.service';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
 
 type ApiErrorShape = {
   error?: {
