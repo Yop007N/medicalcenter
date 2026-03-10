@@ -1,12 +1,8 @@
 import { Injectable } from '@angular/core';
+import { SessionUser } from '../models/session.model';
 
-export interface SessionUser {
-  id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
+// Re-export for backward compatibility
+export { SessionUser } from '../models/session.model';
 
 @Injectable({
   providedIn: 'root'

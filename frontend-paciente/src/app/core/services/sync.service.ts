@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { OfflineService } from './offline.service';
 import { ApiClientService } from './api-client.service';
-import { API_ENDPOINTS } from './api-endpoints';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
 
 export interface SyncChange {
   entity_type: string;

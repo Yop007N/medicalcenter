@@ -3,21 +3,11 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, finalize, tap } from 'rxjs/operators';
 import { ApiClientService } from './api-client.service';
 import { SessionStoreService } from './session-store.service';
-import { API_ENDPOINTS } from './api-endpoints';
+import { API_ENDPOINTS } from '../constants/api-endpoints';
+import { AuthUser, LoginResponse } from '../models/auth.model';
 
-export interface AuthUser {
-  id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
-  user: AuthUser;
-}
+// Re-export for backward compatibility
+export { AuthUser, LoginResponse } from '../models/auth.model';
 
 @Injectable({
   providedIn: 'root'
