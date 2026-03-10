@@ -33,12 +33,8 @@ ma = Marshmallow()
 # Cache
 cache = Cache()
 
-# Rate Limiter - Increased limits for development/testing
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["10000 per day", "1000 per hour", "100 per minute"],
-    storage_uri=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-)
+# Rate Limiter - limits come from Flask config (RATELIMIT_*)
+limiter = Limiter(key_func=get_remote_address)
 
 # Celery for async tasks
 celery = Celery(
@@ -73,9 +69,28 @@ def _build_redis_client_kwargs():
 redis_client = Redis(**_build_redis_client_kwargs())
 
 # SocketIO for real-time communication
+# CORS origins are applied from app config during init_app via configure_socketio()
 socketio = SocketIO(
-    cors_allowed_origins="*",  # Configure based on environment
-    async_mode='threading',  # Use threading mode for simplicity
+    async_mode='threading',
     logger=True,
     engineio_logger=True
 )
+
+
+def configure_socketio(app):
+    """Apply app CORS config to SocketIO. Call from create_app after config is loaded."""
+    origins = [
+        origin.strip()
+        for origin in (app.config.get('CORS_ORIGINS') or [])
+        if isinstance(origin, str) and origin.strip()
+    ]
+    is_production = not app.config.get('DEBUG', False) and not app.config.get('TESTING', False)
+    if is_production and (not origins or '*' in origins):
+        raise ValueError(
+            'SocketIO requires explicit CORS_ORIGINS in production (wildcard is not allowed)'
+        )
+
+    socketio.init_app(
+        app,
+        cors_allowed_origins=origins if origins else '*',
+    )

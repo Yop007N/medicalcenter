@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Psychopedagogy endpoints - evaluations and intervention sessions."""
 
+from app.resources.domain_errors import domain_error_response
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import SQLAlchemyError
@@ -20,21 +21,11 @@ from app.utils.helpers import get_pagination_params
 blueprint = Blueprint('psychopedagogy', __name__, url_prefix='/api/psychopedagogy')
 
 
-def _service_error_response(error):
-    status_map = {
-        ValidationError: 400,
-        ResourceNotFoundError: 404,
-    }
-    status = status_map.get(type(error), 400)
-    payload = {'msg': error.message}
-    if getattr(error, 'details', None):
-        payload.update(error.details)
-    return jsonify(payload), status
 
 
 def _db_error_response():
     db.session.rollback()
-    return jsonify({'msg': 'Database error'}), 500
+    return domain_error_response(error, default_status=500)
 
 
 @blueprint.before_request
@@ -56,7 +47,7 @@ def create_evaluation():
         )
         return jsonify(psychopedagogical_evaluation_schema.dump(evaluation)), 201
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -69,7 +60,7 @@ def get_evaluation(evaluation_id):
         evaluation = PsychopedagogyService.get_evaluation(evaluation_id)
         return jsonify(psychopedagogical_evaluation_schema.dump(evaluation)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evaluations/<int:evaluation_id>', methods=['PUT'])
@@ -83,7 +74,7 @@ def update_evaluation(evaluation_id):
         )
         return jsonify(psychopedagogical_evaluation_schema.dump(evaluation)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -96,7 +87,7 @@ def delete_evaluation(evaluation_id):
         PsychopedagogyService.delete_evaluation(evaluation_id)
         return jsonify({'msg': 'Evaluation deleted successfully'}), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -121,7 +112,7 @@ def get_patient_evaluations(patient_id):
             'page_size': page_size,
         }), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evaluations/professional/<int:professional_id>', methods=['GET'])
@@ -143,7 +134,7 @@ def get_professional_evaluations(professional_id):
             'page_size': page_size,
         }), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== Intervention Sessions ====================
@@ -159,7 +150,7 @@ def create_session():
         )
         return jsonify(intervention_session_schema.dump(session)), 201
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -172,7 +163,7 @@ def get_session(session_id):
         session = PsychopedagogyService.get_session(session_id)
         return jsonify(intervention_session_schema.dump(session)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/sessions/<int:session_id>', methods=['PUT'])
@@ -186,7 +177,7 @@ def update_session(session_id):
         )
         return jsonify(intervention_session_schema.dump(session)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -199,7 +190,7 @@ def delete_session(session_id):
         PsychopedagogyService.delete_session(session_id)
         return jsonify({'msg': 'Session deleted successfully'}), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
     except SQLAlchemyError:
         return _db_error_response()
 
@@ -223,7 +214,7 @@ def get_evaluation_sessions(evaluation_id):
             'page_size': page_size,
         }), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/sessions/patient/<int:patient_id>/history', methods=['GET'])
@@ -245,4 +236,4 @@ def get_patient_session_history(patient_id):
             'page_size': page_size,
         }), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)

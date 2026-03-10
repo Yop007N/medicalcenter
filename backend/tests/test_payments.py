@@ -441,6 +441,32 @@ class TestCreatePayment:
         json_data = response.json
         assert json_data['budget_id'] == budget_id
 
+    def test_create_payment_rejects_duplicate_transaction_reference(self, client, auth_headers):
+        """Creating a second payment with the same transaction reference should return conflict."""
+        first_response = client.post(
+            '/api/payments',
+            json={
+                'amount': 500.00,
+                'payment_method': 'transfer',
+                'transaction_reference': 'DUP-REF-001'
+            },
+            headers=auth_headers
+        )
+        assert first_response.status_code == 201
+
+        second_response = client.post(
+            '/api/payments',
+            json={
+                'amount': 800.00,
+                'payment_method': 'card',
+                'transaction_reference': 'DUP-REF-001'
+            },
+            headers=auth_headers
+        )
+
+        assert second_response.status_code == 409
+        assert 'transaction_id already exists' in second_response.get_json().get('msg', '')
+
     def test_create_payment_supports_payment_date_and_transaction_reference(self, client, auth_headers):
         """Test creating payment with frontend aliases payment_date/transaction_reference."""
         data = {
@@ -592,6 +618,33 @@ class TestUpdatePayment:
 
         assert response.status_code == 400
 
+    def test_update_payment_rejects_duplicate_transaction_id(self, client, auth_headers, app):
+        """Updating transaction_id to an existing value should return conflict."""
+        with app.app_context():
+            existing = Payment(
+                amount=Decimal('510.00'),
+                payment_method='card',
+                payment_status='pending',
+                transaction_id='DUP-UPD-001',
+            )
+            target = Payment(
+                amount=Decimal('220.00'),
+                payment_method='cash',
+                payment_status='pending',
+            )
+            db.session.add_all([existing, target])
+            db.session.commit()
+            target_id = target.id
+
+        response = client.put(
+            f'/api/payments/{target_id}',
+            json={'transaction_id': 'DUP-UPD-001'},
+            headers=auth_headers
+        )
+
+        assert response.status_code == 409
+        assert 'transaction_id already exists' in response.get_json().get('msg', '')
+
 
 class TestProcessPayment:
     """Test process payment endpoint"""
@@ -638,6 +691,39 @@ class TestProcessPayment:
         json_data = response.json
         assert json_data['payment_status'] == 'completed'
         assert json_data['transaction_id'] == f'TXN-{payment_id}'
+
+    def test_process_payment_rejects_duplicate_transaction_id(self, client, auth_headers, app):
+        """Processing with duplicate transaction_id should return conflict."""
+        with app.app_context():
+            first = Payment(
+                amount=Decimal('300.00'),
+                payment_method='cash',
+                payment_status='pending',
+            )
+            second = Payment(
+                amount=Decimal('450.00'),
+                payment_method='card',
+                payment_status='pending',
+            )
+            db.session.add_all([first, second])
+            db.session.commit()
+            first_id = first.id
+            second_id = second.id
+
+        first_process = client.post(
+            f'/api/payments/{first_id}/process',
+            json={'transaction_id': 'DUP-PROC-001'},
+            headers=auth_headers
+        )
+        assert first_process.status_code == 200
+
+        second_process = client.post(
+            f'/api/payments/{second_id}/process',
+            json={'transaction_id': 'DUP-PROC-001'},
+            headers=auth_headers
+        )
+        assert second_process.status_code == 409
+        assert 'transaction_id already exists' in second_process.get_json().get('msg', '')
 
     def test_process_payment_not_found(self, client, auth_headers):
         """Test processing non-existent payment"""

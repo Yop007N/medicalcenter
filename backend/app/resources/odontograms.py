@@ -3,6 +3,7 @@
 Odontogram CRUD endpoints
 """
 
+from app.resources.domain_errors import domain_error_response
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.schemas.odontogram_schema import OdontogramSchema, ToothSchema
@@ -18,16 +19,6 @@ tooth_schema = ToothSchema()
 teeth_schema = ToothSchema(many=True)
 
 
-def _service_error_response(error):
-    status_map = {
-        ValidationError: 400,
-        ResourceNotFoundError: 404,
-    }
-    status = status_map.get(type(error), 400)
-    payload = {'msg': error.message}
-    if getattr(error, 'details', None):
-        payload.update(error.details)
-    return jsonify(payload), status
 
 
 @blueprint.before_request
@@ -61,7 +52,7 @@ def list_odontograms():
         )
         return jsonify(odontograms_schema.dump(odontograms)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/patient/<int:patient_id>', methods=['GET'])
@@ -90,7 +81,7 @@ def get_patient_odontogram(patient_id):
         payload['teeth'] = teeth_schema.dump(payload['teeth'])
         return jsonify(payload), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('', methods=['POST'])
@@ -149,7 +140,7 @@ def create_odontogram():
         )
         return jsonify(odontogram_schema.dump(odontogram)), 201
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>', methods=['GET'])
@@ -176,7 +167,7 @@ def get_odontogram(odontogram_id):
         odontogram = OdontogramService.get_odontogram(odontogram_id)
         return jsonify(odontogram_schema.dump(odontogram)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>', methods=['PUT'])
@@ -215,7 +206,7 @@ def update_odontogram(odontogram_id):
         )
         return jsonify(odontogram_schema.dump(odontogram)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>/tooth', methods=['POST'])
@@ -267,7 +258,7 @@ def add_tooth_to_odontogram(odontogram_id):
         )
         return jsonify(tooth_schema.dump(tooth)), 201
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>/teeth', methods=['GET'])
@@ -294,7 +285,7 @@ def get_odontogram_teeth(odontogram_id):
         teeth = OdontogramService.list_teeth(odontogram_id)
         return jsonify({'teeth': teeth_schema.dump(teeth)}), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>/tooth/<int:tooth_number>', methods=['GET'])
@@ -326,7 +317,7 @@ def get_tooth(odontogram_id, tooth_number):
         tooth = OdontogramService.get_tooth(odontogram_id, tooth_number)
         return jsonify(tooth_schema.dump(tooth)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>/tooth/<int:tooth_number>', methods=['PUT'])
@@ -381,7 +372,7 @@ def update_tooth(odontogram_id, tooth_number):
         )
         return jsonify(tooth_schema.dump(tooth)), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/<int:odontogram_id>/tooth/<int:tooth_number>', methods=['DELETE'])
@@ -413,4 +404,4 @@ def delete_tooth(odontogram_id, tooth_number):
         OdontogramService.delete_tooth(odontogram_id, tooth_number)
         return jsonify({'msg': 'Tooth deleted successfully'}), 200
     except (ValidationError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)

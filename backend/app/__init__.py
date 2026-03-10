@@ -8,7 +8,7 @@ from flask import Flask
 from flask_cors import CORS
 from flasgger import Swagger
 from app.config import config_by_name
-from app.extensions import db, jwt, celery, redis_client, ma, limiter, cache, socketio, migrate
+from app.extensions import db, jwt, celery, redis_client, ma, limiter, cache, socketio, migrate, configure_socketio
 from app.services.token_blocklist_service import TokenBlocklistService
 
 
@@ -24,8 +24,10 @@ def create_app(config_name='development'):
     """
     app = Flask(__name__)
 
-    # Load configuration
-    app.config.from_object(config_by_name[config_name])
+    # Load configuration (instantiate class so __init__ validations are applied)
+    config_cls = config_by_name[config_name]
+    config_obj = config_cls() if isinstance(config_cls, type) else config_cls
+    app.config.from_object(config_obj)
 
     # Initialize extensions
     db.init_app(app)
@@ -34,7 +36,7 @@ def create_app(config_name='development'):
     register_jwt_handlers()
     ma.init_app(app)
     limiter.init_app(app)
-    socketio.init_app(app)
+    configure_socketio(app)
 
     # Initialize cache
     cache.init_app(app, config={

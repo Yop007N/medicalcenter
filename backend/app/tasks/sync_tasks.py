@@ -13,126 +13,12 @@ from app.models.file import File
 from app.models.budget import Budget
 from app.models.payment import Payment
 from app.models.sync_log import SyncLog
+from app.services.sync_service import SyncService
 from datetime import datetime, timedelta
 import logging
 import hashlib
-import json
 
 logger = logging.getLogger(__name__)
-
-
-class SyncService:
-    """Handle data synchronization logic"""
-
-    @staticmethod
-    def calculate_checksum(data):
-        """
-        Calculate SHA256 checksum for data integrity verification
-
-        Args:
-            data: Dictionary or string to hash
-
-        Returns:
-            str: SHA256 hash
-        """
-        if isinstance(data, dict):
-            data = json.dumps(data, sort_keys=True, default=str)
-
-        return hashlib.sha256(data.encode('utf-8')).hexdigest()
-
-    @staticmethod
-    def get_model_updates_since(model_class, since_datetime):
-        """
-        Get all records updated since a specific datetime
-
-        Args:
-            model_class: SQLAlchemy model class
-            since_datetime: datetime to check updates from
-
-        Returns:
-            list: Updated records
-        """
-        try:
-            return model_class.query.filter(
-                model_class.updated_at >= since_datetime
-            ).all()
-        except Exception as e:
-            logger.error(f"Error getting updates for {model_class.__name__}: {str(e)}")
-            return []
-
-    @staticmethod
-    def resolve_conflict(local_record, remote_record):
-        """
-        Resolve sync conflicts using last-write-wins strategy
-
-        Args:
-            local_record: Local database record
-            remote_record: Remote record data
-
-        Returns:
-            str: 'local' or 'remote' indicating which version to keep
-        """
-        # Last-write-wins: compare updated_at timestamps
-        local_updated = local_record.updated_at if hasattr(local_record, 'updated_at') else local_record.created_at
-        remote_updated = remote_record.get('updated_at') or remote_record.get('created_at')
-
-        if isinstance(remote_updated, str):
-            remote_updated = datetime.fromisoformat(remote_updated.replace('Z', '+00:00'))
-
-        if local_updated >= remote_updated:
-            logger.info(f"Conflict resolved: keeping local version (newer)")
-            return 'local'
-        else:
-            logger.info(f"Conflict resolved: using remote version (newer)")
-            return 'remote'
-
-    @staticmethod
-    def sync_model_data(model_class, since_datetime=None):
-        """
-        Sync data for a specific model
-
-        Args:
-            model_class: SQLAlchemy model to sync
-            since_datetime: Optional datetime for incremental sync
-
-        Returns:
-            dict: Sync statistics
-        """
-        stats = {
-            'model': model_class.__name__,
-            'updated': 0,
-            'created': 0,
-            'conflicts': 0,
-            'errors': 0
-        }
-
-        try:
-            if since_datetime:
-                records = SyncService.get_model_updates_since(model_class, since_datetime)
-                logger.info(f"Incremental sync for {model_class.__name__}: {len(records)} records updated since {since_datetime}")
-            else:
-                records = model_class.query.all()
-                logger.info(f"Full sync for {model_class.__name__}: {len(records)} records")
-
-            stats['updated'] = len(records)
-
-            # In a real implementation, this would sync with remote server
-            # For now, just validate checksums
-            for record in records:
-                try:
-                    # Create a simple dict representation for checksum
-                    record_data = {'id': record.id, 'model': model_class.__name__}
-                    checksum = SyncService.calculate_checksum(record_data)
-                    logger.debug(f"{model_class.__name__} ID {record.id} checksum: {checksum}")
-                except Exception as e:
-                    logger.error(f"Error processing {model_class.__name__} ID {record.id}: {str(e)}")
-                    stats['errors'] += 1
-
-        except Exception as e:
-            logger.error(f"Error syncing {model_class.__name__}: {str(e)}")
-            stats['errors'] += 1
-
-        return stats
 
 
 @celery.task(name='sync_all_data')

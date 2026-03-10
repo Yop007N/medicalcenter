@@ -4,6 +4,7 @@ Clinical History CRUD endpoints
 """
 
 import os
+from app.resources.domain_errors import domain_error_response
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -52,19 +53,6 @@ event_schema = ClinicalHistoryEventSchema()
 events_schema = ClinicalHistoryEventSchema(many=True)
 
 
-def _service_error_response(error):
-    """Map service-layer errors to HTTP responses."""
-    status_map = {
-        ValidationError: 400,
-        AccessDeniedError: 403,
-        ResourceNotFoundError: 404,
-        ConflictError: 409,
-    }
-    status = status_map.get(type(error), 400)
-    payload = {'msg': error.message}
-    if getattr(error, 'details', None):
-        payload.update(error.details)
-    return jsonify(payload), status
 
 
 # ==================== EVOLUTIONS ====================
@@ -82,7 +70,7 @@ def list_evolutions():
         )
         return jsonify(evolutions_schema.dump(evolutions)), 200
     except (ValidationError, AccessDeniedError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evolutions', methods=['POST'])
@@ -96,7 +84,7 @@ def create_evolution():
         )
         return jsonify(evolution_schema.dump(evolution)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>', methods=['GET'])
@@ -110,7 +98,7 @@ def get_evolution(evolution_id):
         )
         return jsonify(evolution_schema.dump(evolution)), 200
     except (AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>', methods=['PUT'])
@@ -125,7 +113,7 @@ def update_evolution(evolution_id):
         )
         return jsonify(evolution_schema.dump(evolution)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>/sign', methods=['POST'])
@@ -140,7 +128,7 @@ def sign_evolution(evolution_id):
         )
         return jsonify(evolution_schema.dump(evolution)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/evolutions/<int:evolution_id>/annul', methods=['POST'])
@@ -154,7 +142,7 @@ def annul_evolution(evolution_id):
         )
         return jsonify(evolution_schema.dump(evolution)), 200
     except (AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== ANAMNESIS ====================
@@ -170,7 +158,7 @@ def get_patient_anamnesis(patient_id):
         )
         return jsonify(anamnesis_schema.dump(anamnesis)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/anamnesis', methods=['POST'])
@@ -184,7 +172,7 @@ def create_or_update_anamnesis():
         )
         return jsonify(anamnesis_schema.dump(anamnesis)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== PERIODONTAL RECORDS ====================
@@ -201,7 +189,7 @@ def list_periodontal_records():
         )
         return jsonify(periodontal_records_schema.dump(records)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/periodontal', methods=['POST'])
@@ -215,7 +203,7 @@ def create_periodontal_record():
         )
         return jsonify(periodontal_schema.dump(record)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/periodontal/bulk', methods=['POST'])
@@ -229,7 +217,7 @@ def bulk_create_periodontal():
         )
         return jsonify(periodontal_records_schema.dump(created_records)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== PATIENT DOCUMENTS ====================
@@ -247,7 +235,7 @@ def list_documents():
         )
         return jsonify(documents_schema.dump(documents)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/documents', methods=['POST'])
@@ -261,7 +249,7 @@ def create_document():
         )
         return jsonify(document_schema.dump(document)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/documents/<int:document_id>', methods=['DELETE'])
@@ -275,7 +263,7 @@ def delete_document(document_id):
         )
         return jsonify({'msg': 'Document deleted successfully'}), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/documents/upload', methods=['POST'])
@@ -300,7 +288,7 @@ def upload_document():
         )
         return jsonify(document_schema.dump(document)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/documents/<int:document_id>/download', methods=['GET'])
@@ -319,7 +307,7 @@ def download_document(document_id):
             mimetype=payload['mimetype'],
         )
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== PRESCRIPTIONS ====================
@@ -337,7 +325,7 @@ def list_prescriptions():
         )
         return jsonify(prescriptions_schema.dump(prescriptions)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/prescriptions', methods=['POST'])
@@ -351,7 +339,7 @@ def create_prescription():
         )
         return jsonify(prescription_schema.dump(prescription)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/prescriptions/<int:prescription_id>/annul', methods=['POST'])
@@ -365,7 +353,7 @@ def annul_prescription(prescription_id):
         )
         return jsonify(prescription_schema.dump(prescription)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== CLINICAL DOCUMENTS ====================
@@ -383,7 +371,7 @@ def list_clinical_docs():
         )
         return jsonify(clinical_docs_schema.dump(docs)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/clinical-docs', methods=['POST'])
@@ -397,7 +385,7 @@ def create_clinical_doc():
         )
         return jsonify(clinical_doc_schema.dump(doc)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/clinical-docs/<int:doc_id>', methods=['DELETE'])
@@ -411,7 +399,7 @@ def delete_clinical_doc(doc_id):
         )
         return jsonify({'msg': 'Document deleted successfully'}), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== INFORMED CONSENTS ====================
@@ -428,7 +416,7 @@ def list_consents():
         )
         return jsonify(consents_schema.dump(consents)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/consents', methods=['POST'])
@@ -442,7 +430,7 @@ def create_consent():
         )
         return jsonify(consent_schema.dump(consent)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/consents/<int:consent_id>/sign', methods=['POST'])
@@ -457,7 +445,7 @@ def sign_consent(consent_id):
         )
         return jsonify(consent_schema.dump(consent)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/consents/<int:consent_id>/reject', methods=['POST'])
@@ -472,7 +460,7 @@ def reject_consent(consent_id):
         )
         return jsonify(consent_schema.dump(consent)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== TIMELINE EVENTS ====================
@@ -490,7 +478,7 @@ def get_timeline():
         )
         return jsonify(events_schema.dump(events)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route('/timeline', methods=['POST'])
@@ -504,7 +492,7 @@ def create_timeline_event():
         )
         return jsonify(event_schema.dump(event)), 201
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 # ==================== SUMMARY ====================
@@ -526,4 +514,4 @@ def get_patient_summary(patient_id):
             'recent_events': events_schema.dump(summary['recent_events']),
         }), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)

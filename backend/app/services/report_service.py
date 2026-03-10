@@ -205,8 +205,8 @@ class ReportService:
                 'total_medical_records': len(medical_records),
                 'completed_appointments': len([a for a in appointments if a.status == 'completed']),
                 'cancelled_appointments': len([a for a in appointments if a.status == 'cancelled']),
-                'total_hours': sum([a.duration_minutes for a in appointments]) / 60,
-                'unique_patients': len(set([a.patient_id for a in appointments]))
+                'total_hours': sum(a.duration_minutes or 0 for a in appointments) / 60,
+                'unique_patients': len(set(a.patient_id for a in appointments))
             },
             'by_status': {status: count for status, count in status_stats},
             'by_type': {atype: count for atype, count in type_stats},
@@ -340,7 +340,7 @@ class ReportService:
                 'total_budgets': len(budgets),
                 'total_amount': total_amount,
                 'average_budget': total_amount / len(budgets) if budgets else 0,
-                'pending_budgets': len([b for b in budgets if b.status == 'pending']),
+                'pending_budgets': len([b for b in budgets if b.status == 'draft']),
                 'accepted_budgets': len([b for b in budgets if b.status == 'accepted']),
                 'rejected_budgets': len([b for b in budgets if b.status == 'rejected'])
             },
@@ -422,8 +422,8 @@ class ReportService:
                 'scheduled': len([a for a in appointments if a.status == 'scheduled']),
                 'cancelled': len([a for a in appointments if a.status == 'cancelled']),
                 'no_show': len([a for a in appointments if a.status == 'no_show']),
-                'total_hours': sum([a.duration_minutes for a in appointments]) / 60,
-                'average_duration': sum([a.duration_minutes for a in appointments]) / len(appointments) if appointments else 0
+                'total_hours': sum(a.duration_minutes or 0 for a in appointments) / 60,
+                'average_duration': sum(a.duration_minutes or 0 for a in appointments) / len(appointments) if appointments else 0
             },
             'by_status': {status: count for status, count in by_status},
             'by_type': {atype: count for atype, count in by_type},

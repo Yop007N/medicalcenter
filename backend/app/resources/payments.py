@@ -8,7 +8,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.resources.domain_errors import domain_error_response
 from app.schemas.payment_schema import PaymentSchema
-from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
+from app.services.exceptions import (
+    AccessDeniedError,
+    ConflictError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from app.services.payment_service import PaymentService
 from app.utils.decorators import professional_required
 
@@ -58,7 +63,7 @@ def list_payments():
             specialty_key=specialty_key,
         )
         return jsonify(payments_schema.dump(payments)), 200
-    except (ValidationError, AccessDeniedError) as exc:
+    except (ValidationError, AccessDeniedError, ConflictError) as exc:
         return domain_error_response(exc)
 
 
@@ -202,7 +207,7 @@ def update_payment(payment_id):
             specialty_key=specialty_key,
         )
         return jsonify(payment_schema.dump(payment)), 200
-    except (ValidationError, ResourceNotFoundError, AccessDeniedError) as exc:
+    except (ValidationError, ResourceNotFoundError, AccessDeniedError, ConflictError) as exc:
         return domain_error_response(exc)
 
 
@@ -236,7 +241,7 @@ def delete_payment(payment_id):
             specialty_key=request.args.get('specialty_key'),
         )
         return jsonify({'msg': 'Payment deleted successfully'}), 200
-    except (ResourceNotFoundError, ValidationError, AccessDeniedError) as exc:
+    except (ResourceNotFoundError, ValidationError, AccessDeniedError, ConflictError) as exc:
         return domain_error_response(exc)
 
 

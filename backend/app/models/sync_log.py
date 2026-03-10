@@ -16,7 +16,7 @@ class SyncLog(db.Model):
 
     # Sync details
     entity_type = db.Column(db.String(50), nullable=False)  # appointment, patient, etc.
-    entity_id = db.Column(db.Integer, nullable=False)
+    entity_id = db.Column(db.String(128), nullable=False)  # supports 'local-{id}' client refs
     operation = db.Column(db.String(20), nullable=False)  # create, update, delete
     direction = db.Column(db.String(20), nullable=False)  # cloud_to_local, local_to_cloud
     idempotency_key = db.Column(db.String(128), index=True)

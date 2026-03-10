@@ -131,7 +131,7 @@ def _build_financial_summary_report(start_date, end_date):
 
     pending_amount = 0.0
     for status_row in budget_report.get('by_status', []):
-        if status_row.get('status') == 'pending':
+        if status_row.get('status') == 'draft':
             pending_amount += float(status_row.get('total_amount', 0))
 
     return {
@@ -665,9 +665,7 @@ def get_quick_stats():
         Appointment.appointment_date < end_today
     ).count()
 
-    pending_budgets = Budget.query.filter(
-        Budget.status == 'pending'
-    ).count()
+    pending_budgets = Budget.query.filter(Budget.status == 'draft').count()
 
     new_patients_this_month = Patient.query.filter(
         Patient.created_at >= month_start

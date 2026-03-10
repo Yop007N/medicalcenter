@@ -36,7 +36,7 @@ def init_database():
                 role='admin',
                 is_active=True
             )
-            admin.set_password('admin123')
+            admin.set_password(os.getenv('INIT_ADMIN_PASSWORD', 'admin123'))
             db.session.add(admin)
 
             # Create a sample professional
@@ -51,7 +51,7 @@ def init_database():
                 phone='+54911234567',
                 is_active=True
             )
-            professional.set_password('doctor123')
+            professional.set_password(os.getenv('INIT_PROFESSIONAL_PASSWORD', 'doctor123'))
             db.session.add(professional)
 
             # Create a sample patient
@@ -65,7 +65,7 @@ def init_database():
                 blood_type='O+',
                 is_active=True
             )
-            patient.set_password('patient123')
+            patient.set_password(os.getenv('INIT_PATIENT_PASSWORD', 'patient123'))
             db.session.add(patient)
 
             db.session.commit()
@@ -75,13 +75,13 @@ def init_database():
             print("="*50)
             print("\nAdmin:")
             print("  Email: admin@medical.com")
-            print("  Password: admin123")
+            print("  Password: [set via INIT_ADMIN_PASSWORD env var]")
             print("\nProfessional (Doctor):")
             print("  Email: doctor@medical.com")
-            print("  Password: doctor123")
+            print("  Password: [set via INIT_PROFESSIONAL_PASSWORD env var]")
             print("\nPatient:")
             print("  Email: patient@medical.com")
-            print("  Password: patient123")
+            print("  Password: [set via INIT_PATIENT_PASSWORD env var]")
             print("="*50)
         else:
             print("\nDatabase already initialized with default users.")

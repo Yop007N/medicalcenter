@@ -156,14 +156,17 @@ class PatientService:
             if not scoped_professional_ids:
                 return []
 
-            scoped_patient_ids = set()
-            for professional_id in scoped_professional_ids:
-                scoped_patient_ids.update(
-                    AccessScopeService.get_professional_patient_ids(
-                        professional_id,
-                        specialty_key=normalized_specialty_key,
-                    )
+            scoped_patient_ids = {
+                row[0]
+                for row in db.session.query(ProfessionalPatientAssignment.patient_id)
+                .filter(
+                    ProfessionalPatientAssignment.professional_id.in_(scoped_professional_ids),
+                    ProfessionalPatientAssignment.specialty_key == normalized_specialty_key,
                 )
+                .distinct()
+                .all()
+                if row[0] is not None
+            }
 
             if not scoped_patient_ids:
                 return []

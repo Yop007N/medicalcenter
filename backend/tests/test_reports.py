@@ -506,6 +506,97 @@ class TestFrontendReportContracts:
         assert 'new_patients_this_month' in data
         assert 'revenue_this_month' in data
 
+    def test_quick_stats_counts_only_draft_as_pending(
+        self,
+        app,
+        client,
+        auth_headers,
+        sample_patient,
+        sample_professional,
+    ):
+        """quick/stats should count only draft budgets as pending."""
+        baseline_response = client.get('/api/reports/quick/stats', headers=auth_headers)
+        assert baseline_response.status_code == 200
+        baseline_pending = baseline_response.get_json()['pending_budgets']
+
+        from app.extensions import db
+        from app.models.budget import Budget
+
+        with app.app_context():
+            db.session.add_all([
+                Budget(
+                    patient_id=sample_patient.id,
+                    created_by=sample_professional.id,
+                    title='Draft pending stats',
+                    total_amount=1000.00,
+                    status='draft',
+                ),
+                Budget(
+                    patient_id=sample_patient.id,
+                    created_by=sample_professional.id,
+                    title='Sent should not count as pending',
+                    total_amount=2000.00,
+                    status='sent',
+                ),
+            ])
+            db.session.commit()
+
+        updated_response = client.get('/api/reports/quick/stats', headers=auth_headers)
+        assert updated_response.status_code == 200
+        updated_pending = updated_response.get_json()['pending_budgets']
+        assert updated_pending == baseline_pending + 1
+
+    def test_financial_summary_total_pending_uses_draft_only(
+        self,
+        app,
+        client,
+        auth_headers,
+        sample_patient,
+        sample_professional,
+    ):
+        """Financial summary total_pending should include only draft budgets."""
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+        baseline_response = client.get(
+            '/api/reports/financial',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=auth_headers
+        )
+        assert baseline_response.status_code == 200
+        baseline_pending = baseline_response.get_json()['total_pending']
+
+        from app.extensions import db
+        from app.models.budget import Budget
+
+        with app.app_context():
+            db.session.add_all([
+                Budget(
+                    patient_id=sample_patient.id,
+                    created_by=sample_professional.id,
+                    title='Draft pending amount',
+                    total_amount=1234.50,
+                    status='draft',
+                ),
+                Budget(
+                    patient_id=sample_patient.id,
+                    created_by=sample_professional.id,
+                    title='Sent excluded from pending amount',
+                    total_amount=9999.99,
+                    status='sent',
+                ),
+            ])
+            db.session.commit()
+
+        updated_response = client.get(
+            '/api/reports/financial',
+            query_string={'start_date': start_date, 'end_date': end_date},
+            headers=auth_headers
+        )
+        assert updated_response.status_code == 200
+        updated_pending = updated_response.get_json()['total_pending']
+        assert updated_pending == pytest.approx(baseline_pending + 1234.50, rel=1e-6)
+
     def test_export_contract_accepts_frontend_path(self, client, auth_headers):
         response = client.get(
             '/api/reports/financial/export',

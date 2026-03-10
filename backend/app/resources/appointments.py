@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Appointment CRUD endpoints."""
 
+from app.resources.domain_errors import domain_error_response
+from app.extensions import limiter
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -26,18 +28,6 @@ def _resolve_current_user():
     return AppointmentService.get_current_user(get_jwt_identity())
 
 
-def _service_error_response(error):
-    """Map service exceptions to API responses."""
-    status_map = {
-        ValidationError: 400,
-        AccessDeniedError: 403,
-        ResourceNotFoundError: 404,
-        ConflictError: 409,
-    }
-    status = status_map.get(type(error), 400)
-    payload = {"msg": error.message}
-    payload.update(error.details)
-    return jsonify(payload), status
 
 
 @blueprint.route("", methods=["GET"])
@@ -71,7 +61,7 @@ def list_appointments():
             }
         ), 200
     except (ValidationError, AccessDeniedError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("/<int:appointment_id>", methods=["GET"])
@@ -86,10 +76,11 @@ def get_appointment(appointment_id):
         )
         return jsonify(appointment_schema.dump(appointment)), 200
     except (AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("", methods=["POST"])
+@limiter.limit("60 per hour")
 @jwt_required()
 def create_appointment():
     """Create new appointment."""
@@ -102,7 +93,7 @@ def create_appointment():
         )
         return jsonify(appointment_schema.dump(appointment)), 201
     except (ValidationError, AccessDeniedError, ConflictError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("/<int:appointment_id>", methods=["PUT"])
@@ -119,10 +110,11 @@ def update_appointment(appointment_id):
         )
         return jsonify(appointment_schema.dump(appointment)), 200
     except (ValidationError, AccessDeniedError, ResourceNotFoundError, ConflictError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("/<int:appointment_id>", methods=["DELETE"])
+@limiter.limit("30 per hour")
 @jwt_required()
 def cancel_appointment(appointment_id):
     """Cancel appointment."""
@@ -136,7 +128,7 @@ def cancel_appointment(appointment_id):
         )
         return jsonify({"msg": "Appointment cancelled"}), 200
     except (AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("/<int:appointment_id>/confirm", methods=["POST"])
@@ -151,7 +143,7 @@ def confirm_appointment(appointment_id):
         )
         return jsonify(appointment_schema.dump(appointment)), 200
     except (AccessDeniedError, ResourceNotFoundError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)
 
 
 @blueprint.route("/calendar", methods=["GET"])
@@ -168,4 +160,4 @@ def get_calendar():
         )
         return jsonify(appointments_schema.dump(appointments)), 200
     except (ValidationError, AccessDeniedError) as error:
-        return _service_error_response(error)
+        return domain_error_response(error)

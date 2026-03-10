@@ -57,6 +57,19 @@ class Config:
     S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', '')
     S3_REGION = os.getenv('S3_REGION', 'us-east-1')
 
+    # Query result limits (used by specialty_module_service and other services)
+    QUERY_LIMITS = {
+        'upcoming_appointments': 8,
+        'recent_records': 8,
+        'recent_encounters': 8,
+        'patient_list': 12,
+        'patient_history': 25,
+        'appointment_history': 20,
+        'planned_treatments': 4,
+        'recent_payments': 10,
+        'recent_budgets': 10,
+    }
+
     # CORS Configuration
     CORS_ORIGINS = _parse_csv(
         os.getenv('CORS_ORIGINS', 'http://localhost:4200,http://localhost:3000')
@@ -66,6 +79,17 @@ class Config:
         default=True
     )
     CORS_MAX_AGE = int(os.getenv('CORS_MAX_AGE', '3600'))
+
+    # Rate limiting (Flask-Limiter)
+    RATELIMIT_ENABLED = True
+    RATELIMIT_DEFAULT = os.getenv(
+        'RATELIMIT_DEFAULT',
+        '10000 per day;1000 per hour;100 per minute',
+    )
+    RATELIMIT_STORAGE_URI = os.getenv(
+        'RATELIMIT_STORAGE_URI',
+        os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
+    )
 
 
 class DevelopmentConfig(Config):
@@ -95,6 +119,15 @@ class ProductionConfig(Config):
         os.getenv('CORS_ALLOW_CREDENTIALS'),
         default=False
     )
+    RATELIMIT_ENABLED = _parse_bool(os.getenv('RATELIMIT_ENABLED'), default=True)
+    RATELIMIT_DEFAULT = os.getenv(
+        'RATELIMIT_DEFAULT',
+        '2000 per day;300 per hour;60 per minute',
+    )
+    RATELIMIT_STORAGE_URI = os.getenv(
+        'RATELIMIT_STORAGE_URI',
+        os.getenv('REDIS_URL'),
+    )
 
     def __init__(self):
         super().__init__()
@@ -107,6 +140,12 @@ class ProductionConfig(Config):
             raise ValueError('DATABASE_URL environment variable must be set in production')
         if not self.CORS_ORIGINS:
             raise ValueError('CORS_ORIGINS environment variable must be set in production')
+        if '*' in self.CORS_ORIGINS:
+            raise ValueError('CORS_ORIGINS cannot contain wildcard (*) in production')
+        if not self.RATELIMIT_STORAGE_URI:
+            raise ValueError(
+                'RATELIMIT_STORAGE_URI or REDIS_URL must be set in production'
+            )
 
     # Security
     SESSION_COOKIE_SECURE = True

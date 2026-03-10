@@ -3,6 +3,7 @@
 Patient CRUD endpoints
 """
 
+from app.extensions import limiter
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -32,6 +33,7 @@ def serialize_patient(patient):
 
 
 @blueprint.route('', methods=['GET'])
+@limiter.limit("120 per hour")
 @jwt_required()
 def list_patients():
     """List all patients
@@ -107,6 +109,7 @@ def get_patient(patient_id):
 
 
 @blueprint.route('', methods=['POST'])
+@limiter.limit("30 per hour")
 @professional_required
 def create_patient():
     """Create new patient
@@ -239,6 +242,7 @@ def update_patient(patient_id):
 
 
 @blueprint.route('/<int:patient_id>', methods=['DELETE'])
+@limiter.limit("10 per hour")
 @professional_required
 def delete_patient(patient_id):
     """Delete patient

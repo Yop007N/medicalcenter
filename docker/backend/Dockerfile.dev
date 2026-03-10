@@ -23,5 +23,5 @@ RUN mkdir -p storage/files storage/metadata storage/cache
 
 EXPOSE 5000
 
-# Apply migrations on startup, then run development server.
-CMD ["sh", "-c", "flask db upgrade && python run.py"]
+# Reconcile DB/Alembic state on startup, then run development server.
+CMD ["sh", "-c", "python bootstrap_db.py && python run.py"]

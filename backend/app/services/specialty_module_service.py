@@ -16,6 +16,21 @@ from app.models.professional import Professional
 from app.models.specialty_encounter import SpecialtyEncounter
 from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import AccessDeniedError, ValidationError
+from flask import current_app
+
+
+def _qlimit(key):
+    """Get a query limit from app config QUERY_LIMITS dict."""
+    try:
+        return current_app.config['QUERY_LIMITS'][key]
+    except (KeyError, RuntimeError):
+        defaults = {
+            'upcoming_appointments': 8, 'recent_records': 8, 'recent_encounters': 8,
+            'patient_list': 12, 'patient_history': 25, 'appointment_history': 20,
+            'planned_treatments': 4, 'recent_payments': 10, 'recent_budgets': 10,
+        }
+        return defaults.get(key, 10)
+
 
 
 SPECIALTY_MODULES = [
@@ -598,19 +613,19 @@ class SpecialtyModuleService:
 
         upcoming_appointments = (
             appointment_query.order_by(Appointment.appointment_date.asc())
-            .limit(8)
+            .limit(_qlimit("upcoming_appointments"))
             .all()
         )
         appointment_rows = [cls._serialize_appointment(appointment) for appointment in upcoming_appointments]
 
         recent_records = (
             medical_record_query.order_by(MedicalRecord.record_date.desc())
-            .limit(8)
+            .limit(_qlimit("recent_records"))
             .all()
         )
         record_rows = [cls._serialize_medical_record(record) for record in recent_records]
 
-        patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(12).all()
+        patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(_qlimit("patient_list")).all()
         patient_rows = [cls._serialize_patient(patient) for patient in patients]
 
         encounter_query = SpecialtyEncounter.query
@@ -632,7 +647,7 @@ class SpecialtyModuleService:
 
         recent_specialty_encounters = (
             encounter_query.order_by(SpecialtyEncounter.visit_date.desc())
-            .limit(12)
+            .limit(_qlimit("recent_encounters"))
             .all()
         )
         encounter_rows = [
@@ -646,7 +661,7 @@ class SpecialtyModuleService:
             File.medical_record_id == records_subquery.c.id
         )
         documents_total = documents_query.count()
-        recent_documents = documents_query.order_by(File.created_at.desc()).limit(12).all()
+        recent_documents = documents_query.order_by(File.created_at.desc()).limit(_qlimit("recent_records")).all()
         document_rows = [cls._serialize_document(document) for document in recent_documents]
 
         return {
@@ -721,11 +736,11 @@ class SpecialtyModuleService:
             File.medical_record_id == records_subquery.c.id
         )
 
-        patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(25).all()
-        appointments = appointment_query.order_by(Appointment.appointment_date.desc()).limit(20).all()
-        records = medical_record_query.order_by(MedicalRecord.record_date.desc()).limit(20).all()
-        encounters = encounter_query.order_by(SpecialtyEncounter.visit_date.desc()).limit(20).all()
-        documents = documents_query.order_by(File.created_at.desc()).limit(20).all()
+        patients = patient_query.order_by(Patient.first_name.asc(), Patient.last_name.asc()).limit(_qlimit("patient_history")).all()
+        appointments = appointment_query.order_by(Appointment.appointment_date.desc()).limit(_qlimit("appointment_history")).all()
+        records = medical_record_query.order_by(MedicalRecord.record_date.desc()).limit(_qlimit("recent_records")).all()
+        encounters = encounter_query.order_by(SpecialtyEncounter.visit_date.desc()).limit(_qlimit("recent_encounters")).all()
+        documents = documents_query.order_by(File.created_at.desc()).limit(_qlimit("recent_records")).all()
 
         return {
             'actor': user.role,

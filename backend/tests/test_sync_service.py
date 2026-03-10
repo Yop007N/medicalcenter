@@ -8,31 +8,19 @@ from app.services.exceptions import ValidationError
 from app.services.sync_service import SyncService
 
 
-def test_sync_to_cloud_creates_completed_log(app):
+def test_create_sync_log_creates_pending_entry(app):
     with app.app_context():
-        log = SyncService.sync_to_cloud(
+        log = SyncService.create_sync_log(
             entity_type='appointment',
             entity_id=10,
             operation='create',
+            direction='local_to_cloud',
         )
 
         assert log.id is not None
         assert log.direction == 'local_to_cloud'
         assert log.operation == 'create'
-        assert log.status == 'completed'
-        assert log.completed_at is not None
-
-
-def test_sync_from_cloud_uses_update_operation(app):
-    with app.app_context():
-        log = SyncService.sync_from_cloud(
-            entity_type='patient',
-            entity_id=7,
-        )
-
-        assert log.direction == 'cloud_to_local'
-        assert log.operation == 'update'
-        assert log.status == 'completed'
+        assert log.status == 'pending'
 
 
 def test_create_sync_log_validates_operation(app):

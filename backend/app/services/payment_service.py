@@ -2,19 +2,31 @@
 """Payment service layer."""
 
 from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models.budget import Budget
 from app.models.payment import Payment
 from app.services.access_scope_service import AccessScopeService
 from app.services.budget_service import BudgetService
-from app.services.exceptions import AccessDeniedError, ResourceNotFoundError, ValidationError
+from app.services.exceptions import (
+    AccessDeniedError,
+    ConflictError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from app.services.specialty_module_service import SpecialtyModuleService
 from app.utils.helpers import normalize_currency_code
 
 
 class PaymentService:
     """Encapsulates payment business rules."""
+
+    TRANSACTION_ID_CONFLICT_MARKERS = (
+        'uq_payments_transaction_id',
+        'payments_transaction_id_key',
+        'transaction_id',
+    )
 
     @staticmethod
     def _resolve_specialty_scope(current_user, specialty_key):
@@ -154,6 +166,18 @@ class PaymentService:
         return parsed
 
     @classmethod
+    def _commit_with_integrity_handling(cls):
+        """Commit DB changes and map transaction_id uniqueness violations to conflict errors."""
+        try:
+            db.session.commit()
+        except IntegrityError as exc:
+            db.session.rollback()
+            details = str(getattr(exc, 'orig', exc)).lower()
+            if any(marker in details for marker in cls.TRANSACTION_ID_CONFLICT_MARKERS):
+                raise ConflictError('transaction_id already exists') from exc
+            raise ValidationError('Database integrity constraint failed') from exc
+
+    @classmethod
     def list_payments(
         cls,
         current_user_id,
@@ -221,7 +245,7 @@ class PaymentService:
         )
 
         db.session.add(payment)
-        db.session.commit()
+        cls._commit_with_integrity_handling()
         return payment
 
     @classmethod
@@ -260,7 +284,7 @@ class PaymentService:
             )
             payment.budget_id = data['budget_id']
 
-        db.session.commit()
+        cls._commit_with_integrity_handling()
         return payment
 
     @classmethod
@@ -294,5 +318,5 @@ class PaymentService:
             or f'TXN-{payment_id}'
         )
 
-        db.session.commit()
+        cls._commit_with_integrity_handling()
         return payment

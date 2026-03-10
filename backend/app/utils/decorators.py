@@ -11,6 +11,15 @@ from app.services.access_scope_service import AccessScopeService
 from app.services.exceptions import AccessDeniedError, ValidationError
 
 
+def get_current_user_id() -> int:
+    """Return the current JWT identity as an integer user ID.
+
+    Use this instead of int(get_jwt_identity()) across all resources.
+    Raises ValueError if the identity cannot be converted to int.
+    """
+    return int(get_jwt_identity())
+
+
 def role_required(*allowed_roles):
     """
     Decorator to check if user has required role

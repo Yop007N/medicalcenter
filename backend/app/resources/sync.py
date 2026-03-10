@@ -471,15 +471,45 @@ def _validate_update_conflict(entity_type, entity, incoming_data):
         )
 
 
+ENTITY_WRITABLE_FIELDS = {
+    'appointment': {
+        'patient_id', 'professional_id', 'appointment_date',
+        'duration_minutes', 'status', 'appointment_type', 'reason', 'notes',
+    },
+    'medical_record': {
+        'patient_id', 'professional_id', 'record_date', 'diagnosis',
+        'treatment', 'notes', 'blood_pressure', 'heart_rate',
+        'temperature', 'weight', 'height',
+    },
+    'budget': {
+        'patient_id', 'created_by', 'title', 'description',
+        'total_amount', 'currency', 'status', 'valid_until', 'items',
+    },
+    'payment': {
+        'budget_id', 'amount', 'currency', 'payment_method',
+        'payment_status', 'transaction_id', 'payment_date', 'notes',
+    },
+    'file': {
+        'medical_record_id', 'filename', 'file_type', 'file_path',
+        'description',
+    },
+}
+
+
 def _apply_model_data(entity, data):
     if not isinstance(data, dict):
         raise ValueError('data must be an object')
 
-    protected_fields = {'id', 'created_at', 'updated_at', 'sync_version'}
+    table_name = entity.__table__.name
+    entity_type = _canonical_entity_type(table_name.rstrip('s'))
+    writable = ENTITY_WRITABLE_FIELDS.get(entity_type)
+    if writable is None:
+        raise ValueError(f'No writable fields defined for {entity_type}')
+
     columns = {column.name: column for column in entity.__table__.columns}
 
     for key, value in data.items():
-        if key in protected_fields or key not in columns:
+        if key not in writable or key not in columns:
             continue
         setattr(entity, key, _coerce_column_value(columns[key], value))
 

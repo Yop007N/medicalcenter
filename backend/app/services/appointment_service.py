@@ -119,6 +119,8 @@ class AppointmentService:
         cls._validate_create_access(current_user, data)
 
         appointment_date = cls._parse_iso_datetime(data["appointment_date"], "appointment_date")
+        if appointment_date < datetime.now():
+            raise ValidationError("appointment_date must be in the future")
         try:
             patient_id = int(data["patient_id"])
         except (TypeError, ValueError) as exc:

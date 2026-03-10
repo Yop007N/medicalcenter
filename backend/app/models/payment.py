@@ -25,8 +25,8 @@ class Payment(db.Model):
         default='pending'
     )  # pending, completed, failed, refunded
 
-    # Transaction info
-    transaction_id = db.Column(db.String(100), unique=True)
+    # Transaction info — unique when set, nullable for payments without external ref
+    transaction_id = db.Column(db.String(100), nullable=True)
     payment_date = db.Column(db.DateTime)
     notes = db.Column(db.Text)
 
@@ -34,6 +34,15 @@ class Payment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     sync_version = db.Column(db.Integer, default=1, nullable=False)
+
+    __table_args__ = (
+        db.Index(
+            'uq_payments_transaction_id',
+            'transaction_id',
+            unique=True,
+            postgresql_where=db.text('transaction_id IS NOT NULL'),
+        ),
+    )
 
     def __repr__(self):
         return f'<Payment {self.id} - {self.amount} {self.currency}>'

@@ -45,12 +45,14 @@ from app.models import (
 from app.services.file_service import FileService
 from app.services.specialty_module_service import SpecialtyModuleService
 
+import os
+
 SEED_TAG = "REALISTIC_DEMO_2026_02"
 LEGACY_MODULE_KEYS = {"odontology", "psychology", "psychopedagogy"}
 
-DEFAULT_ADMIN_PASSWORD = "admin123"
-DEFAULT_PROFESSIONAL_PASSWORD = "doctor123"
-DEFAULT_PATIENT_PASSWORD = "patient123"
+DEFAULT_ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "admin123")
+DEFAULT_PROFESSIONAL_PASSWORD = os.getenv("SEED_PROFESSIONAL_PASSWORD", "doctor123")
+DEFAULT_PATIENT_PASSWORD = os.getenv("SEED_PATIENT_PASSWORD", "patient123")
 
 PROFESSIONAL_IDENTITIES = [
     ("Alicia", "Benitez"),

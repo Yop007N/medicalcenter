@@ -4,10 +4,12 @@ Sync Service - Handles cloud-local data synchronization
 """
 
 from datetime import datetime
+import hashlib
+import json
 import logging
 
-from app.models.sync_log import SyncLog
 from app.extensions import db
+from app.models.sync_log import SyncLog
 from app.services.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -18,35 +20,6 @@ class SyncService:
 
     VALID_OPERATIONS = {"create", "update", "delete"}
     VALID_DIRECTIONS = {"local_to_cloud", "cloud_to_local"}
-
-    @classmethod
-    def sync_to_cloud(cls, entity_type, entity_id, operation):
-        """
-        Synchronize local changes to cloud
-
-        Args:
-            entity_type: Type of entity (appointment, patient, etc.)
-            entity_id: Entity ID
-            operation: create, update, or delete
-        """
-        sync_log = cls.create_sync_log(
-            entity_type=entity_type,
-            entity_id=entity_id,
-            operation=operation,
-            direction="local_to_cloud",
-        )
-        return cls._execute_sync(sync_log)
-
-    @classmethod
-    def sync_from_cloud(cls, entity_type, entity_id):
-        """Pull entity data from cloud to local"""
-        sync_log = cls.create_sync_log(
-            entity_type=entity_type,
-            entity_id=entity_id,
-            operation="update",
-            direction="cloud_to_local",
-        )
-        return cls._execute_sync(sync_log)
 
     @staticmethod
     def get_pending_syncs():
@@ -70,46 +43,85 @@ class SyncService:
         return log
 
     @staticmethod
-    def _execute_sync(sync_log):
-        """Execute sync placeholder workflow and update status transitions."""
-        try:
-            sync_log.status = 'in_progress'
-            db.session.add(sync_log)
-            db.session.commit()
-
-            # Current implementation persists deterministic status transitions.
-            # External provider integration can be added without changing API callers.
-            logger.info(
-                "Syncing %s:%s (%s, %s)",
-                sync_log.entity_type,
-                sync_log.entity_id,
-                sync_log.operation,
-                sync_log.direction,
-            )
-
-            sync_log.status = 'completed'
-            sync_log.completed_at = datetime.utcnow()
-            sync_log.error_message = None
-            db.session.add(sync_log)
-            db.session.commit()
-            return sync_log
-        except Exception as exc:
-            db.session.rollback()
-            SyncService._mark_sync_failed(sync_log, str(exc))
-            return sync_log
+    def calculate_checksum(data):
+        """Calculate SHA256 checksum for integrity checks."""
+        if isinstance(data, dict):
+            data = json.dumps(data, sort_keys=True, default=str)
+        return hashlib.sha256(str(data).encode('utf-8')).hexdigest()
 
     @staticmethod
-    def _mark_sync_failed(sync_log, error_message):
-        """Persist failed sync status without masking original execution errors."""
+    def get_model_updates_since(model_class, since_datetime):
+        """Return rows updated since the provided datetime."""
         try:
-            sync_log.status = 'failed'
-            sync_log.error_message = error_message
-            sync_log.retry_count = (sync_log.retry_count or 0) + 1
-            db.session.add(sync_log)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            logger.exception("Unable to persist failed sync log")
+            return model_class.query.filter(model_class.updated_at >= since_datetime).all()
+        except Exception as exc:
+            logger.error("Error getting updates for %s: %s", getattr(model_class, '__name__', model_class), exc)
+            return []
+
+    @staticmethod
+    def resolve_conflict(local_record, remote_record):
+        """Resolve conflicts using last-write-wins."""
+        remote_record = remote_record or {}
+        local_updated = (
+            local_record.updated_at
+            if hasattr(local_record, 'updated_at')
+            else local_record.created_at
+        )
+        remote_updated = remote_record.get('updated_at') or remote_record.get('created_at')
+        if not remote_updated:
+            return 'local'
+        if isinstance(remote_updated, str):
+            remote_updated = datetime.fromisoformat(remote_updated.replace('Z', '+00:00'))
+
+        if local_updated >= remote_updated:
+            logger.info("Conflict resolved: keeping local version (newer)")
+            return 'local'
+        logger.info("Conflict resolved: using remote version (newer)")
+        return 'remote'
+
+    @classmethod
+    def sync_model_data(cls, model_class, since_datetime=None):
+        """Run simplified model sync and return sync stats."""
+        stats = {
+            'model': model_class.__name__,
+            'updated': 0,
+            'created': 0,
+            'conflicts': 0,
+            'errors': 0
+        }
+
+        try:
+            if since_datetime:
+                records = cls.get_model_updates_since(model_class, since_datetime)
+                logger.info(
+                    "Incremental sync for %s: %s records updated since %s",
+                    model_class.__name__,
+                    len(records),
+                    since_datetime,
+                )
+            else:
+                records = model_class.query.all()
+                logger.info("Full sync for %s: %s records", model_class.__name__, len(records))
+
+            stats['updated'] = len(records)
+
+            for record in records:
+                try:
+                    checksum = cls.calculate_checksum({'id': record.id, 'model': model_class.__name__})
+                    logger.debug("%s ID %s checksum: %s", model_class.__name__, record.id, checksum)
+                except Exception as exc:
+                    logger.error(
+                        "Error processing %s ID %s: %s",
+                        model_class.__name__,
+                        getattr(record, 'id', None),
+                        exc,
+                    )
+                    stats['errors'] += 1
+        except Exception as exc:
+            logger.error("Error syncing %s: %s", model_class.__name__, exc)
+            stats['errors'] += 1
+
+        return stats
 
     @classmethod
     def _validate_sync_input(cls, entity_type, entity_id, operation, direction):
