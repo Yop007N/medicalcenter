@@ -1,0 +1,3 @@
+## 2024-05-18 - Custom interactive elements missing keyboard navigation styling
+**Learning:** Custom interactive elements (like the `.slot-chip` buttons for time selection) often lack proper native focus rings (`:focus-visible`) and semantic states (`aria-pressed`) compared to built-in Ionic components. Since Ionic buttons provide these out of the box, we can easily overlook them on generic buttons built into custom component grids.
+**Action:** When building custom interactive grids or lists with generic buttons instead of standard Ionic components, explicitly review and add `:focus-visible` states and relevant `aria` roles/states.
