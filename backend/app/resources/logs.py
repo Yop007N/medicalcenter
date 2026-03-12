@@ -4,11 +4,13 @@
 import os
 
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required
 
 from app.extensions import limiter
 from app.resources.domain_errors import domain_error_response, message_response
 from app.services.exceptions import ValidationError
 from app.services.logs_service import LogsService
+from app.utils.decorators import admin_required
 
 
 blueprint = Blueprint('logs', __name__, url_prefix='/api/logs')
@@ -25,7 +27,7 @@ def _logs_service() -> LogsService:
 
 
 @blueprint.route('/frontend', methods=['POST'])
-@limiter.exempt
+@limiter.limit("10 per minute")
 def receive_frontend_logs():
     """
     Receive logs from frontend and store them in doc.log
@@ -73,7 +75,9 @@ def receive_frontend_logs():
 
 
 @blueprint.route('/frontend', methods=['GET'])
-@limiter.exempt
+@jwt_required()
+@admin_required
+@limiter.limit("20 per minute")
 def get_frontend_logs():
     """
     Get the last N lines of frontend logs
@@ -101,7 +105,9 @@ def get_frontend_logs():
 
 
 @blueprint.route('/frontend', methods=['DELETE'])
-@limiter.exempt
+@jwt_required()
+@admin_required
+@limiter.limit("20 per minute")
 def clear_frontend_logs():
     """
     Clear all frontend logs
