@@ -212,10 +212,10 @@ interface PatientFilesGroup {
                       }
                     </ion-label>
                     <ion-badge slot="end" color="medium">{{ file.category }}</ion-badge>
-                    <ion-button fill="clear" size="small" slot="end" (click)="download(file)">
+                    <ion-button fill="clear" size="small" slot="end" (click)="download(file)" aria-label="Descargar archivo">
                       <ion-icon name="download-outline"></ion-icon>
                     </ion-button>
-                    <ion-button fill="clear" size="small" color="danger" slot="end" (click)="remove(file)">
+                    <ion-button fill="clear" size="small" color="danger" slot="end" (click)="remove(file)" aria-label="Eliminar archivo">
                       <ion-icon name="trash-outline"></ion-icon>
                     </ion-button>
                   </ion-item>
