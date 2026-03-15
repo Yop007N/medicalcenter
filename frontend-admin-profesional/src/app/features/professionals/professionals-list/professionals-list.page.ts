@@ -117,7 +117,7 @@ import { Professional } from '../../../models';
 
       <!-- FAB para crear nuevo profesional (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/professionals/new">
+        <ion-fab-button aria-label="Crear nuevo profesional" routerLink="/professionals/new">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
