@@ -1,0 +1,3 @@
+## 2026-03-17 - Add ARIA labels to Icon-Only Buttons
+**Learning:** Ionic components like `ion-button`, `ion-fab-button` and `ion-menu-button` need explicit `aria-label`s for screen reader users when they do not wrap text or labels natively, particularly when relying on `ion-icon`. This is true for mobile and desktop targeted actions such as editing, deleting, or creating entities.
+**Action:** When creating action buttons without visible text descriptions, add `aria-label` dynamically to correctly communicate their functions to assistive technologies in English or Spanish as applicable to the app context.
