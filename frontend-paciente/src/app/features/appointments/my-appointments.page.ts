@@ -125,6 +125,7 @@ type ApiErrorShape = {
                       type="button"
                       class="slot-chip"
                       [class.selected]="isSelectedSlot(professional.id, slot)"
+                      [attr.aria-pressed]="isSelectedSlot(professional.id, slot)"
                       (click)="selectSlot(professional, slot)"
                     >
                       {{ slot | date:'dd/MM HH:mm' }}
