@@ -93,7 +93,7 @@ import { OfflineService } from '../../core/services/offline.service';
       <section class="panel">
         <div class="section-head">
           <h3 class="panel-title">Proximo turno</h3>
-          <ion-button size="small" fill="clear" routerLink="/my-appointments">Ver todos</ion-button>
+          <ion-button size="small" fill="clear" routerLink="/my-appointments" aria-label="Ver todos mis turnos">Ver todos</ion-button>
         </div>
 
         @if (nextAppointment) {
@@ -124,23 +124,23 @@ import { OfflineService } from '../../core/services/offline.service';
       <section class="panel">
         <h3 class="panel-title">Accesos rapidos</h3>
         <div class="quick-actions">
-          <a class="quick-action" routerLink="/my-appointments">
+          <a class="quick-action" routerLink="/my-appointments" aria-label="Ir a Mis turnos">
             <ion-icon name="calendar-outline"></ion-icon>
             <span>Mis turnos</span>
           </a>
-          <a class="quick-action" routerLink="/my-care-plan">
+          <a class="quick-action" routerLink="/my-care-plan" aria-label="Ir a Plan de cuidado">
             <ion-icon name="medical-outline"></ion-icon>
             <span>Plan de cuidado</span>
           </a>
-          <a class="quick-action" routerLink="/my-budgets">
+          <a class="quick-action" routerLink="/my-budgets" aria-label="Ir a Presupuestos">
             <ion-icon name="wallet-outline"></ion-icon>
             <span>Presupuestos</span>
           </a>
-          <a class="quick-action" routerLink="/my-history">
+          <a class="quick-action" routerLink="/my-history" aria-label="Ir a Historia clínica">
             <ion-icon name="document-text-outline"></ion-icon>
             <span>Historia clinica</span>
           </a>
-          <a class="quick-action" routerLink="/my-profile">
+          <a class="quick-action" routerLink="/my-profile" aria-label="Ir a Mi perfil">
             <ion-icon name="pulse-outline"></ion-icon>
             <span>Mi perfil</span>
           </a>
@@ -150,7 +150,7 @@ import { OfflineService } from '../../core/services/offline.service';
       <section class="panel">
         <div class="section-head">
           <h3 class="panel-title">Indicaciones recientes</h3>
-          <ion-button size="small" fill="clear" routerLink="/my-care-plan">Ver plan</ion-button>
+          <ion-button size="small" fill="clear" routerLink="/my-care-plan" aria-label="Ver plan de cuidado">Ver plan</ion-button>
         </div>
         @if (careHints.length === 0) {
           <p class="panel-text">No hay indicaciones recientes registradas.</p>
