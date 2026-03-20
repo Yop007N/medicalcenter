@@ -1,0 +1,3 @@
+## 2026-03-20 - Quick Access and Shortcut Link Accessibility
+**Learning:** Ionic `<ion-button>` elements containing only text with `fill="clear"` and `<a>` links wrapping multiple elements including text and icons require explicitly added `aria-label` attributes for screen readers to correctly describe their action/destination instead of reading the inner text literally which might not convey the full context (like "Ver todos").
+**Action:** When adding quick links, especially those using `routerLink` or "See all" style buttons, always ensure a descriptive `aria-label` is included explaining exactly what the link/button opens or navigates to.
