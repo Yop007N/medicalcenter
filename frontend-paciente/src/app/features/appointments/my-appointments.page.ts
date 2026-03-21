@@ -92,8 +92,8 @@ type ApiErrorShape = {
         </div>
 
         <div class="item-actions">
-          <ion-button size="small" fill="outline" (click)="reloadAvailability()">
-            Actualizar disponibilidad
+          <ion-button size="small" fill="outline" (click)="reloadAvailability()" [disabled]="professionalLoading">
+            @if (professionalLoading) { Actualizando... } @else { Actualizar disponibilidad }
           </ion-button>
         </div>
 
