@@ -9,7 +9,7 @@ import { ModalController } from '@ionic/angular/standalone';
   imports: [CommonModule, IonButton],
   template: `
     <div class="success-modal-overlay" (click)="dismiss()">
-      <div class="success-modal-container" (click)="$event.stopPropagation()">
+      <div class="success-modal-container" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="success-modal-title">
         <div class="success-icon-container">
           <div class="success-icon-circle">
             <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
@@ -18,7 +18,7 @@ import { ModalController } from '@ionic/angular/standalone';
             </svg>
           </div>
         </div>
-        <h2 class="success-title">Operacion Exitosa</h2>
+        <h2 id="success-modal-title" class="success-title">Operacion Exitosa</h2>
         <p class="success-message">{{ message }}</p>
         <ion-button expand="block" class="success-btn" (click)="dismiss()">
           Aceptar
