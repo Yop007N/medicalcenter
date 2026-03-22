@@ -9,7 +9,7 @@ import { ModalController } from '@ionic/angular/standalone';
   imports: [CommonModule, IonButton],
   template: `
     <div class="error-modal-overlay" (click)="dismiss()">
-      <div class="error-modal-container" (click)="$event.stopPropagation()">
+      <div class="error-modal-container" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="error-modal-title">
         <div class="error-icon-container">
           <div class="error-icon-circle">
             <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
@@ -18,7 +18,7 @@ import { ModalController } from '@ionic/angular/standalone';
             </svg>
           </div>
         </div>
-        <h2 class="error-title">Error</h2>
+        <h2 id="error-modal-title" class="error-title">Error</h2>
         <p class="error-message">{{ message }}</p>
         <ion-button expand="block" class="error-btn" (click)="dismiss()">
           Aceptar
