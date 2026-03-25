@@ -80,19 +80,19 @@ import { selectSelectedProfessional, selectProfessionalsLoading } from '../../..
         <ion-buttons slot="end">
           @if (professional$ | async; as professional) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/professionals', professional.id, 'edit']" class="hide-desktop">
-              <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+            <ion-button [routerLink]="['/professionals', professional.id, 'edit']" class="hide-desktop" aria-label="Editar profesional">
+              <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(professional)" class="hide-desktop">
-              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            <ion-button color="danger" (click)="confirmDelete(professional)" class="hide-desktop" aria-label="Eliminar profesional">
+              <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
             <ion-button [routerLink]="['/professionals', professional.id, 'edit']" fill="outline" class="hide-mobile">
-              <ion-icon slot="start" name="create-outline"></ion-icon>
+              <ion-icon slot="start" name="create-outline" aria-hidden="true"></ion-icon>
               Editar
             </ion-button>
             <ion-button color="danger" fill="outline" (click)="confirmDelete(professional)" class="hide-mobile">
-              <ion-icon slot="start" name="trash-outline"></ion-icon>
+              <ion-icon slot="start" name="trash-outline" aria-hidden="true"></ion-icon>
               Eliminar
             </ion-button>
           }
