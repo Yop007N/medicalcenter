@@ -130,7 +130,13 @@ import { selectAuthError, selectAuthLoading } from '../../../store/auth/auth.sel
                 <ion-icon
                   [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
                   slot="end"
+                  role="button"
+                  tabindex="0"
+                  [attr.aria-label]="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+                  [attr.aria-pressed]="showPassword"
                   (click)="showPassword = !showPassword"
+                  (keydown.enter)="showPassword = !showPassword"
+                  (keydown.space)="$event.preventDefault(); showPassword = !showPassword"
                   class="password-toggle"
                 ></ion-icon>
               </ion-item>
@@ -160,7 +166,13 @@ import { selectAuthError, selectAuthLoading } from '../../../store/auth/auth.sel
                 <ion-icon
                   [name]="showConfirmPassword ? 'eye-off-outline' : 'eye-outline'"
                   slot="end"
+                  role="button"
+                  tabindex="0"
+                  [attr.aria-label]="showConfirmPassword ? 'Ocultar confirmacion de contrasena' : 'Mostrar confirmacion de contrasena'"
+                  [attr.aria-pressed]="showConfirmPassword"
                   (click)="showConfirmPassword = !showConfirmPassword"
+                  (keydown.enter)="showConfirmPassword = !showConfirmPassword"
+                  (keydown.space)="$event.preventDefault(); showConfirmPassword = !showConfirmPassword"
                   class="password-toggle"
                 ></ion-icon>
               </ion-item>
