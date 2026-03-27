@@ -55,6 +55,8 @@ storage/metadata/*
 !storage/metadata/.gitkeep
 storage/cache/*
 !storage/cache/.gitkeep
+storage/backups/*
+!storage/backups/.gitkeep
 
 # Logs
 *.log
