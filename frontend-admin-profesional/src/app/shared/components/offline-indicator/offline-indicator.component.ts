@@ -11,22 +11,31 @@ import { SyncService, SyncStatus } from '../../../core/services/sync.service';
   standalone: true,
   imports: [CommonModule, IonBadge, IonIcon, IonSpinner],
   template: `
-    <div class="offline-indicator" *ngIf="(connectivity.online$ | async) === false || (syncStatus$ | async)?.pendingCount">
+    <div
+      class="offline-indicator"
+      role="status"
+      aria-live="polite"
+      *ngIf="(connectivity.online$ | async) === false || (syncStatus$ | async)?.pendingCount"
+    >
       <ng-container *ngIf="(connectivity.online$ | async) === false">
-        <div class="indicator offline">
-          <ion-icon name="cloud-offline-outline"></ion-icon>
+        <div class="indicator offline" title="Sin conexión a internet">
+          <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
           <span>Sin conexión</span>
         </div>
       </ng-container>
 
       <ng-container *ngIf="syncStatus$ | async as status">
-        <div class="indicator syncing" *ngIf="status.isSyncing">
-          <ion-spinner name="dots"></ion-spinner>
+        <div class="indicator syncing" *ngIf="status.isSyncing" title="Sincronizando datos con el servidor">
+          <ion-spinner name="dots" aria-hidden="true"></ion-spinner>
           <span>Sincronizando...</span>
         </div>
 
-        <div class="indicator pending" *ngIf="!status.isSyncing && status.pendingCount > 0">
-          <ion-icon name="sync-outline"></ion-icon>
+        <div
+          class="indicator pending"
+          *ngIf="!status.isSyncing && status.pendingCount > 0"
+          title="Cambios pendientes de sincronización"
+        >
+          <ion-icon name="sync-outline" aria-hidden="true"></ion-icon>
           <ion-badge color="warning">{{ status.pendingCount }}</ion-badge>
           <span>Pendientes</span>
         </div>
