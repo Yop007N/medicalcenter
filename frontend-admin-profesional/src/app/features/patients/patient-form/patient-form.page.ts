@@ -56,7 +56,7 @@ type PatientFormPayload = Partial<Patient> & { password?: string };
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/patients"></ion-back-button>
+          <ion-back-button defaultHref="/patients" aria-label="Volver a la lista"></ion-back-button>
         </ion-buttons>
         <ion-title>{{ isEditMode ? 'Editar Paciente' : 'Nuevo Paciente' }}</ion-title>
         <ion-buttons slot="end">
