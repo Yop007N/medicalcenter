@@ -11,6 +11,7 @@ from app.models.professional import Professional
 from app.models.user import User
 from app.extensions import db
 from app.services.exceptions import ConflictError, ValidationError
+from app.utils.validators import validate_email
 
 
 class AuthService:
@@ -80,6 +81,10 @@ class AuthService:
         if role not in AuthService.PUBLIC_REGISTRATION_ROLES:
             allowed = ", ".join(sorted(AuthService.PUBLIC_REGISTRATION_ROLES))
             raise ValidationError(f'Invalid role. Allowed roles: {allowed}')
+
+        # Validate email format
+        if not validate_email(email):
+            raise ValidationError('Invalid email format')
 
         # Validate password strength
         AuthService.validate_password(password)
