@@ -4,6 +4,8 @@ Report Service - Generación de reportes médicos, financieros y de agenda
 """
 
 from datetime import datetime, timedelta
+from collections import defaultdict
+from decimal import Decimal
 from sqlalchemy import func, and_, or_
 from app.extensions import db
 from app.models.appointment import Appointment
@@ -219,6 +221,7 @@ class ReportService:
     def generate_revenue_report(start_date, end_date, professional_id=None):
         """
         Genera reporte de ingresos
+        Optimized by fetching only necessary columns and calculating aggregates in Python
 
         Args:
             start_date: Fecha inicio
@@ -244,24 +247,50 @@ class ReportService:
                 )
             )
 
-        payments = Payment.query.filter(and_(*filters)).all()
-
-        # Agrupar por método de pago
-        by_method = db.session.query(
+        # Fetch only necessary columns to avoid ORM object overhead
+        payments_data = db.session.query(
+            Payment.id,
+            Payment.payment_date,
+            Payment.amount,
             Payment.payment_method,
-            func.sum(Payment.amount)
-        ).filter(and_(*filters)).group_by(Payment.payment_method).all()
+            Payment.budget_id
+        ).filter(and_(*filters)).all()
 
-        # Ingresos por día
-        daily_revenue = db.session.query(
-            func.date(Payment.payment_date).label('date'),
-            func.sum(Payment.amount).label('total')
-        ).filter(and_(*filters)).group_by(
-            func.date(Payment.payment_date)
-        ).order_by('date').all()
+        # Calculate aggregates in Python
+        by_method_map = defaultdict(Decimal)
+        daily_revenue_map = defaultdict(Decimal)
+        amounts = []
+        total_amount_decimal = Decimal(0)
+        formatted_payments = []
 
-        total_amount = sum([float(p.amount) for p in payments])
-        amounts = [float(p.amount) for p in payments] if payments else []
+        for p in payments_data:
+            amount = p.amount if p.amount is not None else Decimal(0)
+
+            # Update aggregates
+            by_method_map[p.payment_method] += amount
+
+            if p.payment_date:
+                daily_revenue_map[p.payment_date.date()] += amount
+
+            amount_float = float(amount)
+            amounts.append(amount_float)
+            total_amount_decimal += amount
+
+            formatted_payments.append({
+                'id': p.id,
+                'date': p.payment_date.isoformat() if p.payment_date else None,
+                'amount': amount_float,
+                'method': p.payment_method,
+                'budget_id': p.budget_id
+            })
+
+        total_amount = float(total_amount_decimal)
+
+        # Sort daily revenue
+        daily_revenue_sorted = sorted(
+            [{'date': d.isoformat(), 'amount': float(amt)} for d, amt in daily_revenue_map.items()],
+            key=lambda x: x['date']
+        )
 
         return {
             'period': {
@@ -271,27 +300,14 @@ class ReportService:
             },
             'summary': {
                 'total_revenue': total_amount,
-                'total_transactions': len(payments),
-                'average_transaction': total_amount / len(payments) if payments else 0,
+                'total_transactions': len(payments_data),
+                'average_transaction': total_amount / len(payments_data) if payments_data else 0,
                 'largest_payment': max(amounts) if amounts else 0,
                 'smallest_payment': min(amounts) if amounts else 0
             },
-            'by_payment_method': {method: float(total) if total else 0 for method, total in by_method},
-            'daily_revenue': [
-                {
-                    'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
-                    'amount': float(total) if total else 0
-                } for date, total in daily_revenue
-            ],
-            'payments': [
-                {
-                    'id': p.id,
-                    'date': p.payment_date.isoformat(),
-                    'amount': float(p.amount),
-                    'method': p.payment_method,
-                    'budget_id': p.budget_id
-                } for p in payments
-            ]
+            'by_payment_method': {method: float(total) for method, total in by_method_map.items()},
+            'daily_revenue': daily_revenue_sorted,
+            'payments': formatted_payments
         }
 
     @staticmethod
