@@ -3,6 +3,7 @@
 Medical Record Service - Business logic for medical records
 """
 
+from sqlalchemy.orm import joinedload
 from app.models.medical_record import MedicalRecord
 from app.models.professional import Professional
 from app.models.professional_patient_assignment import ProfessionalPatientAssignment
@@ -18,9 +19,17 @@ class MedicalRecordService:
     @staticmethod
     def get_patient_medical_history(patient_id):
         """Get complete medical history for a patient"""
-        return MedicalRecord.query.filter_by(patient_id=patient_id).order_by(
-            MedicalRecord.record_date.desc()
-        ).all()
+        return (
+            MedicalRecord.query.filter_by(patient_id=patient_id)
+            # Bolt: Eager load relationships to prevent N+1 queries
+            .options(
+                joinedload(MedicalRecord.patient),
+                joinedload(MedicalRecord.professional),
+                db.subqueryload(MedicalRecord.files),
+            )
+            .order_by(MedicalRecord.record_date.desc())
+            .all()
+        )
 
     @staticmethod
     def list_medical_records(
@@ -88,7 +97,12 @@ class MedicalRecordService:
             query = query.filter_by(professional_id=professional_id)
 
         return (
-            query.options(db.subqueryload(MedicalRecord.files))
+            query.options(
+                # Bolt: Eager load relationships to prevent N+1 queries
+                joinedload(MedicalRecord.patient),
+                joinedload(MedicalRecord.professional),
+                db.subqueryload(MedicalRecord.files),
+            )
             .order_by(db.desc(MedicalRecord.record_date))
             .all()
         )
