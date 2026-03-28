@@ -11,23 +11,29 @@ import { SyncService, SyncStatus } from '../../../core/services/sync.service';
   standalone: true,
   imports: [CommonModule, IonBadge, IonIcon, IonSpinner],
   template: `
-    <div class="offline-indicator" *ngIf="(connectivity.online$ | async) === false || (syncStatus$ | async)?.pendingCount">
+    <div
+      class="offline-indicator"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      *ngIf="(connectivity.online$ | async) === false || (syncStatus$ | async)?.pendingCount"
+    >
       <ng-container *ngIf="(connectivity.online$ | async) === false">
-        <div class="indicator offline">
-          <ion-icon name="cloud-offline-outline"></ion-icon>
+        <div class="indicator offline" title="Sin conexión a internet">
+          <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
           <span>Sin conexión</span>
         </div>
       </ng-container>
 
       <ng-container *ngIf="syncStatus$ | async as status">
-        <div class="indicator syncing" *ngIf="status.isSyncing">
-          <ion-spinner name="dots"></ion-spinner>
+        <div class="indicator syncing" title="Sincronizando datos..." *ngIf="status.isSyncing">
+          <ion-spinner name="dots" aria-hidden="true"></ion-spinner>
           <span>Sincronizando...</span>
         </div>
 
-        <div class="indicator pending" *ngIf="!status.isSyncing && status.pendingCount > 0">
-          <ion-icon name="sync-outline"></ion-icon>
-          <ion-badge color="warning">{{ status.pendingCount }}</ion-badge>
+        <div class="indicator pending" [title]="status.pendingCount + ' cambios pendientes'" *ngIf="!status.isSyncing && status.pendingCount > 0">
+          <ion-icon name="sync-outline" aria-hidden="true"></ion-icon>
+          <ion-badge color="warning" aria-hidden="true">{{ status.pendingCount }}</ion-badge>
           <span>Pendientes</span>
         </div>
       </ng-container>
@@ -48,6 +54,7 @@ import { SyncService, SyncStatus } from '../../../core/services/sync.service';
       border-radius: 16px;
       font-size: 12px;
       font-weight: 500;
+      cursor: help;
     }
 
     .indicator.offline {
