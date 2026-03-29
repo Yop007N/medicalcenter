@@ -70,7 +70,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
               <ion-card-header>
                 <ion-card-title>
                   Motivo de consulta
-                  <ion-button fill="clear" size="small">
+                  <ion-button fill="clear" size="small" aria-label="Más opciones de motivo de consulta">
                     <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
                   </ion-button>
                 </ion-card-title>
@@ -98,7 +98,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
               <ion-card-header>
                 <ion-card-title>
                   Enfermedad actual
-                  <ion-button fill="clear" size="small">
+                  <ion-button fill="clear" size="small" aria-label="Más opciones de enfermedad actual">
                     <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
                   </ion-button>
                 </ion-card-title>
@@ -126,7 +126,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
               <ion-card-header>
                 <ion-card-title>
                   Alertas médicas
-                  <ion-button fill="clear" size="small">
+                  <ion-button fill="clear" size="small" aria-label="Más opciones de alertas médicas">
                     <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
                   </ion-button>
                 </ion-card-title>
@@ -157,7 +157,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
               <ion-card-header>
                 <ion-card-title>
                   Medicamentos
-                  <ion-button fill="clear" size="small">
+                  <ion-button fill="clear" size="small" aria-label="Más opciones de medicamentos">
                     <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
                   </ion-button>
                 </ion-card-title>
@@ -186,7 +186,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
               <ion-card-header>
                 <ion-card-title>
                   Hábitos
-                  <ion-button fill="clear" size="small">
+                  <ion-button fill="clear" size="small" aria-label="Más opciones de hábitos">
                     <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
                   </ion-button>
                 </ion-card-title>
