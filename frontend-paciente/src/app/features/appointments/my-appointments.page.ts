@@ -216,8 +216,14 @@ type ApiErrorShape = {
                       color="danger"
                       (click)="cancelAppointment(appointment)"
                       [disabled]="cancellingIds.has(appointment.id)"
+                      [attr.aria-label]="'Cancelar turno de ' + (appointment.appointment_type || 'Consulta general') + ' con ' + (appointment.professional?.first_name || 'profesional') + ' ' + (appointment.professional?.last_name || '')"
                     >
-                      @if (cancellingIds.has(appointment.id)) { Cancelando... } @else { Cancelar }
+                      @if (cancellingIds.has(appointment.id)) {
+                        <ion-spinner name="crescent" style="width: 14px; height: 14px; margin-right: 6px;"></ion-spinner>
+                        Cancelando...
+                      } @else {
+                        Cancelar
+                      }
                     </ion-button>
                   }
                 </div>
