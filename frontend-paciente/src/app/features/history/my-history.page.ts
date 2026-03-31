@@ -369,7 +369,7 @@ type SectionResult<T> = {
               @if (document.description) {
                 <p class="panel-text">{{ document.description }}</p>
               }
-              <ion-button size="small" fill="outline" (click)="downloadDocument(document)">
+              <ion-button size="small" fill="outline" (click)="downloadDocument(document)" [attr.aria-label]="'Descargar documento: ' + (document.title || 'Documento clinico')">
                 Descargar
               </ion-button>
             </section>
@@ -403,8 +403,14 @@ type SectionResult<T> = {
                     size="small"
                     (click)="signConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
+                    [attr.aria-label]="'Firmar consentimiento: ' + consent.title"
                   >
-                    Firmar
+                    @if (processingConsentIds.has(consent.id)) {
+                      <ion-spinner name="crescent" style="width: 14px; height: 14px; margin-right: 6px;"></ion-spinner>
+                      Firmando...
+                    } @else {
+                      Firmar
+                    }
                   </ion-button>
                   <ion-button
                     size="small"
@@ -412,6 +418,7 @@ type SectionResult<T> = {
                     color="danger"
                     (click)="rejectConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
+                    [attr.aria-label]="'Rechazar consentimiento: ' + consent.title"
                   >
                     Rechazar
                   </ion-button>
