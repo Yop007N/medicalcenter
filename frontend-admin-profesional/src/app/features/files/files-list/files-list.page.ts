@@ -97,7 +97,7 @@ interface PatientFilesGroup {
       <ion-toolbar>
         <ion-buttons slot="start">
           @if (backPatientId) {
-            <ion-button fill="clear" (click)="goBack()">
+            <ion-button aria-label="Volver" fill="clear" (click)="goBack()">
               <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
             </ion-button>
           } @else {
@@ -106,7 +106,7 @@ interface PatientFilesGroup {
         </ion-buttons>
         <ion-title>Archivos</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="loadFiles(uploadPatientId || undefined)" [disabled]="!uploadPatientId">
+          <ion-button aria-label="Actualizar archivos" (click)="loadFiles(uploadPatientId || undefined)" [disabled]="!uploadPatientId">
             <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -212,10 +212,10 @@ interface PatientFilesGroup {
                       }
                     </ion-label>
                     <ion-badge slot="end" color="medium">{{ file.category }}</ion-badge>
-                    <ion-button fill="clear" size="small" slot="end" (click)="download(file)">
+                    <ion-button aria-label="Descargar archivo" fill="clear" size="small" slot="end" (click)="download(file)">
                       <ion-icon name="download-outline"></ion-icon>
                     </ion-button>
-                    <ion-button fill="clear" size="small" color="danger" slot="end" (click)="remove(file)">
+                    <ion-button aria-label="Eliminar archivo" fill="clear" size="small" color="danger" slot="end" (click)="remove(file)">
                       <ion-icon name="trash-outline"></ion-icon>
                     </ion-button>
                   </ion-item>
