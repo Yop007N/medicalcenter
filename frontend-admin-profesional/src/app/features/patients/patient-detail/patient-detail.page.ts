@@ -112,10 +112,10 @@ type ApiErrorShape = {
         <ion-buttons slot="end">
           @if (patient$ | async; as patient) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/patients', patient.id, 'edit']" [queryParams]="moduleQueryParams" class="hide-desktop">
+            <ion-button [routerLink]="['/patients', patient.id, 'edit']" [queryParams]="moduleQueryParams" class="hide-desktop" aria-label="Editar">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(patient)" class="hide-desktop">
+            <ion-button color="danger" (click)="confirmDelete(patient)" class="hide-desktop" aria-label="Eliminar">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
