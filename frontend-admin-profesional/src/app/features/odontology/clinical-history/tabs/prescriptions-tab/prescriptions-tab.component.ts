@@ -1,6 +1,7 @@
-import { Component, Input, OnInit, OnChanges, SimpleChanges, inject } from '@angular/core';
+import { Component, Input, OnInit, OnChanges, SimpleChanges, inject, SecurityContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   IonCard,
   IonCardHeader,
@@ -118,7 +119,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                   </div>
                 </ion-card-header>
                 <ion-card-content>
-                  <div class="prescription-content" [innerHTML]="prescription.content"></div>
+                  <div class="prescription-content" [innerHTML]="sanitizeHtml(prescription.content)"></div>
                   @if (prescription.professional) {
                     <div class="prescription-professional">
                       Dr.(a) {{ prescription.professional.first_name }} {{ prescription.professional.last_name }}
@@ -264,6 +265,7 @@ export class PrescriptionsTabComponent implements OnInit, OnChanges {
 
   private clinicalHistoryService = inject(ClinicalHistoryService);
   private toastController = inject(ToastController);
+  private sanitizer = inject(DomSanitizer);
 
   loading = false;
   creating = false;
@@ -331,13 +333,14 @@ export class PrescriptionsTabComponent implements OnInit, OnChanges {
   print(prescription: Prescription): void {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
+      const sanitizedContent = this.sanitizeHtml(prescription.content);
       printWindow.document.write(`
         <html>
           <head><title>Receta - ${prescription.prescription_date}</title></head>
           <body>
             <h1>Receta Médica</h1>
             <p><strong>Fecha:</strong> ${new Date(prescription.prescription_date!).toLocaleDateString()}</p>
-            <div>${prescription.content}</div>
+            <div>${sanitizedContent}</div>
             ${prescription.professional ? `<p><strong>Dr.(a)</strong> ${prescription.professional.first_name} ${prescription.professional.last_name}</p>` : ''}
           </body>
         </html>
@@ -345,6 +348,11 @@ export class PrescriptionsTabComponent implements OnInit, OnChanges {
       printWindow.document.close();
       printWindow.print();
     }
+  }
+
+  sanitizeHtml(html: string | undefined): string {
+    if (!html) return '';
+    return this.sanitizer.sanitize(SecurityContext.HTML, html) || '';
   }
 
   toggleShowAnnulled(): void {
