@@ -1,0 +1,3 @@
+## 2024-04-09 - Missing ARIA Labels on Mobile Icon-Only Actions
+**Learning:** Found an accessibility gap pattern where mobile-specific icon-only action buttons (`<ion-button>` with class `hide-desktop` containing only `<ion-icon>`) frequently lacked `aria-label` attributes in the detail views (like `appointment-detail.page.ts`). This makes these buttons invisible or confusing for screen reader users on mobile devices.
+**Action:** When working on detail or list views that conditionally render icon-only buttons for mobile using `hide-desktop` or similar classes, always ensure an `aria-label` is provided describing the action (e.g., `aria-label="Editar cita"` or `aria-label="Más opciones de cita"`).
