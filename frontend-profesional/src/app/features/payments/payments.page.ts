@@ -93,11 +93,11 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
       }
 
       @if (errorMessage) {
-        <div class="error-box" role="alert">{{ errorMessage }}</div>
+        <div class="error-box" role="alert" aria-live="assertive">{{ errorMessage }}</div>
       }
 
       @if (successMessage) {
-        <div class="success-box" role="status">{{ successMessage }}</div>
+        <div class="success-box" role="status" aria-live="polite">{{ successMessage }}</div>
       }
 
       @if (showForm) {
