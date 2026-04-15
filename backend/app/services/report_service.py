@@ -164,29 +164,15 @@ class ReportService:
             )
         ).all()
 
-        # Estadísticas por estado de turno
-        status_stats = db.session.query(
-            Appointment.status,
-            func.count(Appointment.id)
-        ).filter(
-            and_(
-                Appointment.professional_id == professional_id,
-                Appointment.appointment_date >= start_date,
-                Appointment.appointment_date <= end_date
-            )
-        ).group_by(Appointment.status).all()
+        # Estadísticas por estado de turno y tipo de turno
+        status_stats_dict = {}
+        type_stats_dict = {}
+        for apt in appointments:
+            status_stats_dict[apt.status] = status_stats_dict.get(apt.status, 0) + 1
+            type_stats_dict[apt.appointment_type] = type_stats_dict.get(apt.appointment_type, 0) + 1
 
-        # Estadísticas por tipo de turno
-        type_stats = db.session.query(
-            Appointment.appointment_type,
-            func.count(Appointment.id)
-        ).filter(
-            and_(
-                Appointment.professional_id == professional_id,
-                Appointment.appointment_date >= start_date,
-                Appointment.appointment_date <= end_date
-            )
-        ).group_by(Appointment.appointment_type).all()
+        status_stats = [(k, v) for k, v in status_stats_dict.items()]
+        type_stats = [(k, v) for k, v in type_stats_dict.items()]
 
         return {
             'professional': {
@@ -246,22 +232,27 @@ class ReportService:
 
         payments = Payment.query.filter(and_(*filters)).all()
 
-        # Agrupar por método de pago
-        by_method = db.session.query(
-            Payment.payment_method,
-            func.sum(Payment.amount)
-        ).filter(and_(*filters)).group_by(Payment.payment_method).all()
+        # Agrupar por método de pago e Ingresos por día
+        by_method_dict = {}
+        daily_revenue_dict = {}
+        total_amount = 0.0
+        amounts = []
 
-        # Ingresos por día
-        daily_revenue = db.session.query(
-            func.date(Payment.payment_date).label('date'),
-            func.sum(Payment.amount).label('total')
-        ).filter(and_(*filters)).group_by(
-            func.date(Payment.payment_date)
-        ).order_by('date').all()
+        for p in payments:
+            amt = float(p.amount)
+            amounts.append(amt)
+            total_amount += amt
 
-        total_amount = sum([float(p.amount) for p in payments])
-        amounts = [float(p.amount) for p in payments] if payments else []
+            # Agrupar por método
+            by_method_dict[p.payment_method] = by_method_dict.get(p.payment_method, 0.0) + amt
+
+            # Ingresos por día
+            date_str = p.payment_date.date().isoformat() if hasattr(p.payment_date, 'date') else str(p.payment_date).split(' ')[0]
+            daily_revenue_dict[date_str] = daily_revenue_dict.get(date_str, 0.0) + amt
+
+        by_method = [(k, v) for k, v in by_method_dict.items()]
+        # daily_revenue_dict needs to be sorted by date
+        daily_revenue = [(k, v) for k, v in sorted(daily_revenue_dict.items())]
 
         return {
             'period': {
@@ -318,18 +309,21 @@ class ReportService:
         budgets = Budget.query.filter(and_(*filters)).all()
 
         # Estadísticas por estado
-        by_status = db.session.query(
-            Budget.status,
-            func.count(Budget.id),
-            func.sum(Budget.total_amount)
-        ).filter(
-            and_(
-                Budget.created_at >= start_date,
-                Budget.created_at <= end_date
-            )
-        ).group_by(Budget.status).all()
+        by_status_dict = {}
+        total_amount = 0.0
 
-        total_amount = sum([float(b.total_amount) for b in budgets])
+        for b in budgets:
+            amt = float(b.total_amount)
+            total_amount += amt
+            if b.status not in by_status_dict:
+                by_status_dict[b.status] = {'count': 0, 'total': 0.0}
+            by_status_dict[b.status]['count'] += 1
+            by_status_dict[b.status]['total'] += amt
+
+        by_status = [
+            (status, stats['count'], stats['total'])
+            for status, stats in by_status_dict.items()
+        ]
 
         return {
             'period': {
@@ -392,23 +386,20 @@ class ReportService:
 
         appointments = Appointment.query.filter(and_(*filters)).all()
 
-        # Estadísticas por estado
-        by_status = db.session.query(
-            Appointment.status,
-            func.count(Appointment.id)
-        ).filter(and_(*filters)).group_by(Appointment.status).all()
-
-        # Estadísticas por tipo
-        by_type = db.session.query(
-            Appointment.appointment_type,
-            func.count(Appointment.id)
-        ).filter(and_(*filters)).group_by(Appointment.appointment_type).all()
-
-        # Turnos por día de la semana
+        # Estadísticas por estado, tipo y día de la semana
+        by_status_dict = {}
+        by_type_dict = {}
         by_weekday = {}
+
         for apt in appointments:
+            by_status_dict[apt.status] = by_status_dict.get(apt.status, 0) + 1
+            by_type_dict[apt.appointment_type] = by_type_dict.get(apt.appointment_type, 0) + 1
+
             weekday = apt.appointment_date.strftime('%A')
             by_weekday[weekday] = by_weekday.get(weekday, 0) + 1
+
+        by_status = [(k, v) for k, v in by_status_dict.items()]
+        by_type = [(k, v) for k, v in by_type_dict.items()]
 
         return {
             'period': {
