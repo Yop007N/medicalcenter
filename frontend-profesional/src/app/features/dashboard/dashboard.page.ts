@@ -33,7 +33,7 @@ type ApiErrorShape = {
       </div>
 
       @if (errorMessage) {
-        <div class="error-box" role="alert">{{ errorMessage }}</div>
+        <div class="error-box" role="alert" aria-live="assertive">{{ errorMessage }}</div>
       }
 
       <div class="grid">
