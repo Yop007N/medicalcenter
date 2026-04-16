@@ -64,13 +64,13 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
         <ion-card class="editor-card">
           <ion-card-content>
             <div class="editor-toolbar">
-              <ion-button fill="clear" size="small"><strong>B</strong></ion-button>
-              <ion-button fill="clear" size="small"><em>I</em></ion-button>
-              <ion-button fill="clear" size="small"><u>U</u></ion-button>
-              <ion-button fill="clear" size="small">
+              <ion-button fill="clear" size="small" aria-label="Negrita"><strong>B</strong></ion-button>
+              <ion-button fill="clear" size="small" aria-label="Cursiva"><em>I</em></ion-button>
+              <ion-button fill="clear" size="small" aria-label="Subrayado"><u>U</u></ion-button>
+              <ion-button fill="clear" size="small" aria-label="Lista de viñetas">
                 <ion-icon name="list-outline"></ion-icon>
               </ion-button>
-              <ion-button fill="clear" size="small">
+              <ion-button fill="clear" size="small" aria-label="Pantalla completa">
                 <ion-icon name="expand-outline"></ion-icon>
               </ion-button>
             </div>
@@ -112,7 +112,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                     <span class="prescription-date">
                       {{ prescription.prescription_date | date:'dd/MM/yyyy HH:mm' }}
                     </span>
-                    <ion-button fill="clear" size="small" (click)="print(prescription)">
+                    <ion-button fill="clear" size="small" aria-label="Imprimir receta" (click)="print(prescription)">
                       <ion-icon slot="icon-only" name="print-outline"></ion-icon>
                     </ion-button>
                   </div>
