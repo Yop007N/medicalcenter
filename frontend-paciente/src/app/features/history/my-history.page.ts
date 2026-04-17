@@ -404,7 +404,7 @@ type SectionResult<T> = {
                     (click)="signConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
                   >
-                    Firmar
+                    @if (processingConsentIds.has(consent.id)) { <ion-spinner name="crescent" class="ion-margin-end"></ion-spinner> Firmando... } @else { Firmar }
                   </ion-button>
                   <ion-button
                     size="small"
@@ -413,7 +413,7 @@ type SectionResult<T> = {
                     (click)="rejectConsent(consent)"
                     [disabled]="processingConsentIds.has(consent.id)"
                   >
-                    Rechazar
+                    @if (processingConsentIds.has(consent.id)) { <ion-spinner name="crescent" class="ion-margin-end"></ion-spinner> Rechazando... } @else { Rechazar }
                   </ion-button>
                 </div>
               }
