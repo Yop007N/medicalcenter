@@ -62,7 +62,7 @@ import { TreatmentStatus, TREATMENT_TYPES } from '../../../models/odontology.mod
         </ion-buttons>
         <ion-title>Tratamientos Dentales</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/odontology/treatments/new">
+          <ion-button routerLink="/odontology/treatments/new" aria-label="Nuevo tratamiento">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -121,7 +121,7 @@ import { TreatmentStatus, TREATMENT_TYPES } from '../../../models/odontology.mod
 
       <!-- FAB para crear (mobile) -->
       <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="hide-desktop">
-        <ion-fab-button routerLink="/odontology/treatments/new">
+        <ion-fab-button routerLink="/odontology/treatments/new" aria-label="Nuevo tratamiento">
           <ion-icon name="add-outline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
