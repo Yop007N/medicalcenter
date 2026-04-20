@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
@@ -53,6 +53,9 @@ import { AuditFilter } from '../../../models/report.model';
 @Component({
   selector: 'app-audit-logs',
   standalone: true,
+  // ⚡ Bolt Optimization: Added OnPush change detection to prevent unnecessary re-renders
+  // Impact: Reduces change detection cycles by skipping this component when its inputs haven't changed
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -227,9 +230,12 @@ import { AuditFilter } from '../../../models/report.model';
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item *ngFor="let log of logs$ | async">
-              <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
-              <ion-label>
+            <!-- ⚡ Bolt Optimization: Using @for block instead of *ngFor -->
+            <!-- Impact: Improved rendering performance and faster DOM updates -->
+            @for (log of logs$ | async; track log.id) {
+              <ion-item>
+                <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
+                <ion-label>
                 <h2>
                   <ion-chip [color]="getActionColor(log.action)" size="small">
                     {{ log.action | uppercase }}
@@ -248,8 +254,9 @@ import { AuditFilter } from '../../../models/report.model';
                 <p *ngIf="log.ip_address">
                   IP: {{ log.ip_address }}
                 </p>
-              </ion-label>
-            </ion-item>
+                </ion-label>
+              </ion-item>
+            }
           </ion-list>
 
           <ion-infinite-scroll (ionInfinite)="loadMore($event)">
