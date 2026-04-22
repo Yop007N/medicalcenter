@@ -176,7 +176,7 @@ import {
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
+              <ion-item *ngFor="let prof of report.by_professional; trackBy: trackByProfessionalId">
                 <ion-label>{{ prof.name }}</ion-label>
                 <ion-note slot="end">{{ prof.records_count }} registros</ion-note>
               </ion-item>
@@ -184,7 +184,7 @@ import {
 
             <h3>Por Especialidad</h3>
             <ion-list>
-              <ion-item *ngFor="let spec of report.by_specialty">
+              <ion-item *ngFor="let spec of report.by_specialty; trackBy: trackBySpecialtyName">
                 <ion-label>{{ spec.specialty }}</ion-label>
                 <ion-note slot="end">{{ spec.count }}</ion-note>
               </ion-item>
@@ -226,7 +226,7 @@ import {
 
             <h3>Por Método de Pago</h3>
             <ion-list>
-              <ion-item *ngFor="let method of report.by_payment_method">
+              <ion-item *ngFor="let method of report.by_payment_method; trackBy: trackByMethodName">
                 <ion-label>
                   <h2>{{ method.method | titlecase }}</h2>
                   <p>{{ method.count }} transacciones</p>
@@ -263,7 +263,7 @@ import {
 
             <h3>Por Estado</h3>
             <ion-list>
-              <ion-item *ngFor="let status of report.by_status">
+              <ion-item *ngFor="let status of report.by_status; trackBy: trackByStatusName">
                 <ion-label>{{ status.status | titlecase }}</ion-label>
                 <ion-note slot="end">{{ status.count }}</ion-note>
               </ion-item>
@@ -271,7 +271,7 @@ import {
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
+              <ion-item *ngFor="let prof of report.by_professional; trackBy: trackByProfessionalId">
                 <ion-label>{{ prof.name }}</ion-label>
                 <ion-note slot="end">{{ prof.appointments_count }} citas</ion-note>
               </ion-item>
@@ -359,5 +359,21 @@ export class ReportsHomePage implements OnInit {
   onRefresh(event: any) {
     this.loadReport();
     setTimeout(() => event.target.complete(), 1000);
+  }
+
+  trackByProfessionalId(index: number, prof: any): number {
+    return prof.professional_id;
+  }
+
+  trackBySpecialtyName(index: number, spec: any): string {
+    return spec.specialty;
+  }
+
+  trackByMethodName(index: number, method: any): string {
+    return method.method;
+  }
+
+  trackByStatusName(index: number, status: any): string {
+    return status.status;
   }
 }
