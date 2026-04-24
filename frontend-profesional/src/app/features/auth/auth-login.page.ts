@@ -33,7 +33,9 @@ type ApiErrorShape = {
         }
 
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-          <label class="field-label" for="email">Correo</label>
+          <label class="field-label" for="email">
+            Correo <span class="required-indicator" aria-hidden="true">*</span>
+          </label>
           <input
             id="email"
             class="field-input"
@@ -41,6 +43,7 @@ type ApiErrorShape = {
             autocomplete="username"
             formControlName="email"
             placeholder="profesional@medical.com"
+            aria-required="true"
           />
           @if (emailControl.touched && emailControl.hasError('required')) {
             <small class="field-error">El correo es obligatorio.</small>
@@ -49,7 +52,9 @@ type ApiErrorShape = {
             <small class="field-error">Ingresa un correo valido.</small>
           }
 
-          <label class="field-label" for="password">Password</label>
+          <label class="field-label" for="password">
+            Password <span class="required-indicator" aria-hidden="true">*</span>
+          </label>
           <input
             id="password"
             class="field-input"
@@ -57,6 +62,7 @@ type ApiErrorShape = {
             autocomplete="current-password"
             formControlName="password"
             placeholder="Tu password"
+            aria-required="true"
           />
           @if (passwordControl.touched && passwordControl.hasError('required')) {
             <small class="field-error">La password es obligatoria.</small>
@@ -96,6 +102,11 @@ type ApiErrorShape = {
         color: var(--ms-text-primary);
         font-size: 0.82rem;
         font-weight: 600;
+      }
+
+      .required-indicator {
+        color: var(--ms-danger);
+        margin-left: 0.15rem;
       }
 
       .field-input {
