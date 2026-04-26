@@ -199,6 +199,8 @@ type AppointmentStatus = Appointment['status'];
                           class="table-action"
                           (click)="confirmAppointment(appointment.id)"
                           [disabled]="confirmingIds.has(appointment.id)"
+                          [attr.aria-busy]="confirmingIds.has(appointment.id)"
+                          [attr.aria-label]="'Confirmar cita #' + appointment.id"
                         >
                           @if (confirmingIds.has(appointment.id)) { Confirmando... } @else { Confirmar }
                         </button>
@@ -210,6 +212,8 @@ type AppointmentStatus = Appointment['status'];
                           class="table-action secondary"
                           (click)="cancelAppointment(appointment.id)"
                           [disabled]="cancelingIds.has(appointment.id)"
+                          [attr.aria-busy]="cancelingIds.has(appointment.id)"
+                          [attr.aria-label]="'Cancelar cita #' + appointment.id"
                         >
                           @if (cancelingIds.has(appointment.id)) { Cancelando... } @else { Cancelar }
                         </button>
@@ -220,6 +224,7 @@ type AppointmentStatus = Appointment['status'];
                         class="table-action"
                         (click)="startEdit(appointment)"
                         [disabled]="submitting || cancelingIds.has(appointment.id)"
+                        [attr.aria-label]="'Editar cita #' + appointment.id"
                       >
                         Editar
                       </button>
