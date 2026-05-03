@@ -124,6 +124,8 @@ type ApiErrorShape = {
                     <button
                       type="button"
                       class="slot-chip"
+                      [attr.aria-pressed]="isSelectedSlot(professional.id, slot) ? 'true' : 'false'"
+                      [attr.aria-label]="'Seleccionar horario ' + (slot | date:'dd/MM HH:mm')"
                       [class.selected]="isSelectedSlot(professional.id, slot)"
                       (click)="selectSlot(professional, slot)"
                     >
