@@ -480,14 +480,14 @@ class TestDashboardIntegration:
             data = json.loads(response.data)
             assert 'generated_at' in data or 'timestamp' in data or data is not None
 
-    def test_dashboard_consistency(self, client, auth_headers, sample_patient):
+    def test_dashboard_consistency(self, client, admin_auth_headers, sample_patient):
         """Test that dashboard data is consistent across endpoints"""
         # Get overview
-        overview_response = client.get('/api/dashboard/overview', headers=auth_headers)
+        overview_response = client.get('/api/dashboard/overview', headers=admin_auth_headers)
         overview_data = json.loads(overview_response.data)
 
         # Get patient stats
-        patient_response = client.get('/api/dashboard/patients/stats', headers=auth_headers)
+        patient_response = client.get('/api/dashboard/patients/stats', headers=admin_auth_headers)
         patient_data = json.loads(patient_response.data)
 
         # Patient count should match
