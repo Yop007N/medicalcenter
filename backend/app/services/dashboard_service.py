@@ -347,17 +347,12 @@ class DashboardService:
             func.count(func.distinct(MedicalRecord.patient_id))
         ).scalar() or 0
 
-        avg_appointments = db.session.query(
-            func.avg(
-                func.coalesce(
-                    db.session.query(func.count(Appointment.id))
-                    .filter(Appointment.patient_id == Patient.id)
-                    .correlate(Patient)
-                    .scalar_subquery(),
-                    0,
-                )
-            )
-        ).scalar() or 0
+        # ⚡ Bolt Optimization:
+        # Replaced O(N) correlated subquery `func.avg(db.session.query(count(Appointment.id)).correlate(Patient))`
+        # with O(1) mathematical equivalent: Total Appointments / Total Patients.
+        total_patients = total_active + total_inactive
+        total_appointments = Appointment.query.count()
+        avg_appointments = total_appointments / total_patients if total_patients > 0 else 0
 
         return {
             'totals': {
