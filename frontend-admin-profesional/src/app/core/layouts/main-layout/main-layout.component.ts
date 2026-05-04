@@ -191,6 +191,7 @@ interface MenuGroup {
           class="sidebar-reopen-button"
           (click)="showSidebar()"
           aria-label="Mostrar menú lateral"
+          title="Mostrar menú lateral"
         >
           <ion-icon name="menu-outline"></ion-icon>
         </button>
@@ -359,6 +360,11 @@ interface MenuGroup {
         background: rgba(var(--ion-color-success-rgb), 0.1);
         color: var(--ion-color-success);
       }
+
+      &:focus-visible {
+        outline: 2px solid var(--ion-color-primary);
+        outline-offset: 2px;
+      }
     }
 
     /* Menu Groups */
@@ -502,6 +508,11 @@ interface MenuGroup {
 
       ion-icon {
         font-size: 18px;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--ion-color-primary);
+        outline-offset: 2px;
       }
     }
 

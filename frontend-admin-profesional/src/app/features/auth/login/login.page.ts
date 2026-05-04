@@ -124,6 +124,7 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
                       role="button"
                       tabindex="0"
                       [attr.aria-label]="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+                      [attr.title]="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
                       [attr.aria-pressed]="showPassword"
                       (click)="showPassword = !showPassword"
                       (keydown.enter)="showPassword = !showPassword"
@@ -428,9 +429,15 @@ import { selectAuthLoading, selectAuthError } from '../../../store/auth/auth.sel
         cursor: pointer;
         padding: 8px;
         margin: -8px -8px -8px 8px;
+        border-radius: 50%;
 
         &:hover {
           color: var(--ion-color-primary);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ion-color-primary);
+          outline-offset: 2px;
         }
       }
     }
