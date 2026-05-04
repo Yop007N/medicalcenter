@@ -1,0 +1,3 @@
+## 2024-05-04 - Native and custom buttons missing focus states and tooltips
+**Learning:** Some custom buttons like `.sidebar-reopen-button` and interactive icons (like the show/hide password icon) have proper keyboard navigation support but lack a `focus-visible` state, making it hard for keyboard users to track where they are. Icon-only buttons with `aria-label`s are not visible to sighted users and also lack `title` attributes, making them unintuitive for users relying on tooltips.
+**Action:** When inspecting or adding icon-only custom controls, check if they have a `focus-visible` outline for keyboard navigation, and ensure `title` attributes are present alongside `aria-label`s for tooltips.
