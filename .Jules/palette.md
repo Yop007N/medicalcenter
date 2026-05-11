@@ -1,0 +1,3 @@
+## 2025-01-28 - Explicit Context for Async Operations and Custom Chips
+**Learning:** Ionic action buttons mapped to async operations greatly benefit from inline spinners to indicate loading states effectively, while accompanying them with a hint string shown only during `disabled` conditions significantly removes ambiguity around why the UI blocks progression. Additionally, custom elements utilized as selection chips MUST specify `aria-pressed` to inform screen readers of their toggled state clearly.
+**Action:** Always include inline loaders coupled with context-sensitive hints alongside async submit actions and enforce `aria-pressed` attributes on custom radio-like selection buttons.
