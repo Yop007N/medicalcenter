@@ -1,0 +1,3 @@
+## 2024-05-12 - Adding loading spinners and aria-busy to async submit buttons
+**Learning:** When adding `<ion-spinner>` to indicate loading state during async submissions, it's crucial to also add `[attr.aria-busy]="true"` (or `[attr.aria-busy]="isSubmitting"`) to the button. This provides screen readers with explicit feedback that the element is currently updating/loading, enhancing accessibility alongside the visual spinner. Using Ionic's utility classes like `ion-margin-end` ensures proper spacing without custom CSS.
+**Action:** Always include `[attr.aria-busy]="state"` on buttons that exhibit a loading state and combine it with visual indicators like spinners.
