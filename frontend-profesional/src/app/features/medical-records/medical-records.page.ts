@@ -168,7 +168,14 @@ type FormMode = 'create' | 'edit';
                   <td>
                     <div class="row-actions">
                       <button class="table-action" type="button" (click)="startEdit(record)">Editar</button>
-                      <button class="table-action danger" type="button" (click)="deleteRecord(record)">Eliminar</button>
+                      <button
+                        class="table-action danger"
+                        type="button"
+                        (click)="deleteRecord(record)"
+                        [disabled]="deletingIds.has(record.id)"
+                      >
+                        @if (deletingIds.has(record.id)) { Eliminando... } @else { Eliminar }
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -418,6 +425,7 @@ export class MedicalRecordsPage implements OnInit {
   showForm = false;
   formMode: FormMode = 'create';
   editingRecordId: number | null = null;
+  deletingIds = new Set<number>();
   readonly currentUser = this.authService.currentUserValue;
   readonly sessionSpecialtyKey = this.resolveSessionSpecialtyKey();
 
@@ -620,13 +628,17 @@ export class MedicalRecordsPage implements OnInit {
 
     this.errorMessage = null;
     this.successMessage = null;
+    this.deletingIds.add(record.id);
+
     this.medicalRecordService.deleteMedicalRecord(record.id).subscribe({
       next: () => {
         this.records = this.records.filter((item) => item.id !== record.id);
         this.successMessage = `Registro #${record.id} eliminado correctamente.`;
+        this.deletingIds.delete(record.id);
       },
       error: (error: unknown) => {
         this.errorMessage = this.resolveErrorMessage(error);
+        this.deletingIds.delete(record.id);
       }
     });
   }
