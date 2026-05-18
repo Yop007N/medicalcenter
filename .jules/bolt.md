@@ -1,0 +1,3 @@
+## 2026-05-18 - Unbounded Historical Queries on Conflict Detection
+**Learning:** Found a severe performance bottleneck in `find_conflict` for appointments. It checked for overlaps using `Appointment.appointment_date < requested_end`, which forces the database to evaluate the entire history of past appointments for a professional. For long-term usage, this creates an O(N) query that drags down performance on every appointment creation/update.
+**Action:** When writing overlapping time queries, always bound both ends of the time window. Added `safe_start = appointment_date - timedelta(hours=24)` to safely limit the DB search space to O(1) recent appointments.

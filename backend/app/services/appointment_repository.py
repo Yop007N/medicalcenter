@@ -83,9 +83,11 @@ class AppointmentRepository:
         """Detect active slot conflict for a professional."""
         requested_duration = int(duration_minutes or DEFAULT_APPOINTMENT_DURATION)
         requested_end = appointment_date + timedelta(minutes=requested_duration)
+        safe_start = appointment_date - timedelta(hours=24)
 
         query = Appointment.query.filter(
             Appointment.professional_id == professional_id,
+            Appointment.appointment_date >= safe_start,
             Appointment.appointment_date < requested_end,
             Appointment.status.in_(cls.ACTIVE_CONFLICT_STATUSES),
         )
