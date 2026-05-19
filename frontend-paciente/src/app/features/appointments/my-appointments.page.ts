@@ -159,8 +159,13 @@ type ApiErrorShape = {
         }
 
         <div class="item-actions">
-          <ion-button size="small" (click)="createAppointment()" [disabled]="!canCreateAppointment() || booking">
-            @if (booking) { Solicitando... } @else { Solicitar turno }
+          <ion-button size="small" (click)="createAppointment()" [disabled]="!canCreateAppointment() || booking" [attr.aria-busy]="booking ? 'true' : null">
+            @if (booking) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+              Solicitando...
+            } @else {
+              Solicitar turno
+            }
           </ion-button>
         </div>
       </section>
