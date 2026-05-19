@@ -227,7 +227,7 @@ import { AuditFilter } from '../../../models/report.model';
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item *ngFor="let log of logs$ | async">
+            <ion-item *ngFor="let log of logs$ | async; trackBy: trackById">
               <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
               <ion-label>
                 <h2>
@@ -341,6 +341,10 @@ export class AuditLogsPage implements OnInit {
   onRefresh(event: any) {
     this.loadLogs();
     setTimeout(() => event.target.complete(), 1000);
+  }
+
+  trackById(index: number, log: any): number {
+    return log.id;
   }
 
   getActionIcon(action: string): string {
