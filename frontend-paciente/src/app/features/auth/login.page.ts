@@ -81,8 +81,10 @@ type ApiErrorShape = {
                 expand="block"
                 class="ion-margin-top"
                 [disabled]="loginForm.invalid || isSubmitting"
+                [attr.aria-busy]="isSubmitting ? 'true' : null"
               >
                 @if (isSubmitting) {
+                  <ion-spinner name="crescent" slot="start"></ion-spinner>
                   Iniciando...
                 } @else {
                   Iniciar sesión

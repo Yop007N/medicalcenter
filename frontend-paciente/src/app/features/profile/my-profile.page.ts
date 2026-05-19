@@ -92,8 +92,10 @@ type ApiErrorShape = {
           expand="block"
           class="ion-margin-top"
           [disabled]="profileForm.invalid || saving"
+          [attr.aria-busy]="saving ? 'true' : null"
         >
           @if (saving) {
+            <ion-spinner name="crescent" slot="start"></ion-spinner>
             Guardando...
           } @else {
             Guardar cambios
