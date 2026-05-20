@@ -1,0 +1,3 @@
+## 2024-05-20 - [ARIA Pressed and Focus States on Custom Chips]
+**Learning:** Custom interactive elements that behave like toggle buttons (such as `.slot-chip`) often miss `aria-pressed` attributes to communicate their state to screen readers, and frequently lack `:focus-visible` styles for clear keyboard navigation.
+**Action:** When implementing custom toggleable chips or buttons, always ensure they include `[attr.aria-pressed]` bound to their active state and provide a distinct `:focus-visible` outline. A subtle transition (`transition: all 0.2s ease`) also improves the feel.
