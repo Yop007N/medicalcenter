@@ -102,7 +102,7 @@ type DentitionType = 'permanent' | 'deciduous' | 'mixed';
         </ion-buttons>
         <ion-title>Odontograma</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="saveOdontogram()" [disabled]="!hasChanges">
+          <ion-button aria-label="Guardar" (click)="saveOdontogram()" [disabled]="!hasChanges">
             <ion-icon name="save-outline" slot="icon-only"></ion-icon>
           </ion-button>
         </ion-buttons>

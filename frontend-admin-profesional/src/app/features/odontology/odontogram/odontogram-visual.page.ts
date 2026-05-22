@@ -97,13 +97,13 @@ type DentitionType = 'permanent' | 'deciduous' | 'mixed';
         </ion-buttons>
         <ion-title>Odontograma Visual</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="toggleView()">
+          <ion-button aria-label="Ver" (click)="toggleView()">
             <ion-icon name="eye-outline" slot="icon-only"></ion-icon>
           </ion-button>
-          <ion-button (click)="printOdontogram()">
+          <ion-button aria-label="Imprimir" (click)="printOdontogram()">
             <ion-icon name="print-outline" slot="icon-only"></ion-icon>
           </ion-button>
-          <ion-button (click)="saveOdontogram()" [disabled]="!hasChanges">
+          <ion-button aria-label="Guardar" (click)="saveOdontogram()" [disabled]="!hasChanges">
             <ion-icon name="save-outline" slot="icon-only"></ion-icon>
           </ion-button>
         </ion-buttons>

@@ -84,10 +84,10 @@ import { PatientsApiService } from '../../../core/services/patients-api.service'
         <ion-buttons slot="end">
           @if (budget$ | async; as budget) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/budgets', budget.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
+            <ion-button aria-label="Editar" [routerLink]="['/budgets', budget.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(budget.id)" class="hide-desktop">
+            <ion-button aria-label="Eliminar" color="danger" (click)="confirmDelete(budget.id)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->

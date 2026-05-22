@@ -59,7 +59,7 @@ import { PaymentCreate, PaymentUpdate } from '../../../models/budget.model';
         </ion-buttons>
         <ion-title>{{ isEdit ? 'Editar' : 'Nuevo' }} Pago</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="save()" [disabled]="!form.valid || (loading$ | async)">
+          <ion-button aria-label="Guardar" (click)="save()" [disabled]="!form.valid || (loading$ | async)">
             <ion-icon slot="icon-only" name="save-outline"></ion-icon>
           </ion-button>
         </ion-buttons>

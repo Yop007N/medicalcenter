@@ -89,11 +89,11 @@ import { SignatureModalComponent } from '../../../../../shared/components/signat
                 }
 
                 <div class="consent-actions">
-                  <ion-button fill="clear" size="small" (click)="view(consent)">
+                  <ion-button aria-label="Ver" fill="clear" size="small" (click)="view(consent)">
                     <ion-icon slot="icon-only" name="eye-outline"></ion-icon>
                   </ion-button>
                   @if (consent.status === 'pending') {
-                    <ion-button fill="clear" size="small" (click)="requestSignature(consent)">
+                    <ion-button aria-label="Editar" fill="clear" size="small" (click)="requestSignature(consent)">
                       <ion-icon slot="icon-only" name="create-outline"></ion-icon>
                     </ion-button>
                   }

@@ -56,7 +56,7 @@ import { SignatureModalComponent } from '../../../../../shared/components/signat
       <div class="header-row">
         <h2 class="section-title">Evoluciones</h2>
         <div class="header-actions">
-          <ion-button fill="clear" (click)="print()">
+          <ion-button aria-label="Imprimir" fill="clear" (click)="print()">
             <ion-icon slot="icon-only" name="print-outline"></ion-icon>
           </ion-button>
           <ion-item lines="none" class="checkbox-item">

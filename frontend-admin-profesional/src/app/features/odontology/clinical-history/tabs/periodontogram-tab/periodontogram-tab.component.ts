@@ -39,7 +39,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
           <span class="version-info">
             Versión del {{ selectedDate }} por Dr.(a) {{ selectedProfessional }}
           </span>
-          <ion-button fill="clear" (click)="print()">
+          <ion-button aria-label="Imprimir" fill="clear" (click)="print()">
             <ion-icon slot="icon-only" name="print-outline"></ion-icon>
           </ion-button>
           <ion-button color="success" (click)="save()">

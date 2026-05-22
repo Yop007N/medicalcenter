@@ -68,7 +68,7 @@ import { Payment, PaymentStatus } from '../../../models/budget.model';
         </ion-buttons>
         <ion-title>Pagos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/payments/new" [queryParams]="scopeQueryParams">
+          <ion-button aria-label="Añadir" routerLink="/payments/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
