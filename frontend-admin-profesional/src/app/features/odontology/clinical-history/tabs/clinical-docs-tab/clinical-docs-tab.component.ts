@@ -77,14 +77,14 @@ import { ClinicalDocument, CLINICAL_DOCUMENT_TYPES } from '../../../../../models
                   </p>
                 }
                 <div class="document-actions">
-                  <ion-button fill="clear" size="small" (click)="view(doc)">
+                  <ion-button aria-label="Ver" fill="clear" size="small" (click)="view(doc)">
                     <ion-icon slot="icon-only" name="eye-outline"></ion-icon>
                   </ion-button>
-                  <ion-button fill="clear" size="small" (click)="print(doc)">
+                  <ion-button aria-label="Imprimir" fill="clear" size="small" (click)="print(doc)">
                     <ion-icon slot="icon-only" name="print-outline"></ion-icon>
                   </ion-button>
                   @if (doc.is_active) {
-                    <ion-button fill="clear" size="small" color="danger" (click)="annul(doc)">
+                    <ion-button aria-label="Eliminar" fill="clear" size="small" color="danger" (click)="annul(doc)">
                       <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                     </ion-button>
                   }

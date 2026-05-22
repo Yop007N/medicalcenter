@@ -75,7 +75,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
         </ion-buttons>
         <ion-title>Presupuestos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/budgets/new" [queryParams]="scopeQueryParams">
+          <ion-button aria-label="Añadir" routerLink="/budgets/new" [queryParams]="scopeQueryParams">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>

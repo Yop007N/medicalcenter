@@ -72,7 +72,7 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
         </ion-buttons>
         <ion-title>{{ isEdit ? 'Editar' : 'Nuevo' }} Presupuesto</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="save()" [disabled]="!form.valid || items.length === 0 || (loading$ | async)">
+          <ion-button aria-label="Guardar" (click)="save()" [disabled]="!form.valid || items.length === 0 || (loading$ | async)">
             <ion-icon slot="icon-only" name="save-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -245,7 +245,7 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
                       <div class="item-row" [formGroupName]="i">
                         <div class="item-header">
                           <span class="item-number">Ítem {{ i + 1 }}</span>
-                          <ion-button fill="clear" color="danger" size="small" (click)="removeItem(i)">
+                          <ion-button aria-label="Eliminar" fill="clear" color="danger" size="small" (click)="removeItem(i)">
                             <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                           </ion-button>
                         </div>

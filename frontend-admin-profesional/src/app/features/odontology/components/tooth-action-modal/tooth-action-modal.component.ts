@@ -47,7 +47,7 @@ import { ToothImageData } from '../../odontogram/tooth-image.component';
       <ion-toolbar>
         <ion-title>Diente #{{ tooth.number }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="dismiss()">
+          <ion-button aria-label="Cerrar" (click)="dismiss()">
             <ion-icon name="close-outline" slot="icon-only"></ion-icon>
           </ion-button>
         </ion-buttons>

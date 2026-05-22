@@ -84,10 +84,10 @@ import { FilesApiService } from '../../../core/services';
         <ion-buttons slot="end">
           @if (record$ | async; as record) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/medical-records', record.id, 'edit']" class="hide-desktop">
+            <ion-button aria-label="Editar" [routerLink]="['/medical-records', record.id, 'edit']" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(record.id)" class="hide-desktop">
+            <ion-button aria-label="Eliminar" color="danger" (click)="confirmDelete(record.id)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->

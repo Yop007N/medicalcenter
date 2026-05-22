@@ -35,7 +35,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
             <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
             Subir archivos
           </ion-button>
-          <ion-button fill="clear">
+          <ion-button aria-label="Ayuda" fill="clear">
             <ion-icon slot="icon-only" name="help-circle-outline"></ion-icon>
           </ion-button>
         </div>
@@ -84,10 +84,10 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                   }
                 </div>
                 <div class="document-actions">
-                  <ion-button fill="clear" size="small" (click)="download(doc)">
+                  <ion-button aria-label="Descargar" fill="clear" size="small" (click)="download(doc)">
                     <ion-icon slot="icon-only" name="download-outline"></ion-icon>
                   </ion-button>
-                  <ion-button fill="clear" size="small" color="danger" (click)="delete(doc)">
+                  <ion-button aria-label="Eliminar" fill="clear" size="small" color="danger" (click)="delete(doc)">
                     <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                   </ion-button>
                 </div>

@@ -71,7 +71,7 @@ import { ToothImageData } from '../../../odontogram/tooth-image.component';
 
         <!-- Action Buttons -->
         <div class="header-actions">
-          <ion-button fill="clear" class="icon-btn">
+          <ion-button aria-label="Paleta de colores" fill="clear" class="icon-btn">
             <ion-icon slot="icon-only" name="color-palette-outline"></ion-icon>
           </ion-button>
           <ion-button color="tertiary" fill="outline">
@@ -86,7 +86,7 @@ import { ToothImageData } from '../../../odontogram/tooth-image.component';
             <ion-icon slot="start" name="eye-outline"></ion-icon>
             Ver sólo diagnóstico
           </ion-button>
-          <ion-button fill="clear" (click)="print()">
+          <ion-button aria-label="Imprimir" fill="clear" (click)="print()">
             <ion-icon slot="icon-only" name="print-outline"></ion-icon>
           </ion-button>
         </div>

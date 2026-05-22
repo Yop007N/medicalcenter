@@ -80,10 +80,10 @@ import { selectSelectedProfessional, selectProfessionalsLoading } from '../../..
         <ion-buttons slot="end">
           @if (professional$ | async; as professional) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/professionals', professional.id, 'edit']" class="hide-desktop">
+            <ion-button aria-label="Editar" [routerLink]="['/professionals', professional.id, 'edit']" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(professional)" class="hide-desktop">
+            <ion-button aria-label="Eliminar" color="danger" (click)="confirmDelete(professional)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->

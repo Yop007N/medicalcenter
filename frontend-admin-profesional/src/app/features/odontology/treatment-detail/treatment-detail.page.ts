@@ -88,10 +88,10 @@ import { ToothActionModalComponent } from '../components/tooth-action-modal/toot
         <ion-buttons slot="end">
           @if (treatment$ | async; as treatment) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/odontology/treatments', treatment.id, 'edit']" class="hide-desktop">
+            <ion-button aria-label="Editar" [routerLink]="['/odontology/treatments', treatment.id, 'edit']" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button color="danger" (click)="confirmDelete(treatment)" class="hide-desktop">
+            <ion-button aria-label="Eliminar" color="danger" (click)="confirmDelete(treatment)" class="hide-desktop">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->

@@ -96,7 +96,7 @@ interface TabConfig {
           }
         </ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="print()">
+          <ion-button aria-label="Imprimir" (click)="print()">
             <ion-icon slot="icon-only" name="print-outline"></ion-icon>
           </ion-button>
         </ion-buttons>

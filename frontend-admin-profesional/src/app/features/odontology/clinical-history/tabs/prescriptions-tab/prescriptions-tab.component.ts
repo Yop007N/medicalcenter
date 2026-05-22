@@ -112,7 +112,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                     <span class="prescription-date">
                       {{ prescription.prescription_date | date:'dd/MM/yyyy HH:mm' }}
                     </span>
-                    <ion-button fill="clear" size="small" (click)="print(prescription)">
+                    <ion-button aria-label="Imprimir" fill="clear" size="small" (click)="print(prescription)">
                       <ion-icon slot="icon-only" name="print-outline"></ion-icon>
                     </ion-button>
                   </div>

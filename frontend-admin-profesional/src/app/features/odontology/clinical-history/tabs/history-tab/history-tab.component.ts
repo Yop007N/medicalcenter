@@ -114,7 +114,7 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                         {{ getEventLabel(event.event_type) }}
                       </ion-badge>
                       @if (event.event_type === 'budget_created' || event.event_type === 'evolution_added') {
-                        <ion-button fill="clear" size="small">
+                        <ion-button aria-label="Ver lista" fill="clear" size="small">
                           <ion-icon slot="icon-only" name="list-outline"></ion-icon>
                         </ion-button>
                       }

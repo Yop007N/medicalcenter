@@ -80,10 +80,10 @@ import { selectSelectedAppointment, selectAppointmentsLoading } from '../../../s
         <ion-buttons slot="end">
           @if (appointment$ | async; as appointment) {
             <!-- Mobile: solo iconos -->
-            <ion-button [routerLink]="['/appointments', appointment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
+            <ion-button aria-label="Editar" [routerLink]="['/appointments', appointment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
-            <ion-button (click)="showActions(appointment)" class="hide-desktop">
+            <ion-button aria-label="Más opciones" (click)="showActions(appointment)" class="hide-desktop">
               <ion-icon slot="icon-only" name="ellipsis-vertical-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
