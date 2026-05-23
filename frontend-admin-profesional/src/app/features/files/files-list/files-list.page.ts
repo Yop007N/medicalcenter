@@ -97,16 +97,16 @@ interface PatientFilesGroup {
       <ion-toolbar>
         <ion-buttons slot="start">
           @if (backPatientId) {
-            <ion-button fill="clear" (click)="goBack()">
+            <ion-button fill="clear" (click)="goBack()" aria-label="Volver atrás">
               <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
             </ion-button>
           } @else {
-            <ion-menu-button></ion-menu-button>
+            <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
           }
         </ion-buttons>
         <ion-title>Archivos</ion-title>
         <ion-buttons slot="end">
-          <ion-button (click)="loadFiles(uploadPatientId || undefined)" [disabled]="!uploadPatientId">
+          <ion-button (click)="loadFiles(uploadPatientId || undefined)" [disabled]="!uploadPatientId" aria-label="Actualizar archivos">
             <ion-icon slot="icon-only" name="refresh-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
