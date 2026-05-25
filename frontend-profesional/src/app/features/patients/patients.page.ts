@@ -38,6 +38,7 @@ type PatientFormMode = 'create' | 'edit';
           type="search"
           class="search-input"
           placeholder="Buscar por nombre, apellido o email"
+          aria-label="Buscar por nombre, apellido o email"
           (keyup.enter)="applySearch(searchInput.value)"
         />
         <button type="button" class="toolbar-button" (click)="applySearch(searchInput.value)" [disabled]="loading">

@@ -37,9 +37,10 @@ type AppointmentStatus = Appointment['status'];
           min="1"
           class="search-input"
           placeholder="Filtrar por patient_id"
+          aria-label="Filtrar por ID de paciente"
           (keyup.enter)="applyFilters(patientInput.value, statusInput.value)"
         />
-        <select #statusInput class="search-input" (change)="applyFilters(patientInput.value, statusInput.value)">
+        <select #statusInput class="search-input" aria-label="Filtrar por estado" (change)="applyFilters(patientInput.value, statusInput.value)">
           <option value="">Todos los estados</option>
           <option value="scheduled">scheduled</option>
           <option value="confirmed">confirmed</option>
