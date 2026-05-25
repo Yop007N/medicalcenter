@@ -1,0 +1,3 @@
+## 2026-05-25 - Added ARIA Labels to Filter Form Controls
+**Learning:** In the `frontend-profesional` app, toolbar search inputs and select fields were relying solely on `placeholder` texts or adjacent context for identification. Screen readers often don't reliably announce `placeholder` attributes as labels, especially when they disappear on input.
+**Action:** When adding new form controls to toolbars in this repository, always ensure that an explicit `aria-label` or `<label>` element is associated with the input to guarantee accessibility for screen reader users.

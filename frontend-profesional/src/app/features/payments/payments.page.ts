@@ -36,6 +36,7 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
           min="1"
           class="search-input"
           placeholder="Filtrar por patient_id"
+          aria-label="Filtrar por ID de paciente"
           (keyup.enter)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
         />
         <input

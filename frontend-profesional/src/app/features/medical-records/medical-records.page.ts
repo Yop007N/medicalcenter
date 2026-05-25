@@ -37,6 +37,7 @@ type FormMode = 'create' | 'edit';
           min="1"
           class="search-input"
           placeholder="Filtrar por patient_id"
+          aria-label="Filtrar por ID de paciente"
           (keyup.enter)="applyPatientFilter(patientInput.value)"
         />
         <button type="button" class="toolbar-button" (click)="applyPatientFilter(patientInput.value)" [disabled]="loading">

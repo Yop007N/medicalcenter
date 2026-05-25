@@ -36,6 +36,7 @@ type ProfessionalFormMode = 'create' | 'edit';
           type="search"
           class="search-input"
           placeholder="Filtrar por especialidad"
+          aria-label="Filtrar por especialidad"
           (keyup.enter)="applySpecialty(specialtyInput.value)"
         />
         <button type="button" class="toolbar-button" (click)="applySpecialty(specialtyInput.value)" [disabled]="loading">
