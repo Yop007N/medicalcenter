@@ -36,6 +36,7 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
           min="1"
           class="search-input"
           placeholder="Filtrar por patient_id"
+          aria-label="Filtrar por ID de paciente"
           (keyup.enter)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
         />
         <input
@@ -44,11 +45,13 @@ type PaymentMethod = 'cash' | 'card' | 'transfer' | 'insurance' | 'check' | 'oth
           min="1"
           class="search-input"
           placeholder="Filtrar por budget_id"
+          aria-label="Filtrar por ID de presupuesto"
           (keyup.enter)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
         />
         <select
           #statusInput
           class="search-input"
+          aria-label="Filtrar por estado del pago"
           (change)="applyFilters(patientInput.value, budgetInput.value, statusInput.value)"
         >
           <option value="">Todos los estados</option>

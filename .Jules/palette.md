@@ -1,0 +1,3 @@
+## 2024-05-18 - Standardize Focus Styles and Explicit Aria-Labels
+**Learning:** Found that custom buttons, inputs, and elements designed to be interactive across the design system lack clear `:focus-visible` styles which hurts keyboard accessibility. Also, search/filter inputs without an explicit label should have an `aria-label` attribute because placeholders are not reliably announced as labels by all screen readers.
+**Action:** Always add explicit `aria-label` to inputs acting as standalone search/filters. Include explicit `:focus-visible` states to buttons and inputs inside any component style isolation.
