@@ -40,12 +40,13 @@ type ApiErrorShape = {
           min="1"
           class="search-input"
           placeholder="Filtrar por patient_id"
+          aria-label="Filtrar por ID de paciente"
           (keyup.enter)="applyPatientFilter(patientInput.value)"
         />
         <button type="button" class="toolbar-button" (click)="applyPatientFilter(patientInput.value)">
           Filtrar
         </button>
-        <select class="status-select" (change)="setTreatmentStatusFilter($any($event.target).value)">
+        <select class="status-select" aria-label="Filtrar por estado del tratamiento" (change)="setTreatmentStatusFilter($any($event.target).value)">
           <option value="">Todos los estados</option>
           @for (status of treatmentStatusOptions; track status) {
             <option [value]="status">{{ status }}</option>

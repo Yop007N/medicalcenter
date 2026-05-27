@@ -107,6 +107,11 @@ export interface UiDialogData {
         box-shadow: 0 0 0 2px rgba(62, 110, 143, 0.14);
       }
 
+      .dialog__input:focus-visible {
+        outline: 2px solid #3e6e8f;
+        outline-offset: 2px;
+      }
+
       .dialog__error {
         color: #b64545;
         font-size: 0.78rem;
@@ -129,6 +134,11 @@ export interface UiDialogData {
         font-size: 0.82rem;
         font-weight: 600;
         padding: 0.45rem 0.9rem;
+      }
+
+      .dialog__button:focus-visible {
+        outline: 2px solid #3e6e8f;
+        outline-offset: 2px;
       }
 
       .dialog__button:disabled {

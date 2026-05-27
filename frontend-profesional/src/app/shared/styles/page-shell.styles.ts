@@ -43,4 +43,13 @@ export const pageShellStyles = `
     font-size: 0.82rem;
     margin: 0;
   }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--ms-primary);
+    outline-offset: 2px;
+  }
 `;
