@@ -101,7 +101,7 @@ interface PatientFilesGroup {
               <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
             </ion-button>
           } @else {
-            <ion-menu-button></ion-menu-button>
+            <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
           }
         </ion-buttons>
         <ion-title>Archivos</ion-title>

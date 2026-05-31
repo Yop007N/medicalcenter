@@ -71,7 +71,7 @@ import { Budget, BudgetStatus } from '../../../models/budget.model';
     <ion-header class="ion-no-border">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menu principal"></ion-menu-button>
         </ion-buttons>
         <ion-title>Presupuestos</ion-title>
         <ion-buttons slot="end">
