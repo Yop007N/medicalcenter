@@ -1,0 +1,1 @@
+## 2024-05-18 - Loading spinners for async buttons\n**Learning:** Users lack feedback when an action is triggered if it involves async operations. Providing an `<ion-spinner>` is a great way to communicate activity in Ionic applications.\n**Action:** Use `<ion-spinner>` with `class="ion-margin-end"` inside async buttons as a reusable UX pattern.
