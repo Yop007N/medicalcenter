@@ -63,7 +63,7 @@ type SectionResult<T> = {
         <p class="panel-text">Cambios pendientes de sync: <strong>{{ pendingChangesCount }}</strong></p>
         @if (isOnline && pendingChangesCount > 0) {
           <ion-button size="small" fill="outline" (click)="syncNow()" [disabled]="syncing">
-            @if (syncing) { Sincronizando... } @else { Sincronizar ahora }
+            @if (syncing) { <ion-spinner name="crescent" class="ion-margin-end"></ion-spinner> Sincronizando... } @else { Sincronizar ahora }
           </ion-button>
         }
       </section>
