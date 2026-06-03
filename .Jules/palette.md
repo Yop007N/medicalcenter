@@ -1,0 +1,3 @@
+## 2026-06-03 - Custom Interactive Elements Accessibility
+**Learning:** When building custom interactive components like slot pickers using standard HTML elements (e.g. `<button>`), explicit ARIA attributes (like `aria-pressed` and `aria-label`) and focus states (like `:focus-visible`) are necessary for screen readers and keyboard users. Ionic's native components handle this out of the box, but custom implementations do not.
+**Action:** Always ensure any interactive non-Ionic HTML element acting as a UI control has explicit ARIA state mapping and visible focus styles to maintain accessibility.

@@ -125,6 +125,8 @@ type ApiErrorShape = {
                       type="button"
                       class="slot-chip"
                       [class.selected]="isSelectedSlot(professional.id, slot)"
+                      [attr.aria-pressed]="isSelectedSlot(professional.id, slot)"
+                      [attr.aria-label]="'Seleccionar horario ' + (slot | date:'dd/MM HH:mm')"
                       (click)="selectSlot(professional, slot)"
                     >
                       {{ slot | date:'dd/MM HH:mm' }}
@@ -160,7 +162,12 @@ type ApiErrorShape = {
 
         <div class="item-actions">
           <ion-button size="small" (click)="createAppointment()" [disabled]="!canCreateAppointment() || booking">
-            @if (booking) { Solicitando... } @else { Solicitar turno }
+            @if (booking) {
+              <ion-spinner name="crescent" class="ion-margin-end" style="width: 16px; height: 16px;"></ion-spinner>
+              Solicitando...
+            } @else {
+              Solicitar turno
+            }
           </ion-button>
         </div>
       </section>
@@ -217,7 +224,12 @@ type ApiErrorShape = {
                       (click)="cancelAppointment(appointment)"
                       [disabled]="cancellingIds.has(appointment.id)"
                     >
-                      @if (cancellingIds.has(appointment.id)) { Cancelando... } @else { Cancelar }
+                      @if (cancellingIds.has(appointment.id)) {
+                        <ion-spinner name="crescent" class="ion-margin-end" style="width: 16px; height: 16px;"></ion-spinner>
+                        Cancelando...
+                      } @else {
+                        Cancelar
+                      }
                     </ion-button>
                   }
                 </div>
