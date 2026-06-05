@@ -69,7 +69,7 @@ import { MedicalRecord } from '../../../models/medical-record.model';
         </ion-buttons>
         <ion-title>Historiales Médicos</ion-title>
         <ion-buttons slot="end">
-          <ion-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams">
+          <ion-button routerLink="/medical-records/new" [queryParams]="scopeQueryParams" aria-label="Crear nuevo historial médico">
             <ion-icon slot="icon-only" name="add-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
