@@ -25,7 +25,7 @@ type ApiErrorShape = {
     <ion-header translucent="true">
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menú principal"></ion-menu-button>
         </ion-buttons>
         <ion-title>Mis turnos</ion-title>
       </ion-toolbar>
