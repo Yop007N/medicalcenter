@@ -21,7 +21,7 @@ import { AuthService } from './core/services/auth.service';
     <ion-app>
       @if (isAuthenticated$ | async) {
         <ion-split-pane contentId="main-content" when="lg">
-          <ion-menu contentId="main-content" type="overlay" class="patient-menu">
+          <ion-menu contentId="main-content" type="overlay" class="patient-menu" aria-label="Menú principal de paciente">
             <ion-content class="menu-content">
               <section class="menu-brand">
                 <div class="menu-brand__icon">
@@ -63,8 +63,8 @@ import { AuthService } from './core/services/auth.service';
               </ion-list>
 
               <section class="menu-footer">
-                <ion-button expand="block" fill="solid" color="primary" (click)="logout()">
-                  <ion-icon name="log-out-outline" slot="start"></ion-icon>
+                <ion-button expand="block" fill="solid" color="primary" (click)="logout()" aria-label="Cerrar sesion del portal">
+                  <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
                   Cerrar sesion
                 </ion-button>
               </section>
