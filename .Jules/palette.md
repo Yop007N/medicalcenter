@@ -1,0 +1,3 @@
+## 2024-06-09 - Missing ARIA labels on responsive icon-only buttons
+**Learning:** The application extensively uses a responsive design pattern where action buttons (like Edit/Delete) show text on desktop but switch to icon-only versions on mobile viewports using CSS classes like `.hide-desktop`. These icon-only mobile buttons consistently lack `aria-label` attributes, making critical actions inaccessible to mobile screen reader users.
+**Action:** When implementing or reviewing responsive buttons that visually hide text on certain breakpoints, always ensure the button includes a descriptive `aria-label` to maintain accessibility across all device sizes.
