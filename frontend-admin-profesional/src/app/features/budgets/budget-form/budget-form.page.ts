@@ -245,7 +245,7 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
                       <div class="item-row" [formGroupName]="i">
                         <div class="item-header">
                           <span class="item-number">Ítem {{ i + 1 }}</span>
-                          <ion-button fill="clear" color="danger" size="small" (click)="removeItem(i)">
+                          <ion-button fill="clear" color="danger" size="small" (click)="removeItem(i)" aria-label="Eliminar ítem">
                             <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                           </ion-button>
                         </div>
