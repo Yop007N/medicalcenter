@@ -1,0 +1,3 @@
+## 2024-06-11 - Form Accessibility with ARIA attributes
+**Learning:** Using `aria-invalid` and `aria-describedby` directly on `<input>` elements properly ties them to their validation states and inline error messages, making them dramatically more screen-reader-friendly. We should consistently use `[attr.aria-invalid]` mapped to a control's `.invalid` property, and `[attr.aria-describedby]` matching an error message's ID. In addition, using `[attr.aria-busy]` on submit buttons gives immediate feedback when async operations like form submissions are taking place.
+**Action:** Apply this combination of `aria-invalid`, `aria-describedby` alongside specific IDs for error elements, and `aria-busy` for submit buttons as a standard pattern across all forms in the application.
