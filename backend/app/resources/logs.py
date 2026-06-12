@@ -4,6 +4,7 @@
 import os
 
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required
 
 from app.extensions import limiter
 from app.resources.domain_errors import domain_error_response, message_response
@@ -25,6 +26,7 @@ def _logs_service() -> LogsService:
 
 
 @blueprint.route('/frontend', methods=['POST'])
+@jwt_required()
 @limiter.exempt
 def receive_frontend_logs():
     """
@@ -73,6 +75,7 @@ def receive_frontend_logs():
 
 
 @blueprint.route('/frontend', methods=['GET'])
+@jwt_required()
 @limiter.exempt
 def get_frontend_logs():
     """
@@ -101,6 +104,7 @@ def get_frontend_logs():
 
 
 @blueprint.route('/frontend', methods=['DELETE'])
+@jwt_required()
 @limiter.exempt
 def clear_frontend_logs():
     """
