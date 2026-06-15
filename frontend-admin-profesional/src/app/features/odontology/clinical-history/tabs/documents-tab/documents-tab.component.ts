@@ -84,10 +84,10 @@ import { ClinicalHistoryService } from '../../../../../core/services/clinical-hi
                   }
                 </div>
                 <div class="document-actions">
-                  <ion-button fill="clear" size="small" (click)="download(doc)">
+                  <ion-button fill="clear" size="small" (click)="download(doc)" aria-label="Descargar documento">
                     <ion-icon slot="icon-only" name="download-outline"></ion-icon>
                   </ion-button>
-                  <ion-button fill="clear" size="small" color="danger" (click)="delete(doc)">
+                  <ion-button fill="clear" size="small" color="danger" (click)="delete(doc)" aria-label="Eliminar documento">
                     <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                   </ion-button>
                 </div>
