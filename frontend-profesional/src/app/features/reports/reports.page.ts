@@ -38,7 +38,7 @@ type ApiErrorShape = {
           Hasta
           <input type="date" [(ngModel)]="endDate" />
         </label>
-        <button type="button" class="toolbar-button" (click)="loadData()" [disabled]="loading">
+        <button type="button" class="toolbar-button" (click)="loadData()" [disabled]="loading" [attr.aria-busy]="loading ? true : null">
           @if (loading) { Cargando... } @else { Aplicar filtros }
         </button>
       </div>
@@ -49,6 +49,7 @@ type ApiErrorShape = {
           class="export-button"
           (click)="exportReport('appointments')"
           [disabled]="exportingType !== null"
+          [attr.aria-busy]="exportingType === 'appointments' ? true : null"
         >
           @if (exportingType === 'appointments') { Exportando... } @else { Exportar citas CSV }
         </button>
@@ -57,6 +58,7 @@ type ApiErrorShape = {
           class="export-button"
           (click)="exportReport('financial')"
           [disabled]="exportingType !== null"
+          [attr.aria-busy]="exportingType === 'financial' ? true : null"
         >
           @if (exportingType === 'financial') { Exportando... } @else { Exportar finanzas CSV }
         </button>
@@ -65,6 +67,7 @@ type ApiErrorShape = {
           class="export-button"
           (click)="exportReport('medical')"
           [disabled]="exportingType !== null"
+          [attr.aria-busy]="exportingType === 'medical' ? true : null"
         >
           @if (exportingType === 'medical') { Exportando... } @else { Exportar medico CSV }
         </button>
