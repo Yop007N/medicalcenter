@@ -94,7 +94,7 @@ type ApiErrorShape = {
           [disabled]="profileForm.invalid || saving"
         >
           @if (saving) {
-            Guardando...
+            <ion-spinner name="crescent" slot="start" style="margin-right: 8px; width: 1.2rem; height: 1.2rem;"></ion-spinner> Guardando...
           } @else {
             Guardar cambios
           }

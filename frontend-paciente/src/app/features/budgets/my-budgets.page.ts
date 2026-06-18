@@ -108,7 +108,7 @@ type ApiErrorShape = {
               [disabled]="acceptingIds.has(budget.id)"
             >
               @if (acceptingIds.has(budget.id)) {
-                Aceptando...
+                <ion-spinner name="crescent" slot="start" style="margin-right: 8px; width: 1.2rem; height: 1.2rem;"></ion-spinner> Aceptando...
               } @else {
                 Aceptar presupuesto
               }
