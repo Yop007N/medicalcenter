@@ -49,6 +49,7 @@ import {
   selectComplianceReport
 } from '../../../store/audit/audit.selectors';
 import { AuditFilter } from '../../../models/report.model';
+import { AuditLog } from '../../../models/report.model';
 
 @Component({
   selector: 'app-audit-logs',
@@ -227,7 +228,7 @@ import { AuditFilter } from '../../../models/report.model';
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item *ngFor="let log of logs$ | async">
+            <ion-item *ngFor="let log of logs$ | async; trackBy: trackByLogId">
               <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
               <ion-label>
                 <h2>
@@ -341,6 +342,10 @@ export class AuditLogsPage implements OnInit {
   onRefresh(event: any) {
     this.loadLogs();
     setTimeout(() => event.target.complete(), 1000);
+  }
+
+  trackByLogId(index: number, log: AuditLog): number {
+    return log.id;
   }
 
   getActionIcon(action: string): string {

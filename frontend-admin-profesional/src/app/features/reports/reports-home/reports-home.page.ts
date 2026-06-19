@@ -176,7 +176,7 @@ import {
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
+              <ion-item *ngFor="let prof of report.by_professional; trackBy: trackByProfId">
                 <ion-label>{{ prof.name }}</ion-label>
                 <ion-note slot="end">{{ prof.records_count }} registros</ion-note>
               </ion-item>
@@ -184,7 +184,7 @@ import {
 
             <h3>Por Especialidad</h3>
             <ion-list>
-              <ion-item *ngFor="let spec of report.by_specialty">
+              <ion-item *ngFor="let spec of report.by_specialty; trackBy: trackBySpecialty">
                 <ion-label>{{ spec.specialty }}</ion-label>
                 <ion-note slot="end">{{ spec.count }}</ion-note>
               </ion-item>
@@ -226,7 +226,7 @@ import {
 
             <h3>Por Método de Pago</h3>
             <ion-list>
-              <ion-item *ngFor="let method of report.by_payment_method">
+              <ion-item *ngFor="let method of report.by_payment_method; trackBy: trackByMethod">
                 <ion-label>
                   <h2>{{ method.method | titlecase }}</h2>
                   <p>{{ method.count }} transacciones</p>
@@ -263,7 +263,7 @@ import {
 
             <h3>Por Estado</h3>
             <ion-list>
-              <ion-item *ngFor="let status of report.by_status">
+              <ion-item *ngFor="let status of report.by_status; trackBy: trackByStatus">
                 <ion-label>{{ status.status | titlecase }}</ion-label>
                 <ion-note slot="end">{{ status.count }}</ion-note>
               </ion-item>
@@ -271,7 +271,7 @@ import {
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
+              <ion-item *ngFor="let prof of report.by_professional; trackBy: trackByProfId">
                 <ion-label>{{ prof.name }}</ion-label>
                 <ion-note slot="end">{{ prof.appointments_count }} citas</ion-note>
               </ion-item>
@@ -354,6 +354,22 @@ export class ReportsHomePage implements OnInit {
       format: 'pdf',
       filter
     }));
+  }
+
+  trackByProfId(index: number, prof: { professional_id: number; name: string }): number {
+    return prof.professional_id;
+  }
+
+  trackBySpecialty(index: number, spec: { specialty: string; count: number }): string {
+    return spec.specialty;
+  }
+
+  trackByMethod(index: number, method: { method: string; amount: number; count: number }): string {
+    return method.method;
+  }
+
+  trackByStatus(index: number, status: { status: string; count: number }): string {
+    return status.status;
   }
 
   onRefresh(event: any) {
