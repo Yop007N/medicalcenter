@@ -62,7 +62,7 @@ type ApiErrorShape = {
             <small class="field-error">La password es obligatoria.</small>
           }
 
-          <button class="submit-button" type="submit" [disabled]="loginForm.invalid || isSubmitting">
+          <button class="submit-button" type="submit" [disabled]="loginForm.invalid || isSubmitting" [attr.aria-busy]="isSubmitting" aria-live="polite">
             @if (isSubmitting) {
               Iniciando sesion...
             } @else {
