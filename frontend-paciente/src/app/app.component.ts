@@ -25,7 +25,7 @@ import { AuthService } from './core/services/auth.service';
             <ion-content class="menu-content">
               <section class="menu-brand">
                 <div class="menu-brand__icon">
-                  <ion-icon name="medkit-outline"></ion-icon>
+                  <ion-icon name="medkit-outline" aria-hidden="true"></ion-icon>
                 </div>
                 <div class="menu-brand__text">
                   <strong>Medical Services</strong>
@@ -53,10 +53,10 @@ import { AuthService } from './core/services/auth.service';
                       button
                     >
                       <div class="menu-item__icon" slot="start">
-                        <ion-icon [name]="item.icon"></ion-icon>
+                        <ion-icon [name]="item.icon" aria-hidden="true"></ion-icon>
                       </div>
                       <ion-label>{{ item.title }}</ion-label>
-                      <ion-icon name="chevron-forward-outline" class="menu-item__chevron" slot="end"></ion-icon>
+                      <ion-icon name="chevron-forward-outline" class="menu-item__chevron" slot="end" aria-hidden="true"></ion-icon>
                     </ion-item>
                   </ion-menu-toggle>
                 }
@@ -64,7 +64,7 @@ import { AuthService } from './core/services/auth.service';
 
               <section class="menu-footer">
                 <ion-button expand="block" fill="solid" color="primary" (click)="logout()">
-                  <ion-icon name="log-out-outline" slot="start"></ion-icon>
+                  <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
                   Cerrar sesion
                 </ion-button>
               </section>

@@ -1,0 +1,3 @@
+## 2024-05-24 - Accessibility improvements for Ionic components
+**Learning:** Purely visual `<ion-icon>` elements without `aria-hidden="true"` can be redundantly announced by screen readers. Icon-only buttons like `<ion-menu-button>` require explicit `aria-label` attributes to be accessible. Loading states using standard Ionic `<ion-spinner>` components provide better visual feedback than text changes like "Iniciando...".
+**Action:** Always ensure decorative icons have `aria-hidden="true"` and icon-only buttons have descriptive `aria-label`s. Use standard spinner components for async operations instead of changing text content.
