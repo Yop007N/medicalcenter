@@ -29,7 +29,7 @@ import { OfflineService } from '../../core/services/offline.service';
     <ion-header translucent="true">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menu"></ion-menu-button>
         </ion-buttons>
         <ion-title>Mi panel</ion-title>
       </ion-toolbar>
@@ -84,7 +84,7 @@ import { OfflineService } from '../../core/services/offline.service';
 
         <div class="item-actions">
           <ion-button size="small" fill="outline" (click)="triggerSync()" [disabled]="!isOnline">
-            <ion-icon slot="start" name="sync-outline"></ion-icon>
+            <ion-icon slot="start" name="sync-outline" aria-hidden="true"></ion-icon>
             Sincronizar ahora
           </ion-button>
         </div>
@@ -99,15 +99,15 @@ import { OfflineService } from '../../core/services/offline.service';
         @if (nextAppointment) {
           <div class="next-appointment">
             <div class="next-appointment__line">
-              <ion-icon name="calendar-outline"></ion-icon>
+              <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
               <span>{{ nextAppointment.appointment_date | date:'fullDate' }}</span>
             </div>
             <div class="next-appointment__line">
-              <ion-icon name="pulse-outline"></ion-icon>
+              <ion-icon name="pulse-outline" aria-hidden="true"></ion-icon>
               <span>{{ nextAppointment.appointment_type || 'Consulta general' }}</span>
             </div>
             <div class="next-appointment__line">
-              <ion-icon name="document-text-outline"></ion-icon>
+              <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
               <span>
                 Profesional: {{ nextAppointment.professional?.first_name }} {{ nextAppointment.professional?.last_name }}
               </span>
@@ -125,23 +125,23 @@ import { OfflineService } from '../../core/services/offline.service';
         <h3 class="panel-title">Accesos rapidos</h3>
         <div class="quick-actions">
           <a class="quick-action" routerLink="/my-appointments">
-            <ion-icon name="calendar-outline"></ion-icon>
+            <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
             <span>Mis turnos</span>
           </a>
           <a class="quick-action" routerLink="/my-care-plan">
-            <ion-icon name="medical-outline"></ion-icon>
+            <ion-icon name="medical-outline" aria-hidden="true"></ion-icon>
             <span>Plan de cuidado</span>
           </a>
           <a class="quick-action" routerLink="/my-budgets">
-            <ion-icon name="wallet-outline"></ion-icon>
+            <ion-icon name="wallet-outline" aria-hidden="true"></ion-icon>
             <span>Presupuestos</span>
           </a>
           <a class="quick-action" routerLink="/my-history">
-            <ion-icon name="document-text-outline"></ion-icon>
+            <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
             <span>Historia clinica</span>
           </a>
           <a class="quick-action" routerLink="/my-profile">
-            <ion-icon name="pulse-outline"></ion-icon>
+            <ion-icon name="pulse-outline" aria-hidden="true"></ion-icon>
             <span>Mi perfil</span>
           </a>
         </div>

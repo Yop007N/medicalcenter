@@ -41,7 +41,7 @@ type SectionResult<T> = {
     <ion-header translucent="true">
       <ion-toolbar color="primary">
         <ion-buttons slot="start">
-          <ion-menu-button></ion-menu-button>
+          <ion-menu-button aria-label="Abrir menu"></ion-menu-button>
         </ion-buttons>
         <ion-title>Mi historia clinica</ion-title>
       </ion-toolbar>
@@ -63,7 +63,7 @@ type SectionResult<T> = {
         <p class="panel-text">Cambios pendientes de sync: <strong>{{ pendingChangesCount }}</strong></p>
         @if (isOnline && pendingChangesCount > 0) {
           <ion-button size="small" fill="outline" (click)="syncNow()" [disabled]="syncing">
-            @if (syncing) { Sincronizando... } @else { Sincronizar ahora }
+            @if (syncing) { <ion-spinner name="crescent"></ion-spinner> } @else { Sincronizar ahora }
           </ion-button>
         }
       </section>
