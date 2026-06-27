@@ -125,6 +125,7 @@ type ApiErrorShape = {
                       type="button"
                       class="slot-chip"
                       [class.selected]="isSelectedSlot(professional.id, slot)"
+                      [attr.aria-pressed]="isSelectedSlot(professional.id, slot)"
                       (click)="selectSlot(professional, slot)"
                     >
                       {{ slot | date:'dd/MM HH:mm' }}
@@ -341,6 +342,8 @@ type ApiErrorShape = {
         color: var(--ion-color-dark);
         font-size: 0.73rem;
         padding: 4px 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
       .slot-chip.selected {
@@ -348,6 +351,15 @@ type ApiErrorShape = {
         border-color: rgba(var(--ion-color-primary-rgb), 0.45);
         color: var(--ion-color-primary-shade);
         font-weight: 700;
+      }
+
+      .slot-chip:active {
+        transform: scale(0.96);
+      }
+
+      .slot-chip:focus-visible {
+        outline: 2px solid var(--ion-color-primary);
+        outline-offset: 2px;
       }
 
       .selected-professional {
