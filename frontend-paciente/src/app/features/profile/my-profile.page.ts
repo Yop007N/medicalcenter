@@ -94,7 +94,7 @@ type ApiErrorShape = {
           [disabled]="profileForm.invalid || saving"
         >
           @if (saving) {
-            Guardando...
+            <ion-spinner name="crescent" class="spinner-margin"></ion-spinner> Guardando...
           } @else {
             Guardar cambios
           }
@@ -103,6 +103,15 @@ type ApiErrorShape = {
     </ion-content>
   `,
   styleUrls: ['../../shared/styles/page-shell.styles.scss'],
+  styles: [
+    `
+      .spinner-margin {
+        margin-right: 8px;
+        width: 20px;
+        height: 20px;
+      }
+    `
+  ]
 })
 export class MyProfilePage implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);

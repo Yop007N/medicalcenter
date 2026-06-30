@@ -1,0 +1,1 @@
+## 2024-05-18 - [Added Spinners to Submit Buttons]\n**Learning:** Added `<ion-spinner>` to form submit buttons during async actions to improve user feedback. Found missing spinners on login and profile pages.\n**Action:** Verify the presence of loading state visual cues (like spinners) on all new async submission buttons in this Ionic app.
