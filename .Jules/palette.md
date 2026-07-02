@@ -1,0 +1,3 @@
+## 2024-03-24 - Ionic Mobile Icon Buttons Missing ARIA Labels
+**Learning:** Ionic apps often use `hide-desktop` and `hide-mobile` utility classes to switch between icon-only buttons on mobile and icon+text buttons on desktop. When using `slot="icon-only"` for mobile views, the `aria-label` is frequently missed, leaving the button inaccessible to screen readers on mobile devices despite the desktop view being perfectly accessible.
+**Action:** When auditing or implementing responsive toolbars in Ionic, always ensure that the mobile icon-only variant (`<ion-button>` with `hide-desktop` class and `slot="icon-only"`) includes an `aria-label` attribute matching the visible text from its desktop counterpart.
