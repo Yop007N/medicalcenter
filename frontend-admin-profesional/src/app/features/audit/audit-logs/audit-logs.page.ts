@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
@@ -53,6 +53,7 @@ import { AuditFilter } from '../../../models/report.model';
 @Component({
   selector: 'app-audit-logs',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -227,29 +228,33 @@ import { AuditFilter } from '../../../models/report.model';
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item *ngFor="let log of logs$ | async">
-              <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
-              <ion-label>
-                <h2>
-                  <ion-chip [color]="getActionColor(log.action)" size="small">
-                    {{ log.action | uppercase }}
-                  </ion-chip>
-                  {{ log.entity_type | titlecase }}
-                  <span *ngIf="log.entity_id">#{{ log.entity_id }}</span>
-                </h2>
-                <p *ngIf="log.user">
-                  <ion-icon name="person-outline"></ion-icon>
-                  {{ log.user.first_name }} {{ log.user.last_name }} ({{ log.user.email }})
-                </p>
-                <p>
-                  <ion-icon name="time-outline"></ion-icon>
-                  {{ log.created_at | date:'medium' }}
-                </p>
-                <p *ngIf="log.ip_address">
-                  IP: {{ log.ip_address }}
-                </p>
-              </ion-label>
-            </ion-item>
+            @if (logs$ | async; as logs) {
+              @for (log of logs; track log.id) {
+                <ion-item>
+                  <ion-icon slot="start" [name]="getActionIcon(log.action)" [color]="getActionColor(log.action)"></ion-icon>
+                  <ion-label>
+                    <h2>
+                      <ion-chip [color]="getActionColor(log.action)" size="small">
+                        {{ log.action | uppercase }}
+                      </ion-chip>
+                      {{ log.entity_type | titlecase }}
+                      <span *ngIf="log.entity_id">#{{ log.entity_id }}</span>
+                    </h2>
+                    <p *ngIf="log.user">
+                      <ion-icon name="person-outline"></ion-icon>
+                      {{ log.user.first_name }} {{ log.user.last_name }} ({{ log.user.email }})
+                    </p>
+                    <p>
+                      <ion-icon name="time-outline"></ion-icon>
+                      {{ log.created_at | date:'medium' }}
+                    </p>
+                    <p *ngIf="log.ip_address">
+                      IP: {{ log.ip_address }}
+                    </p>
+                  </ion-label>
+                </ion-item>
+              }
+            }
           </ion-list>
 
           <ion-infinite-scroll (ionInfinite)="loadMore($event)">
