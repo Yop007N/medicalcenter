@@ -176,18 +176,22 @@ import {
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
-                <ion-label>{{ prof.name }}</ion-label>
-                <ion-note slot="end">{{ prof.records_count }} registros</ion-note>
-              </ion-item>
+              @for (prof of report.by_professional; track prof.name) {
+                <ion-item>
+                  <ion-label>{{ prof.name }}</ion-label>
+                  <ion-note slot="end">{{ prof.records_count }} registros</ion-note>
+                </ion-item>
+              }
             </ion-list>
 
             <h3>Por Especialidad</h3>
             <ion-list>
-              <ion-item *ngFor="let spec of report.by_specialty">
-                <ion-label>{{ spec.specialty }}</ion-label>
-                <ion-note slot="end">{{ spec.count }}</ion-note>
-              </ion-item>
+              @for (spec of report.by_specialty; track spec.specialty) {
+                <ion-item>
+                  <ion-label>{{ spec.specialty }}</ion-label>
+                  <ion-note slot="end">{{ spec.count }}</ion-note>
+                </ion-item>
+              }
             </ion-list>
           </ion-card-content>
         </ion-card>
@@ -226,13 +230,15 @@ import {
 
             <h3>Por Método de Pago</h3>
             <ion-list>
-              <ion-item *ngFor="let method of report.by_payment_method">
-                <ion-label>
-                  <h2>{{ method.method | titlecase }}</h2>
-                  <p>{{ method.count }} transacciones</p>
-                </ion-label>
-                <ion-note slot="end">{{ method.amount | currency:report.currency }}</ion-note>
-              </ion-item>
+              @for (method of report.by_payment_method; track method.method) {
+                <ion-item>
+                  <ion-label>
+                    <h2>{{ method.method | titlecase }}</h2>
+                    <p>{{ method.count }} transacciones</p>
+                  </ion-label>
+                  <ion-note slot="end">{{ method.amount | currency:report.currency }}</ion-note>
+                </ion-item>
+              }
             </ion-list>
           </ion-card-content>
         </ion-card>
@@ -263,18 +269,22 @@ import {
 
             <h3>Por Estado</h3>
             <ion-list>
-              <ion-item *ngFor="let status of report.by_status">
-                <ion-label>{{ status.status | titlecase }}</ion-label>
-                <ion-note slot="end">{{ status.count }}</ion-note>
-              </ion-item>
+              @for (status of report.by_status; track status.status) {
+                <ion-item>
+                  <ion-label>{{ status.status | titlecase }}</ion-label>
+                  <ion-note slot="end">{{ status.count }}</ion-note>
+                </ion-item>
+              }
             </ion-list>
 
             <h3>Por Profesional</h3>
             <ion-list>
-              <ion-item *ngFor="let prof of report.by_professional">
-                <ion-label>{{ prof.name }}</ion-label>
-                <ion-note slot="end">{{ prof.appointments_count }} citas</ion-note>
-              </ion-item>
+              @for (prof of report.by_professional; track prof.name) {
+                <ion-item>
+                  <ion-label>{{ prof.name }}</ion-label>
+                  <ion-note slot="end">{{ prof.appointments_count }} citas</ion-note>
+                </ion-item>
+              }
             </ion-list>
           </ion-card-content>
         </ion-card>

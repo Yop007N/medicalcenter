@@ -138,12 +138,11 @@ type SelectOverlayInterface = 'action-sheet' | 'alert' | 'modal' | 'popover';
                           cancelText="Cancelar"
                           [disabled]="filteredPatients.length === 0"
                         >
-                          <ion-select-option
-                            *ngFor="let patient of filteredPatients; trackBy: trackByPatientId"
-                            [value]="patient.id"
-                          >
-                            {{ getPatientDisplayName(patient) }}
-                          </ion-select-option>
+                          @for (patient of filteredPatients; track trackByPatientId($index, patient)) {
+                            <ion-select-option [value]="patient.id">
+                              {{ getPatientDisplayName(patient) }}
+                            </ion-select-option>
+                          }
                         </ion-select>
                       </ion-item>
                       @if (patientsLoadError) {
