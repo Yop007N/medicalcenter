@@ -9,6 +9,7 @@ import { AppointmentService } from '../../core/services/appointment.service';
 import { Appointment } from '../../shared/models/appointment.model';
 import { buildClinicalScopeQueryParams, ClinicalWorkspaceRoute } from '../../shared/utils/clinical-scope';
 import { pageShellStyles } from '../../shared/styles/page-shell.styles';
+import { UiDialogService } from '../../shared/services/ui-dialog.service';
 
 type ApiErrorShape = {
   error?: {
@@ -207,7 +208,7 @@ type AppointmentStatus = Appointment['status'];
                       @if (canCancel(appointment)) {
                         <button
                           type="button"
-                          class="table-action secondary"
+                          class="table-action danger"
                           (click)="cancelAppointment(appointment.id)"
                           [disabled]="cancelingIds.has(appointment.id)"
                         >
@@ -505,6 +506,7 @@ export class AppointmentsPage implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly dialog = inject(UiDialogService);
 
   appointments: Appointment[] = [];
   loading = false;
@@ -690,7 +692,18 @@ export class AppointmentsPage implements OnInit {
     return appointment.status === 'scheduled' || appointment.status === 'confirmed';
   }
 
-  confirmAppointment(appointmentId: number): void {
+  async confirmAppointment(appointmentId: number): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Confirmar cita',
+      message: `¿Seguro que deseas confirmar la cita #${appointmentId}?`,
+      confirmText: 'Confirmar cita',
+      cancelText: 'Atrás',
+      destructive: false
+    });
+    if (!confirmed) {
+      return;
+    }
+
     this.confirmingIds.add(appointmentId);
     this.errorMessage = null;
     this.successMessage = null;
@@ -710,7 +723,18 @@ export class AppointmentsPage implements OnInit {
     });
   }
 
-  cancelAppointment(appointmentId: number): void {
+  async cancelAppointment(appointmentId: number): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Cancelar cita',
+      message: `¿Seguro que deseas cancelar la cita #${appointmentId}?`,
+      confirmText: 'Cancelar cita',
+      cancelText: 'Atrás',
+      destructive: true
+    });
+    if (!confirmed) {
+      return;
+    }
+
     this.cancelingIds.add(appointmentId);
     this.errorMessage = null;
     this.successMessage = null;
