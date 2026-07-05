@@ -62,9 +62,14 @@ type ApiErrorShape = {
             <small class="field-error">La password es obligatoria.</small>
           }
 
-          <button class="submit-button" type="submit" [disabled]="loginForm.invalid || isSubmitting">
+          <button
+            class="submit-button"
+            type="submit"
+            [disabled]="loginForm.invalid || isSubmitting"
+            [attr.aria-busy]="isSubmitting"
+          >
             @if (isSubmitting) {
-              Iniciando sesion...
+              <span class="spinner" aria-hidden="true"></span> Iniciando sesion...
             } @else {
               Iniciar sesion
             }
@@ -127,6 +132,10 @@ type ApiErrorShape = {
       }
 
       .submit-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
         background: var(--ms-primary);
         border: 0;
         border-radius: 8px;
@@ -136,6 +145,20 @@ type ApiErrorShape = {
         font-weight: 600;
         margin-top: 0.4rem;
         padding: 0.7rem 0.8rem;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
 
       .submit-button:disabled {
