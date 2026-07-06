@@ -59,16 +59,16 @@ class TestFrontendLogsEndpoints:
         assert response.status_code == 500
         assert response.json['msg'] == 'Error storing logs'
 
-    def test_get_frontend_logs_no_file(self, client, tmp_path, monkeypatch):
+    def test_get_frontend_logs_no_file(self, client, admin_auth_headers, tmp_path, monkeypatch):
         log_path = tmp_path / 'doc.log'
         monkeypatch.setattr(logs_resource, 'LOG_FILE_PATH', str(log_path))
 
-        response = client.get('/api/logs/frontend')
+        response = client.get('/api/logs/frontend', headers=admin_auth_headers)
         assert response.status_code == 200
         assert response.json['logs'] == []
         assert response.json['msg'] == 'No logs yet'
 
-    def test_get_frontend_logs_internal_error_is_sanitized(self, client, tmp_path, monkeypatch):
+    def test_get_frontend_logs_internal_error_is_sanitized(self, client, admin_auth_headers, tmp_path, monkeypatch):
         log_path = tmp_path / 'doc.log'
         monkeypatch.setattr(logs_resource, 'LOG_FILE_PATH', str(log_path))
         log_path.write_text('line 1\n', encoding='utf-8')
@@ -78,21 +78,21 @@ class TestFrontendLogsEndpoints:
 
         monkeypatch.setattr(builtins, 'open', _raise_io_error)
 
-        response = client.get('/api/logs/frontend')
+        response = client.get('/api/logs/frontend', headers=admin_auth_headers)
         assert response.status_code == 500
         assert response.json['msg'] == 'Error reading logs'
 
-    def test_clear_frontend_logs_success(self, client, tmp_path, monkeypatch):
+    def test_clear_frontend_logs_success(self, client, admin_auth_headers, tmp_path, monkeypatch):
         log_path = tmp_path / 'doc.log'
         monkeypatch.setattr(logs_resource, 'LOG_FILE_PATH', str(log_path))
         log_path.write_text('line 1\n', encoding='utf-8')
 
-        response = client.delete('/api/logs/frontend')
+        response = client.delete('/api/logs/frontend', headers=admin_auth_headers)
         assert response.status_code == 200
         assert response.json['msg'] == 'Logs cleared successfully'
         assert not log_path.exists()
 
-    def test_clear_frontend_logs_internal_error_is_sanitized(self, client, tmp_path, monkeypatch):
+    def test_clear_frontend_logs_internal_error_is_sanitized(self, client, admin_auth_headers, tmp_path, monkeypatch):
         log_path = tmp_path / 'doc.log'
         monkeypatch.setattr(logs_resource, 'LOG_FILE_PATH', str(log_path))
         log_path.write_text('line 1\n', encoding='utf-8')
@@ -102,6 +102,6 @@ class TestFrontendLogsEndpoints:
 
         monkeypatch.setattr(logs_resource.os, 'remove', _raise_remove_error)
 
-        response = client.delete('/api/logs/frontend')
+        response = client.delete('/api/logs/frontend', headers=admin_auth_headers)
         assert response.status_code == 500
         assert response.json['msg'] == 'Error clearing logs'
