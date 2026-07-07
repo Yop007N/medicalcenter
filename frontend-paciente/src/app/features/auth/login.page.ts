@@ -83,7 +83,7 @@ type ApiErrorShape = {
                 [disabled]="loginForm.invalid || isSubmitting"
               >
                 @if (isSubmitting) {
-                  Iniciando...
+                  <ion-spinner name="crescent" aria-label="Iniciando sesión..."></ion-spinner>
                 } @else {
                   Iniciar sesión
                 }
