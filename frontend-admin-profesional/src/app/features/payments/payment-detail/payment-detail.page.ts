@@ -72,7 +72,7 @@ import { PaymentStatus, PaymentMethod } from '../../../models/budget.model';
           @if (payment$ | async; as payment) {
             @if (payment.payment_status === 'pending') {
               <!-- Mobile: solo iconos -->
-              <ion-button [routerLink]="['/payments', payment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop">
+              <ion-button [routerLink]="['/payments', payment.id, 'edit']" [queryParams]="scopeQueryParams" class="hide-desktop" aria-label="Editar pago">
                 <ion-icon slot="icon-only" name="create-outline"></ion-icon>
               </ion-button>
               <!-- Desktop: con texto -->
@@ -82,7 +82,7 @@ import { PaymentStatus, PaymentMethod } from '../../../models/budget.model';
               </ion-button>
             }
             <!-- Mobile: solo iconos -->
-            <ion-button color="danger" (click)="confirmDelete(payment.id)" class="hide-desktop">
+            <ion-button color="danger" (click)="confirmDelete(payment.id)" class="hide-desktop" aria-label="Eliminar pago">
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
             </ion-button>
             <!-- Desktop: con texto -->
